@@ -120,7 +120,7 @@ export async function PUT(request) {
     const hoursUntilClass = (classDate - now) / (1000 * 60 * 60);
 
     // Cancellation policy:
-    // - Within 24 hours of class: 50% refund
+    // - Within 24 hours of class: 50% refund OR 50% credit (half a class)
     // - Outside 24 hours: Option of 90% refund OR 100% credit
     
     let refundAmount = 0;
@@ -128,9 +128,33 @@ export async function PUT(request) {
     let cancellationMessage = '';
 
     if (hoursUntilClass <= 24) {
-      // Within 24 hours - 50% refund only
-      refundAmount = booking.amount * 0.5;
-      cancellationMessage = `Cancelled within 24 hours of class. 50% refund ($${refundAmount.toFixed(2)}) will be processed.`;
+      // Within 24 hours - 50% refund OR 50% credit
+      if (cancellationType === 'refund') {
+        refundAmount = booking.amount * 0.5;
+        cancellationMessage = `Cancelled within 24 hours of class. 50% refund ($${refundAmount.toFixed(2)}) will be processed.`;
+      } else if (cancellationType === 'half-credit') {
+        // 50% credit (half a class)
+        creditAmount = booking.amount * 0.5;
+        cancellationMessage = `Cancelled within 24 hours of class. $${creditAmount.toFixed(2)} credit (half class) added to your account for future bookings.`;
+        
+        // Add credit to user's balance
+        const user = await User.findOne({ email: session.user.email });
+        if (user) {
+          user.creditBalance = (user.creditBalance || 0) + creditAmount;
+          user.creditHistory = user.creditHistory || [];
+          user.creditHistory.push({
+            amount: creditAmount,
+            type: 'earned',
+            description: `Half class credit for cancelled booking: ${booking.className}`,
+          });
+          await user.save();
+        }
+      } else {
+        return NextResponse.json(
+          { error: 'Invalid cancellation type. Use "refund" or "half-credit"' },
+          { status: 400 }
+        );
+      }
     } else {
       // Outside 24 hours - user chooses
       if (cancellationType === 'refund') {
@@ -245,12 +269,17 @@ export async function GET(request) {
     };
 
     if (isWithin24Hours) {
-      // Within 24 hours - only 50% refund
+      // Within 24 hours - 50% refund OR 50% credit (half class)
       cancellationOptions.options = [
         {
           type: 'refund',
           label: '50% Refund',
           description: `Get $${(booking.amount * 0.5).toFixed(2)} back (50% of original price)`,
+        },
+        {
+          type: 'half-credit',
+          label: 'Half Class Credit',
+          description: `Get $${(booking.amount * 0.5).toFixed(2)} credit (half class) for future bookings`,
         }
       ];
     } else {
