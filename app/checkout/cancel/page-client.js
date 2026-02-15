@@ -1,20 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import FloatingParticles from '@/components/FloatingParticle';
 import { AlertCircle, ArrowLeft, Loader2 } from 'lucide-react';
 
-function CheckoutCancelContent() {
+function CheckoutCancelContent({ bookingIds, sessionId }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [isUpdating, setIsUpdating] = useState(true);
   const [updateStatus, setUpdateStatus] = useState('processing');
-
-  // Get values from searchParams using the hook
-  const bookingIds = searchParams.get('bookings');
-  const sessionId = searchParams.get('session_id');
 
   useEffect(() => {
     const updateBookings = async () => {
