@@ -4,6 +4,64 @@ import dbConnect from '@/lib/mongodb';
 import Booking from '@/lib/models/Booking';
 import User from '@/lib/models/User';
 
+// POST /api/bookings/cancel-update - Update bookings when payment is cancelled
+export async function POST(request) {
+  try {
+    const session = await auth();
+    
+    // For cancelled payments, we may not have a session, so we'll try to get user info from the booking
+    const body = await request.json();
+    const { bookingIds, sessionId } = body;
+
+    if (!bookingIds || !Array.isArray(bookingIds) || bookingIds.length === 0) {
+      return NextResponse.json(
+        { error: 'Booking IDs are required' },
+        { status: 400 }
+      );
+    }
+
+    await dbConnect();
+
+    // Try to find user from session or sessionId
+    let userEmail = session?.user?.email;
+    
+    if (!userEmail && sessionId) {
+      // Try to find user by checking bookings with this sessionId
+      const booking = await Booking.findOne({ stripeSessionId: sessionId });
+      if (booking) {
+        userEmail = booking.userEmail;
+      }
+    }
+
+    // Update bookings to "interested" status (not cancelled, but not confirmed either)
+    // This marks them as interested but payment didn't go through
+    const result = await Booking.updateMany(
+      { 
+        _id: { $in: bookingIds },
+        ...(userEmail && { userEmail })
+      },
+      { 
+        $set: { 
+          status: 'interested',
+          paymentStatus: 'cancelled',
+          updatedAt: new Date()
+        }
+      }
+    );
+
+    return NextResponse.json({
+      message: 'Bookings updated successfully',
+      updatedCount: result.modifiedCount,
+    });
+  } catch (error) {
+    console.error('Error updating bookings:', error);
+    return NextResponse.json(
+      { error: 'Failed to update bookings' },
+      { status: 500 }
+    );
+  }
+}
+
 // PUT /api/bookings/cancel-update - Cancel a booking with the new policy
 export async function PUT(request) {
   try {
