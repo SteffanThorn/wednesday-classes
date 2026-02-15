@@ -398,19 +398,19 @@ const DashboardPage = () => {
                     key={option.type}
                     onClick={() => handleConfirmCancellation(option.type)}
                     className={`w-full p-4 rounded-xl border transition-all text-left ${
-                      option.type === 'credit' 
+                      option.type === 'credit' || option.type === 'half-credit' 
                         ? 'bg-green-500/10 border-green-500/30 hover:bg-green-500/20'
                         : 'bg-glow-cyan/10 border-glow-cyan/30 hover:bg-glow-cyan/20'
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className={`font-medium ${option.type === 'credit' ? 'text-green-400' : 'text-glow-cyan'}`}>
+                        <p className={`font-medium ${option.type === 'credit' || option.type === 'half-credit' ? 'text-green-400' : 'text-glow-cyan'}`}>
                           {option.label}
                         </p>
                         <p className="text-sm text-muted-foreground">{option.description}</p>
                       </div>
-                      {option.type === 'credit' && <Wallet className="w-5 h-5 text-green-400" />}
+                      {(option.type === 'credit' || option.type === 'half-credit') && <Wallet className="w-5 h-5 text-green-400" />}
                     </div>
                   </button>
                 ))}
