@@ -43,7 +43,15 @@ export async function GET() {
       );
     }
 
-    await dbConnect();
+    const db = await dbConnect();
+    
+    // Check if database connection is available
+    if (!db) {
+      return NextResponse.json(
+        { error: 'Database not available. Please configure MONGODB_URI.' },
+        { status: 503 }
+      );
+    }
 
     // Fetch all bookings sorted by date (most recent first)
     const bookings = await Booking.find({})
