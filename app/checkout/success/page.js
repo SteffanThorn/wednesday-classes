@@ -9,6 +9,9 @@ import styles from './success.module.css';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+// Force dynamic rendering to avoid static generation issues with searchParams
+export const dynamic = 'force-dynamic';
+
 async function getCheckoutSessionDetails(sessionId) {
   try {
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
