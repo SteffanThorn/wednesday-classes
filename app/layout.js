@@ -8,6 +8,9 @@ import "./globals.css";
 // Import Language Provider for i18n support
 import { LanguageProvider } from "@/hooks/useLanguage";
 
+// Import Auth Provider for next-auth
+import { AuthProvider } from "@/components/AuthProvider";
+
 // Configure Geist Sans font - used throughout the app
 const geistSans = Geist({
   variable: "--font-geist-sans",  // CSS variable name for the font
@@ -40,11 +43,14 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {/* Language Provider for i18n support */}
-        <LanguageProvider>
-          {/* All page content is rendered here */}
-          {children}
-        </LanguageProvider>
+        {/* Auth Provider for next-auth session */}
+        <AuthProvider>
+          {/* Language Provider for i18n support */}
+          <LanguageProvider>
+            {/* All page content is rendered here */}
+            {children}
+          </LanguageProvider>
+        </AuthProvider>
       </body>
     </html>
   );

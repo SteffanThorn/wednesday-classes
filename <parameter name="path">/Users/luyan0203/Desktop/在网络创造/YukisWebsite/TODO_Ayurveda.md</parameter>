@@ -1,0 +1,13 @@
+<parameter name="content"># Ayurveda Page Implementation
+
+## Tasks to Complete:
+
+- [ ] 1. Create app/ayurveda/page.js - New Ayurveda page with article upload
+- [ ] 2. Update components/Header.js - Change link from anchor to new page
+- [ ] 3. Update hooks/useLanguage.js - Add translations for Ayurveda page
+
+## Design Requirements:
+- Preserve original colors: glow-cyan, glow-purple, box-glow effects
+- Use existing components: Header, HeroSection, FloatingParticles
+- Match existing UI patterns (rounded-2xl, backdrop-blur, etc.)
+</parameter>

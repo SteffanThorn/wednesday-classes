@@ -2,13 +2,51 @@
 
 import FloatingParticles from '@/components/FloatingParticle';
 import Header from '@/components/Header';
+import BookingModal from '@/components/BookingModal';
 import { useLanguage } from '@/hooks/useLanguage';
 import { Calendar, MapPin, Users, DollarSign, Clock, CheckCircle, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 
+// Wednesday class details
+const WEDNESDAY_CLASS = {
+  name: 'New Alignment Yoga',
+  date: '2025-02-18', // Next Wednesday - starting from 18th Feb 2025
+  time: '6:00 PM',
+  location: 'Village Valley Centre, Ashhurst',
+  price: 15
+};
+
+// Generate available Wednesdays starting from 18th Feb 2025 for 3 months
+export function getAvailableWednesdays(startDate = '2025-02-18', weeksAhead = 12) {
+  const wednesdays = [];
+  const start = new Date(startDate);
+  
+  for (let i = 0; i < weeksAhead; i++) {
+    const wed = new Date(start);
+    wed.setDate(start.getDate() + (i * 7));
+    wednesdays.push({
+      date: wed.toISOString().split('T')[0],
+      displayDate: wed.toLocaleDateString('en-NZ', { 
+        weekday: 'short', 
+        day: 'numeric', 
+        month: 'short' 
+      }),
+      fullDate: wed.toLocaleDateString('en-NZ', { 
+        weekday: 'long', 
+        day: 'numeric', 
+        month: 'long', 
+        year: 'numeric' 
+      })
+    });
+  }
+  
+  return wednesdays;
+}
+
 const WednesdayClassesPage = () => {
   const { t, mounted, language } = useLanguage();
   const [openFaq, setOpenFaq] = useState(null);
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
 
   const toggleFaq = (index) => {
     setOpenFaq(openFaq === index ? null : index);
@@ -28,31 +66,31 @@ const WednesdayClassesPage = () => {
     {
       questionEn: 'Do I need to be flexible or have yoga experience?',
       questionZh: '我需要柔韧性或瑜伽经验吗？',
-      answerEn: "Not at all! This is a gentle, beginner-friendly class. You do not need any existing flexibility or yoga experience to attend. Whether you're completely new to yoga or returning after a break, Yuki will guide you through every step.",
+      answerEn: "You don't need to be really flexible, but you should be able to walk around comfortably for this kind of class. ALL levels are welcome.",
       answerZh: '完全不需要！这是一堂温和的初学者课程。您不需要任何柔韧性或瑜伽经验即可参加。无论您是瑜伽新手还是休息后重返，Yuki都会指导您每一步。',
     },
     {
       questionEn: 'Can pregnant or postpartum mothers attend?',
       questionZh: '孕妇、产后妈妈可以参加吗？',
-      answerEn: 'Yes, Yuki has training in pregnancy yoga and can adapt poses to make the class safe and comfortable for you. Please inform Yuki about your specific situation before class. Note: Mothers in their second trimester should also inform Yuki beforehand.',
-      answerZh: '可以，Yuki接受过孕妇瑜伽培训，可以调整体式让您安全舒适地参与课程。请在上课前告知Yuki您的具体情况。注意；孕中期妈妈请提前告知',
+      answerEn: "Not if you have gotten pregnant in the last 12 weeks. Otherwise, I've trained in pregnancy yoga and can adapt poses to make the class safe and comfortable for you. Please inform me about your specific situation before class. ",
+      answerZh: '如果您在过去12周内怀孕，则不适合参加。否则，我接受过孕妇瑜伽培训，可以调整体式让您安全舒适地参与课程。请在上课前告知我您的具体情况。',
     },
     {
       questionEn: 'Can I attend if I have had surgery?',
       questionZh: '身体做过手术可以参加吗？',
-      answerEn: 'Please consult your doctor first and inform Yuki about your condition. She will help adapt the practice to your needs.',
-      answerZh: '请先咨询您的医生，并告知Yuki您的身体状况。她会根据您的需要帮助调整练习。',
+      answerEn: 'Please consult your doctor first and inform me about your condition. I will help adapt the practice to your needs.',
+      answerZh: '请先咨询您的医生，并告知我您的身体状况。我会根据您的需要帮助调整练习。',
     },
     {
       questionEn: 'Can I attend if I have pain such as knee injuries, neck/back discomfort, or wrist syndrome?',
       questionZh: '身体有疼痛比如：膝关节损伤、颈椎腰椎不适、腕关节综合症等可以参加课程吗？',
-      answerEn: 'Yes, but please inform Yuki before class. She will guide you through gentle modifications suitable for your condition.',
-      answerZh: '可以，但请在上课前告知Yuki。她会根据您的情况引导您进行适当的温和调整。',
+      answerEn: 'Yes, but please inform me before class. I will guide you through gentle modifications suitable for your condition.',
+      answerZh: '可以，但请在上课前告知我。我会根据您的情况引导您进行适当的温和调整。',
     },
     {
       questionEn: 'Medical Conditions',
       questionZh: '健康状况',
-      answerEn: 'Please inform Yuki before class if you are pregnant, have cardiovascular conditions, or high blood pressure. She will adapt the practice to ensure your safety and comfort.',
+      answerEn: 'Please inform me before class if you are pregnant, have cardiovascular conditions, or high blood pressure. I will adapt the practice to ensure your safety and comfort.',
       answerZh: '孕妈妈、心脑血管疾病患者、高血压患者请在课前告知Yuki。她会根据您的情况调整练习，确保您的安全和舒适。',
     },
   ];
@@ -69,7 +107,7 @@ const WednesdayClassesPage = () => {
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="font-display text-4xl md:text-6xl lg:text-7xl font-light 
                          text-glow animate-fade-in-up mb-6">
-              {mounted ? (language === 'zh' ? 'Ashhurst新瑜伽课程' : 'New Yoga Classes in Ashhurst') : 'New Yoga Classes in Ashhurst'}
+              {mounted ? (language === 'zh' ? 'Ashhurst新对齐瑜伽课程' : 'New Alignment Yoga Classes in Ashhurst') : 'New Alignment Yoga Classes in Ashhurst'}
             </h1>
             
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto 
@@ -89,24 +127,24 @@ const WednesdayClassesPage = () => {
               </div>
               <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card/60 border border-glow-cyan/20">
                 <Users className="w-4 h-4 text-glow-cyan" />
-                <span className="text-sm">Small classes · Max 10 people</span>
+                <span className="text-sm">Small classes · Max 8 people</span>
               </div>
               <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card/60 border border-glow-cyan/20">
                 <DollarSign className="w-4 h-4 text-glow-cyan" />
-                <span className="text-sm">$15 intro · $20 standard</span>
+                <span className="text-sm">$15 per class</span>
               </div>
             </div>
             
             {/* Primary CTA */}
             <div className="animate-fade-in-up animation-delay-400">
-              <a 
-                href="#booking"
+              <button
+                onClick={() => setIsBookingModalOpen(true)}
                 className="inline-flex items-center gap-2 px-10 py-4 rounded-full bg-glow-cyan/20 border border-glow-cyan/40 
                          text-glow-cyan font-medium text-lg hover:bg-glow-cyan/30 hover:box-glow
-                         transition-all duration-300 shadow-glow"
+                         transition-all duration-300 shadow-glow cursor-pointer"
               >
-                {mounted ? (language === 'zh' ? '预订$15体验课' : 'Book Your $15 Intro Class') : 'Book Your $15 Intro Class'}
-              </a>
+                {mounted ? (language === 'zh' ? '立即预约' : 'Book Class') : 'Book Class'}
+              </button>
             </div>
           </div>
         </section>
@@ -137,27 +175,13 @@ const WednesdayClassesPage = () => {
                   <p className="text-glow-cyan text-sm font-medium mb-4">
                     {mounted ? (language === 'zh' ? '正念瑜伽与冥想老师及疗愈师' : 'Mindfulness Yoga & Meditation Teacher & Healer') : 'Mindfulness Yoga & Meditation Teacher & Healer'}
                   </p>
-                  <div className="text-muted-foreground space-y-4 text-sm leading-relaxed">
+                  <div className="text-muted-foreground space-y-4 text-sm leading-relaxed whitespace-pre-line">
                     <p>
                       {mounted 
                         ? (language === 'zh' 
-                          ? '这一切始于2018年的一张安静的瑜伽垫上。在那里，我第一次体验了心灵完全属于自我的宁静。这种对内在空间的渴望引导我从练习者成为瑜伽老师。在教授产前和产后修复时，我见证了一个更深的真理：女性需要的不仅仅是身体的恢复，更是心理的治愈和能量的复苏。'
-                          : 'It began in 2018 on a quiet yoga mat. There, for the first time, I experienced the stillness of having my mind completely belong to myself. This longing for inner space guided me from practitioner to yoga teacher, and while teaching prenatal and postnatal restoration, I witnessed a deeper truth: what women need is not just physical recovery, but psychological healing and energetic revival.')
-                        : 'It began in 2018 on a quiet yoga mat. There, for the first time, I experienced the stillness of having my mind completely belong to myself. This longing for inner space guided me from practitioner to yoga teacher, and while teaching prenatal and postnatal restoration, I witnessed a deeper truth: what women need is not just physical recovery, but psychological healing and energetic revival.'}
-                    </p>
-                    <p>
-                      {mounted 
-                        ? (language === 'zh' 
-                          ? '2021年，我和伴侣开始了三年的海外生活。在巴厘岛的六个月里，这片灵性土壤滋养了我。我带领了三次内在成长静修，与朋友们在振动和寂静中探索自我。也是在一次深入的"萨满"学习中，我经历了深刻的觉醒：我观察到家族中的女性长辈似乎被某种无形的印记纠缠，经历着相似的情感挣扎。'
-                          : 'In 2021, my partner and I embarked on a three-year journey of living abroad. During our six months in Bali, the spiritual soil nourished me. I led three inner growth retreats, exploring the self with friends in vibration and silence. It was also during an in-depth Shamanic study that a profound awakening struck me: I observed that the women elders in my family seemed to be entangled by some invisible imprint, experiencing similar emotional struggles.')
-                        : 'In 2021, my partner and I embarked on a three-year journey of living abroad. During our six months in Bali, the spiritual soil nourished me. I led three inner growth retreats, exploring the self with friends in vibration and silence. It was also during an in-depth Shamanic study that a profound awakening struck me: I observed that the women elders in my family seemed to be entangled by some invisible imprint, experiencing similar emotional struggles.'}
-                    </p>
-                    <p>
-                      {mounted 
-                        ? (language === 'zh' 
-                          ? '那一刻，我明白了有些模式刻在能量中，写在DNA里。我存在的意义正是与像我这样的女性携手同行，走出旧的循环，亲手重塑我们的"内在DNA"，重新夺回那条本就属于我们的发光内在之路。'
-                          : 'At that moment, I understood that some patterns are etched in energy, written in DNA. And the meaning of my existence is precisely to walk hand-in-hand with women like me, stepping out of old cycles, personally reshaping our inner DNA, and reclaiming that glowing inner path that was always ours.')
-                        : 'At that moment, I understood that some patterns are etched in energy, written in DNA. And the meaning of my existence is precisely to walk hand-in-hand with women like me, stepping out of old cycles, personally reshaping our inner DNA, and reclaiming that glowing inner path that was always ours.'}
+                          ? '自从我接触瑜伽垫的那一刻起，我就找到了人生的热爱。\n\n瑜伽疗愈了我。瑜伽也能疗愈你。\n\n缓解酸痛。\n改善体态和核心力量。增强心态。\n\n让我与你分享来自全球导师的8年以上的瑜伽知识和经验。'
+                          : "Ever since I've touched a yoga mat I found my passion in life. \n\nYoga healed me. And yoga can heal you. \n\nAlleviate aches and pains. \nImprove posture and core strength. Empower your mentality. \n\nLet me share with you 8+ years of yoga knowledge and experience from teachers all across the globe.")
+                        : "Ever since I've touched a yoga mat I found my passion in life. \n\nYoga healed me. And yoga can heal you. \n\nAlleviate aches and pains. \nImprove posture and core strength. Empower your mentality. \n\nLet me share with you 8+ years of yoga knowledge and experience from teachers all across the globe."}
                     </p>
                   </div>
                 </div>
@@ -190,8 +214,8 @@ const WednesdayClassesPage = () => {
               <div className="p-4 rounded-2xl bg-glow-cyan/10 border border-glow-cyan/20">
                 <p className="text-center text-glow-cyan font-medium">
                   {mounted 
-                    ? (language === 'zh' ? '无需柔韧性或体能要求——只需要好奇心。' : 'No flexibility or fitness level required — just curiosity.')
-                    : 'No flexibility or fitness level required — just curiosity.'}
+                    ? (language === 'zh' ? '请自带瑜伽垫' : 'BYO Yoga Mat')
+                    : 'BYO Yoga Mat'}
                 </p>
               </div>
             </div>
@@ -255,13 +279,8 @@ const WednesdayClassesPage = () => {
                   <div>
                     <div className="flex items-baseline gap-3">
                       <span className="text-3xl font-display text-glow-cyan">$15</span>
-                      <span className="text-muted-foreground">{mounted ? (language === 'zh' ? '体验课' : 'intro class') : 'intro class'}</span>
-                      <span className="text-3xl font-display text-foreground">$20</span>
-                      <span className="text-muted-foreground">{mounted ? (language === 'zh' ? '标准课' : 'standard') : 'standard'}</span>
+                      <span className="text-muted-foreground">{mounted ? (language === 'zh' ? '每节课' : 'per class') : 'per class'}</span>
                     </div>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      {mounted ? (language === 'zh' ? '$15体验价仅限您的第一堂课。' : '(Or $15 for 5 classes)') : '(Or $15 for 5 classes)'}
-                    </p>
                   </div>
                 </div>
               </div>
@@ -316,14 +335,14 @@ const WednesdayClassesPage = () => {
                 {mounted ? (language === 'zh' ? '如你所是。轻柔移动。深呼吸。' : '"Come as you are. Move gently. Breathe."') : '"Come as you are. Move gently. Breathe."'}
               </p>
               
-              <a 
-                href="#booking"
+              <button
+                onClick={() => setIsBookingModalOpen(true)}
                 className="inline-flex items-center gap-2 px-10 py-4 rounded-full bg-glow-cyan/20 border border-glow-cyan/40 
                          text-glow-cyan font-medium text-lg hover:bg-glow-cyan/30 hover:box-glow
-                         transition-all duration-300 shadow-glow"
+                         transition-all duration-300 shadow-glow cursor-pointer"
               >
-                {mounted ? (language === 'zh' ? '预订$15体验课' : 'Book Your $15 Intro Class') : 'Book Your $15 Intro Class'}
-              </a>
+                {mounted ? (language === 'zh' ? '立即预约' : 'Book Class') : 'Book Class'}
+              </button>
             </div>
           </div>
         </section>
@@ -339,6 +358,14 @@ const WednesdayClassesPage = () => {
             </p>
           </div>
         </footer>
+
+        {/* Booking Modal */}
+        <BookingModal
+          isOpen={isBookingModalOpen}
+          onClose={() => setIsBookingModalOpen(false)}
+          classDetails={WEDNESDAY_CLASS}
+          language={mounted ? language : 'en'}
+        />
       </div>
     </div>
   );

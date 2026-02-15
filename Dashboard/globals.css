@@ -1,0 +1,35 @@
+@import "tailwindcss";
+/* 
+  Global Styles - Tailwind CSS Configuration
+  This file sets up CSS variables and theme settings used throughout the app
+*/
+
+/* Root variables - default light mode colors */
+:root {
+  --background: #ffffff;  /* White background for light mode */
+  --foreground: #171717;  /* Dark text for light mode */
+}
+
+/* Theme configuration - maps CSS variables to Tailwind */
+@theme inline {
+  --color-background: var(--background);  // Background color variable
+  --color-foreground: var(--foreground);  // Text color variable
+  --font-sans: var(--font-geist-sans);    // Sans-serif font from layout
+  --font-mono: var(--font-geist-mono);    // Monospace font from layout
+}
+
+/* Dark mode - automatically applies when system is in dark mode */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;    /* Nearly black background for dark mode */
+    --foreground: #ededed;    /* Light text for dark mode */
+  }
+}
+
+/* Body styles - applies to entire page */
+body {
+  background: var(--background);  /* Use background variable */
+  color: var(--foreground);       /* Use foreground variable */
+  font-family: Arial, Helvetica, sans-serif;  /* Fallback font */
+}
+

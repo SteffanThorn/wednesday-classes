@@ -37,7 +37,7 @@ const translations = {
     quote: 'The body achieves what the mind believes.',
     
     // Teacher Story Column
-    fromShanghaiToAuckland: 'From Shanghai to Auckland',
+    fromShanghaiToPalmerstonNorth: 'From Shanghai to Palmerston North',
     journeyOfPurpose: 'Awakening Path',
     
     // Teacher profile
@@ -223,7 +223,7 @@ suggestions: 'Suggestions',
     firstClassHero: 'Your First Class',
     firstClassSubtitle: 'Begin your mindfulness journey with us. A warm welcome awaits.',
     firstClassOffer: 'First Class Special',
-    firstClassOfferDesc: 'Try your first class for just $15 and receive a free consultation with Yuki.',
+    firstClassOfferDesc: 'Book class by email: innerlightyuki@gmail.com',
     whyChooseUs: 'Why Start Here?',
     whyChooseUsDesc: 'A supportive space for your journey into mindfulness.',
     supportiveEnvironment: 'Supportive Environment',
@@ -306,7 +306,7 @@ suggestions: 'Suggestions',
     quote: '身体达成心灵所相信的。',
     
     // Teacher Story Column
-    fromShanghaiToAuckland: '从上海到奥克兰',
+    fromShanghaiToPalmerstonNorth: '从上海到帕默斯顿北',
     journeyOfPurpose: '觉醒之路',
     
     // Teacher profile
@@ -489,7 +489,7 @@ mental: '心理',
     firstClassHero: '您的第一堂课',
     firstClassSubtitle: '与我们一起开始您的正念之旅。我们热情欢迎您的到来。',
     firstClassOffer: '首次体验优惠',
-    firstClassOfferDesc: '首次体验仅需$15，并可获得与Yuki老师的免费咨询。',
+    firstClassOfferDesc: '邮件预约课程: innerlightyuki@gmail.com',
     whyChooseUs: '为什么选择这里？',
     whyChooseUsDesc: '一个支持您正念之旅的温暖空间。',
     supportiveEnvironment: '支持性环境',

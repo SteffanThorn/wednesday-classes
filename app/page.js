@@ -1,5 +1,8 @@
 'use client';
 
+import { useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import FloatingParticles from '@/components/FloatingParticle';
 import Header from '@/components/Header';
 import YogaBenefitsColumn from '@/components/YogaBenefitsColumn';
@@ -9,7 +12,35 @@ import { useLanguage } from '@/hooks/useLanguage';
 
 const Index = () => {
   const { language, t, mounted } = useLanguage();
+  const { data: session, status } = useSession();
+  const router = useRouter();
 
+  // Redirect logged-in users to dashboard
+  useEffect(() => {
+    if (status === 'authenticated') {
+      router.push('/dashboard');
+    }
+  }, [status, router]);
+
+  // Show loading while checking session
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen relative overflow-hidden">
+        <FloatingParticles />
+        <div className="relative z-10">
+          <Header />
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <div className="flex items-center gap-3 text-glow-cyan">
+              <span className="w-8 h-8 border-2 border-glow-cyan/30 border-t-glow-cyan rounded-full animate-spin" />
+              <span>Loading...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If not authenticated, show the landing page (redirect will happen for authenticated users)
   return (
     <div className="min-h-screen relative overflow-hidden">
       <FloatingParticles />

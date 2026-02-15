@@ -219,7 +219,7 @@ const PrivacyPage = () => {
         <section className="px-6 py-16">
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-12 animate-fade-in-up">
-              <h2 className-3xl md="font-display text:text-4xl font-light text-glow-subtle mb-4">
+              <h2 className="font-display text-3xl md:text-4xl font-light text-glow-subtle mb-4">
                 {mounted ? (language === 'zh' ? '第三方服务' : 'Third Party Services') : 'Third Party Services'}
               </h2>
               <p className="text-muted-foreground max-w-2xl mx-auto">

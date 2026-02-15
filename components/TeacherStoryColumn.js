@@ -12,7 +12,7 @@ const TeacherStoryColumn = () => {
         <div className="flex items-center gap-2 mb-4">
           <MapPin className="w-4 h-4 text-warm-coral" />
           <span className="text-sm text-muted-foreground tracking-widest uppercase">
-            {mounted ? t('fromShanghaiToAuckland') : 'From Shanghai to Auckland'}
+            {mounted ? t('fromShanghaiToPalmerstonNorth') : 'From Shanghai to Palmerston North'}
           </span>
         </div>
         <h2 className="font-display text-4xl md:text-5xl font-light text-glow-subtle mb-4">
