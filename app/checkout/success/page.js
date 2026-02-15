@@ -9,7 +9,6 @@ import styles from './success.module.css';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-// Force dynamic rendering to avoid static generation issues with searchParams
 export const dynamic = 'force-dynamic';
 
 async function getCheckoutSessionDetails(sessionId) {
@@ -75,7 +74,6 @@ async function BookingDetails({ sessionId }) {
   
   return (
     <div className={styles.container}>
-      {/* Success Header */}
       <div className={styles.successHeader}>
         <div className={styles.checkmark}>✓</div>
         <h1>Payment Successful!</h1>
@@ -84,7 +82,6 @@ async function BookingDetails({ sessionId }) {
         </p>
       </div>
 
-      {/* Order Summary */}
       <div className={styles.section}>
         <h2>Order Summary</h2>
         <div className={styles.orderDetails}>
@@ -103,7 +100,6 @@ async function BookingDetails({ sessionId }) {
         </div>
       </div>
 
-      {/* Booked Classes */}
       {bookings.length > 0 && (
         <div className={styles.section}>
           <h2>Your Classes</h2>
@@ -130,7 +126,6 @@ async function BookingDetails({ sessionId }) {
         </div>
       )}
 
-      {/* Stripe Line Items (fallback if no bookings found) */}
       {bookings.length === 0 && session.lineItems.length > 0 && (
         <div className={styles.section}>
           <h2>Items Purchased</h2>
@@ -150,7 +145,6 @@ async function BookingDetails({ sessionId }) {
         </div>
       )}
 
-      {/* What's Next */}
       <div className={styles.section}>
         <h2>What&apos;s Next?</h2>
         <ul className={styles.nextSteps}>
@@ -161,7 +155,6 @@ async function BookingDetails({ sessionId }) {
         </ul>
       </div>
 
-      {/* Actions */}
       <div className={styles.actions}>
         <Link href="/dashboard" className={styles.primaryButton}>
           View My Bookings
@@ -172,6 +165,10 @@ async function BookingDetails({ sessionId }) {
       </div>
     </div>
   );
+}
+
+function BookingDetailsWrapper({ sessionId }) {
+  return <BookingDetails sessionId={sessionId} />;
 }
 
 export default function CheckoutSuccessPage({ searchParams }) {
@@ -194,7 +191,7 @@ export default function CheckoutSuccessPage({ searchParams }) {
   return (
     <main className={styles.main}>
       <Suspense fallback={<LoadingSkeleton />}>
-        <BookingDetails sessionId={sessionId} />
+        <BookingDetailsWrapper sessionId={sessionId} />
       </Suspense>
     </main>
   );
