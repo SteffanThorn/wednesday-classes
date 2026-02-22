@@ -152,6 +152,18 @@ const SigninPage = () => {
                   </Link>
                 </p>
               </div>
+              
+              <div className="mt-4 text-center">
+                <p className="text-muted-foreground text-sm">
+                  Forgot your password?{' '}
+                  <Link 
+                    href="/auth/forgot-password" 
+                    className="text-glow-cyan hover:text-glow-cyan/80 transition-colors"
+                  >
+                    Reset it
+                  </Link>
+                </p>
+              </div>
             </div>
           </div>
         </div>

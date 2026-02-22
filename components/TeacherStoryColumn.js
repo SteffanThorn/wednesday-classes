@@ -27,18 +27,32 @@ const TeacherStoryColumn = () => {
           <div className="absolute inset-0 bg-glow-cyan/10 rounded-3xl blur-2xl transform -rotate-3" />
           
           <div className="relative p-8 rounded-3xl border border-glow-cyan/20 bg-card/60 backdrop-blur-sm">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-glow-cyan/30 to-glow-purple/30 
-                            flex items-center justify-center border border-glow-cyan/30 box-glow">
-                <Sun className="w-8 h-8 text-glow-cyan animate-pulse-glow" />
+            <div className="flex flex-col md:flex-row gap-6 mb-6">
+              {/* Teacher Photo */}
+              <div className="w-full md:w-48 h-48 rounded-2xl bg-gradient-to-br from-glow-cyan/20 to-glow-purple/20 
+                            flex items-center justify-center border border-glow-cyan/30 shrink-0 overflow-hidden">
+                <img 
+                  src="/yukiyoga.jpg" 
+                  alt="Yuki yoga teacher" 
+                  className="w-full h-full object-contain object-top"
+                />
               </div>
-              <div>
-                <h3 className="font-display text-2xl text-foreground">
-                  {mounted ? t('meiLin') : 'Mei Lin'}
-                </h3>
-                <p className="text-sm text-glow-cyan">
-                  {mounted ? t('yogaTeacherHealer') : 'Yoga Teacher & Healer'}
-                </p>
+              
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-glow-cyan/30 to-glow-purple/30 
+                                flex items-center justify-center border border-glow-cyan/30 box-glow">
+                    <Sun className="w-6 h-6 text-glow-cyan animate-pulse-glow" />
+                  </div>
+                  <div>
+                    <h3 className="font-display text-2xl text-foreground">
+                      {mounted ? t('meiLin') : 'Mei Lin'}
+                    </h3>
+                    <p className="text-sm text-glow-cyan">
+                      {mounted ? t('yogaTeacherHealer') : 'Yoga Teacher & Healer'}
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 
