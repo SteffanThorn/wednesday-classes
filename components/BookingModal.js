@@ -559,6 +559,16 @@ export default function BookingModal({
                 {language === 'zh' ? '注册' : 'Sign Up'}
               </button>
             </div>
+            
+            {/* Forgot Password Link */}
+            <div className="pt-2">
+              <button
+                onClick={() => { onClose(); window.location.href = '/auth/forgot-password'; }}
+                className="text-sm text-muted-foreground hover:text-glow-cyan transition-colors"
+              >
+                {language === 'zh' ? '忘记密码？' : 'Forgot Password?'}
+              </button>
+            </div>
           </div>
         )}
       </div>
