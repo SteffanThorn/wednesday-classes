@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession, signIn } from 'next-auth/react';
+import Link from 'next/link';
 import styles from './BookingCart.module.css';
 
 export default function BookingCart({ 
@@ -143,6 +144,13 @@ export default function BookingCart({
             </>
           )}
         </button>
+
+        {/* Forgot Password Link - only show when not logged in */}
+        {!session && (
+          <div className={styles.forgotPassword}>
+            <Link href="/auth/forgot-password">Forgot Password?</Link>
+          </div>
+        )}
       </div>
 
       {/* Error Message */}

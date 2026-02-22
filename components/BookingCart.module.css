@@ -191,6 +191,23 @@
   cursor: not-allowed;
 }
 
+/* Forgot Password Link */
+.forgotPassword {
+  text-align: center;
+  margin-top: 0.75rem;
+}
+
+.forgotPassword a {
+  color: #666;
+  font-size: 0.875rem;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.forgotPassword a:hover {
+  color: #22c55e;
+}
+
 /* Spinner */
 .spinner {
   display: inline-flex;
