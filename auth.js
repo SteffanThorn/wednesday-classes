@@ -11,7 +11,19 @@ const getBaseUrl = () => {
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL}`;
   }
+  // For local development
+  if (process.env.NODE_ENV === 'development') {
+    return 'http://localhost:3000';
+  }
   return 'https://www.innerlight.co.nz';
+};
+
+// Check if required environment variables are set
+const isConfigured = () => {
+  return !!(
+    process.env.NEXTAUTH_SECRET &&
+    (process.env.NEXTAUTH_URL || process.env.VERCEL_URL || process.env.NODE_ENV === 'development')
+  );
 };
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -30,7 +42,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         await dbConnect();
 
-        const user = await User.findOne({ email: credentials.email });
+        const user = await User.findOne({ email: credentials.email.toLowerCase() });
 
         if (!user) {
           throw new Error('No user found with this email');
@@ -58,7 +70,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   pages: {
     signIn: '/auth/signin',
     signUp: '/auth/signup',
-    error: '/auth/signin',
+    error: '/auth/error',
   },
   callbacks: {
     async jwt({ token, user }) {
