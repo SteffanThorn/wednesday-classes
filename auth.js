@@ -3,7 +3,19 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import dbConnect from '@/lib/mongodb';
 import User from '@/lib/models/User';
 
+// Get the base URL from environment or use a default for production
+const getBaseUrl = () => {
+  if (process.env.NEXTAUTH_URL) {
+    return process.env.NEXTAUTH_URL;
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  return 'https://www.innerlight.co.nz';
+};
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  baseURL: getBaseUrl(),
   providers: [
     CredentialsProvider({
       name: 'Credentials',
@@ -46,7 +58,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   pages: {
     signIn: '/auth/signin',
     signUp: '/auth/signup',
-    error: '/auth/error',
+    error: '/auth/signin',
   },
   callbacks: {
     async jwt({ token, user }) {
