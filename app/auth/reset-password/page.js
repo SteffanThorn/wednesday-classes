@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import FloatingParticles from '@/components/FloatingParticle';
 import Header from '@/components/Header';
-import { Lock, LockConfirm, ArrowLeft, AlertCircle, CheckCircle } from 'lucide-react';
+import { Lock, ArrowLeft, AlertCircle, CheckCircle } from 'lucide-react';
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -224,7 +224,7 @@ function ResetPasswordForm() {
                       Confirm New Password
                     </label>
                     <div className="relative">
-                      <LockConfirm className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                       <input
                         type="password"
                         id="confirmPassword"
