@@ -432,15 +432,15 @@ const DashboardPage = () => {
           </div>
         </div>
       )}
+      
+      {/* Booking Modal */}
+      <BookingModal
+        isOpen={isBookingModalOpen}
+        onClose={() => setIsBookingModalOpen(false)}
+        classDetails={WEDNESDAY_CLASS}
+        language={mounted ? language : 'en'}
+      />
     </div>
-
-    {/* Booking Modal */}
-    <BookingModal
-      isOpen={isBookingModalOpen}
-      onClose={() => setIsBookingModalOpen(false)}
-      classDetails={WEDNESDAY_CLASS}
-      language={mounted ? language : 'en'}
-    />
   );
 };
 
