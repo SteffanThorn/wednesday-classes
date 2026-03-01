@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import PaymentForm from '@/components/PaymentForm';
 import { useLanguage } from '@/hooks/useLanguage';
 import { ArrowLeft, Calendar, Clock, MapPin, DollarSign, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
@@ -16,6 +17,7 @@ function CheckoutContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+  const { data: session, status } = useSession();
   
   // Reset globals on new navigation
   if (pathname !== lastPathname) {
@@ -73,8 +75,22 @@ function CheckoutContent() {
       hasClientSecret: !!clientSecretRef.current,
       globalAPICalled,
       globalInitComplete,
-      isLocalInitialized: isLocalInitialized.current
+      isLocalInitialized: isLocalInitialized.current,
+      sessionStatus: status
     });
+    
+    // Wait for session to load before making API calls
+    if (status === 'loading') {
+      console.log('Session loading, waiting...');
+      return;
+    }
+    
+    // Redirect to sign in if not authenticated
+    if (status === 'unauthenticated') {
+      console.log('User not authenticated, redirecting to sign in...');
+      router.push('/auth/signin?callbackUrl=' + encodeURIComponent(window.location.href));
+      return;
+    }
     
     // Guard: Don't run if global initialization is complete
     if (globalInitComplete) {
@@ -165,7 +181,7 @@ function CheckoutContent() {
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, []); // Empty dependency array - run only once on mount
+  }, [status]); // Empty dependency array - run only once on mount
 
   const fetchClientSecret = async () => {
     try {
