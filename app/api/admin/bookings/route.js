@@ -53,9 +53,15 @@ export async function GET() {
       );
     }
 
-    // Fetch all bookings sorted by date (most recent first)
-    const bookings = await Booking.find({})
-      .sort({ classDate: -1, createdAt: -1 })
+    // Get today's date at midnight (start of day)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Fetch only future bookings (class date >= today) sorted by date
+    const bookings = await Booking.find({
+      classDate: { $gte: today }
+    })
+      .sort({ classDate: 1, createdAt: -1 })
       .lean();
 
     // Convert MongoDB _id to string id
