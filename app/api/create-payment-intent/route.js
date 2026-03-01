@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import Stripe from 'stripe';
@@ -5,6 +6,12 @@ import dbConnect from '@/lib/mongodb';
 import Booking from '@/lib/models/Booking';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+// Log key prefixes for debugging (first few characters only)
+console.log('Stripe configuration:', {
+  secretKeyPrefix: process.env.STRIPE_SECRET_KEY?.substring(0, 8),
+  hasSecretKey: !!process.env.STRIPE_SECRET_KEY,
+});
 
 /**
  * Create Payment Intent Endpoint
@@ -29,11 +36,36 @@ export async function POST(request) {
 
     // Parse request body
     const body = await request.json();
-    const { bookingId } = body;
+    const { bookingId, amount: requestedAmount, className, classDate, classTime, location } = body;
+
+    // Debug logging
+    console.log('Create Payment Intent Request:', {
+      bookingId,
+      requestedAmount,
+      className,
+      classDate,
+      classTime,
+      location,
+      bodyKeys: Object.keys(body)
+    });
+
+    // If no bookingId, create a new booking from the provided details
+    if (!bookingId && requestedAmount && className) {
+      console.log('Creating ad-hoc booking with params:', { requestedAmount, className, classDate });
+      return await createAdHocBookingAndPaymentIntent({
+        session,
+        amount: requestedAmount,
+        className,
+        classDate,
+        classTime,
+        location,
+      });
+    }
 
     if (!bookingId) {
+      console.error('Missing booking details:', { bookingId, requestedAmount, className });
       return NextResponse.json(
-        { error: 'Booking ID is required' },
+        { error: 'Booking ID or booking details are required', received: { bookingId, requestedAmount: !!requestedAmount, className: !!className } },
         { status: 400 }
       );
     }
@@ -127,6 +159,13 @@ export async function POST(request) {
     console.log(`Payment intent created: ${paymentIntent.id} for booking: ${bookingId}`);
 
     // Return the client secret to the frontend
+    console.log('Payment intent created successfully:', {
+      paymentIntentId: paymentIntent.id,
+      clientSecretPrefix: paymentIntent.client_secret?.substring(0, 20),
+      amount: paymentIntent.amount,
+      status: paymentIntent.status
+    });
+    
     return NextResponse.json({
       clientSecret: paymentIntent.client_secret,
       paymentIntentId: paymentIntent.id,
@@ -232,5 +271,227 @@ export async function GET(request) {
       { status: 500 }
     );
   }
+}
+
+/**
+ * Create a booking and payment intent for ad-hoc bookings
+ * Used when user goes directly to checkout without creating a booking first
+ */
+async function createAdHocBookingAndPaymentIntent({ session, amount, className, classDate, classTime, location, selectedDates, couponCode, notes }) {
+  await dbConnect();
+
+  const userEmail = session.user.email;
+  const userName = session.user.name || 'Guest';
+  const userId = session.user.id;
+  
+  // Handle coupon if provided
+  let finalAmount = parseFloat(amount);
+  let appliedCoupon = null;
+  let numClasses = 1;
+  
+  // Determine number of classes
+  if (selectedDates && Array.isArray(selectedDates) && selectedDates.length > 0) {
+    numClasses = selectedDates.length;
+  } else if (classDate) {
+    numClasses = 1;
+  }
+  
+  // Validate coupon if provided
+  if (couponCode) {
+    try {
+      const Coupon = (await import('@/lib/models/Coupon')).default;
+      const coupon = await Coupon.findOne({ code: couponCode.toUpperCase().trim() });
+      
+      if (coupon && coupon.active) {
+        const now = new Date();
+        const isValid = (!coupon.validUntil || now <= new Date(coupon.validUntil)) &&
+                       (!coupon.validFrom || now >= new Date(coupon.validFrom));
+        const hasUses = coupon.maxUses === null || coupon.currentUses < coupon.maxUses;
+        const meetsMinClasses = !coupon.minClasses || numClasses >= coupon.minClasses;
+        
+        if (isValid && hasUses && meetsMinClasses) {
+          // Calculate discount
+          let discount = 0;
+          if (coupon.discountType === 'percentage') {
+            discount = finalAmount * (coupon.discountValue / 100);
+          } else {
+            discount = coupon.discountValue;
+          }
+          finalAmount = Math.max(0, finalAmount - discount);
+          appliedCoupon = {
+            code: coupon.code,
+            discountType: coupon.discountType,
+            discountValue: coupon.discountValue
+          };
+          
+          // Increment coupon usage
+          coupon.currentUses += 1;
+          await coupon.save();
+        }
+      }
+    } catch (couponErr) {
+      console.error('Error validating coupon:', couponErr);
+      // Continue without coupon
+    }
+  }
+
+  // Handle multi-date booking
+  if (selectedDates && Array.isArray(selectedDates) && selectedDates.length > 0) {
+    return await createMultiDateBookingAndPaymentIntent({
+      session,
+      selectedDates,
+      className,
+      classTime,
+      location,
+      amount: finalAmount,
+      notes: notes || '',
+      appliedCoupon,
+    });
+  }
+
+  // Single date booking
+  // Create a new booking
+  const booking = new Booking({
+    userId: userId,
+    userEmail: userEmail,
+    userName: userName,
+    className,
+    classDate: classDate ? new Date(classDate) : new Date(),
+    classTime: classTime || 'TBD',
+    location: location || 'TBD',
+    amount: finalAmount,
+    notes: notes || '',
+    status: 'pending',
+    paymentStatus: 'pending',
+  });
+
+  await booking.save();
+  console.log(`Ad-hoc booking created: ${booking._id}`);
+
+  // Create a PaymentIntent
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount: Math.round(booking.amount * 100),
+    currency: 'nzd',
+    automatic_payment_methods: {
+      enabled: true,
+    },
+    metadata: {
+      bookingId: booking._id.toString(),
+      userId: userId || 'unknown',
+      userEmail: booking.userEmail,
+      userName: booking.userName,
+      className: booking.className,
+      classDate: booking.classDate.toISOString(),
+      classTime: booking.classTime,
+    },
+    description: `Yoga class booking: ${booking.className}`,
+    receipt_email: booking.userEmail,
+  });
+
+  // Save payment intent ID to booking
+  booking.paymentIntentId = paymentIntent.id;
+  booking.updatedAt = new Date();
+  await booking.save();
+
+  console.log(`Payment intent created: ${paymentIntent.id} for ad-hoc booking: ${booking._id}`);
+
+  // Return the client secret and booking details
+  return NextResponse.json({
+    clientSecret: paymentIntent.client_secret,
+    paymentIntentId: paymentIntent.id,
+    amount: paymentIntent.amount / 100,
+    currency: paymentIntent.currency.toUpperCase(),
+    bookingId: booking._id.toString(),
+    className: booking.className,
+    classDate: booking.classDate.toISOString(),
+    classTime: booking.classTime,
+    location: booking.location,
+    message: 'Payment intent created successfully',
+  });
+}
+
+/**
+ * Create multiple bookings for multi-date booking and a single payment intent
+ */
+async function createMultiDateBookingAndPaymentIntent({ session, selectedDates, className, classTime, location, amount, notes, appliedCoupon }) {
+  const userEmail = session.user.email;
+  const userName = session.user.name || 'Guest';
+  const userId = session.user.id;
+  
+  const pricePerClass = amount / selectedDates.length;
+  
+  // Create bookings for each selected date
+  const bookings = [];
+  
+  for (const date of selectedDates) {
+    const booking = new Booking({
+      userId: userId,
+      userEmail: userEmail,
+      userName: userName,
+      className,
+      classDate: new Date(date),
+      classTime,
+      location,
+      amount: pricePerClass,
+      notes: notes || '',
+      status: 'pending',
+      paymentStatus: 'pending',
+    });
+    
+    await booking.save();
+    bookings.push(booking);
+    console.log(`Multi-date booking created for ${date}: ${booking._id}`);
+  }
+  
+  const bookingIds = bookings.map(b => b._id.toString());
+  
+  // Create a single PaymentIntent for all bookings
+  const dateList = selectedDates.map(d => new Date(d).toLocaleDateString('en-NZ', { 
+    day: 'numeric', 
+    month: 'short' 
+  })).join(', ');
+  
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount: Math.round(amount * 100),
+    currency: 'nzd',
+    automatic_payment_methods: {
+      enabled: true,
+    },
+    metadata: {
+      bookingIds: bookingIds.join(','),
+      userId: userId || 'unknown',
+      userEmail: userEmail,
+      userName: userName,
+      className: className,
+      selectedDates: selectedDates.join(','),
+      classTime: classTime,
+    },
+    description: `${className} - ${selectedDates.length} classes`,
+    receipt_email: userEmail,
+  });
+
+  // Save payment intent ID to all bookings
+  for (const booking of bookings) {
+    booking.paymentIntentId = paymentIntent.id;
+    booking.updatedAt = new Date();
+    await booking.save();
+  }
+
+  console.log(`Payment intent created: ${paymentIntent.id} for ${bookings.length} multi-date bookings`);
+
+  // Return the client secret and booking details
+  return NextResponse.json({
+    clientSecret: paymentIntent.client_secret,
+    paymentIntentId: paymentIntent.id,
+    amount: amount,
+    currency: paymentIntent.currency.toUpperCase(),
+    bookingIds: bookingIds,
+    primaryBookingId: bookings[0]._id.toString(),
+    className: className,
+    selectedDates: selectedDates,
+    classTime: classTime,
+    location: location,
+    message: 'Payment intent created successfully for multi-date booking',
+  });
 }
 

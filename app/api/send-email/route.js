@@ -458,7 +458,17 @@ export async function POST(request) {
     const validInternalKey = process.env.INTERNAL_API_KEY;
     
     // Check if this is an internal call
-    const isInternalCall = internalApiKey === validInternalKey && validInternalKey;
+    // Note: isInternalCall will be false if INTERNAL_API_KEY is not set in environment
+    const isInternalCall = validInternalKey && internalApiKey === validInternalKey;
+    
+    // If INTERNAL_API_KEY is not set, return a helpful error message
+    if (!validInternalKey) {
+      console.error('INTERNAL_API_KEY is not configured in environment variables');
+      return NextResponse.json(
+        { error: 'Email service configuration error. Please contact the administrator.' },
+        { status: 500 }
+      );
+    }
     
     // If not internal call, require user authentication
     if (!isInternalCall) {

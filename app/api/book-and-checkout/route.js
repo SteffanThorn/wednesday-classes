@@ -183,29 +183,13 @@ export async function POST(request) {
 
     console.log(`Booking created: ${booking._id}`);
 
-    // Create Stripe Checkout Session
-    const checkoutSession = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      mode: 'payment',
-      customer_email: userEmailAddress,
-      line_items: [
-        {
-          price_data: {
-            currency: 'nzd',
-            product_data: {
-              name: className,
-              description: `${new Date(classDate).toLocaleDateString()} at ${classTime} - ${location}`,
-              metadata: {
-                bookingId: booking._id.toString(),
-              },
-            },
-            unit_amount: Math.round(validatedAmount * 100), // Convert to cents
-          },
-          quantity: 1,
-        },
-      ],
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/checkout/success?session_id={CHECKOUT_SESSION_ID}&booking_id=${booking._id}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/wednesday-classes?cancelled=true`,
+    // Create Stripe PaymentIntent (for embedded Stripe Elements - no redirect)
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(parseFloat(validatedAmount) * 100),
+      currency: 'nzd',
+      automatic_payment_methods: {
+        enabled: true,
+      },
       metadata: {
         bookingId: booking._id.toString(),
         userEmail: userEmailAddress,
@@ -214,31 +198,25 @@ export async function POST(request) {
         classDate,
         classTime,
         location,
-        amount: validatedAmount.toString(),
       },
-      payment_intent_data: {
-        metadata: {
-          bookingId: booking._id.toString(),
-          userEmail: userEmailAddress,
-        },
-      },
-      expires_at: Math.floor(Date.now() / 1000) + (30 * 60), // 30 minutes expiry
+      description: `Yoga class booking: ${className} on ${new Date(classDate).toLocaleDateString()}`,
+      receipt_email: userEmailAddress,
     });
 
-    // Update booking with checkout session ID
-    booking.checkoutSessionId = checkoutSession.id;
+    // Update booking with payment intent ID
+    booking.paymentIntentId = paymentIntent.id;
     booking.paymentStatus = 'processing';
     await booking.save();
 
-    console.log(`Checkout session created: ${checkoutSession.id} for booking: ${booking._id}`);
+    console.log(`Payment intent created: ${paymentIntent.id} for booking: ${booking._id}`);
 
-    // Return checkout URL
+    // Return client secret for embedded Stripe Elements
     return NextResponse.json({
       success: true,
       bookingId: booking._id.toString(),
-      checkoutUrl: checkoutSession.url,
-      sessionId: checkoutSession.id,
-      message: 'Booking created and checkout initiated',
+      clientSecret: paymentIntent.client_secret,
+      amount: parseFloat(validatedAmount),
+      message: 'Booking created. Proceed to embedded payment form.',
     });
 
   } catch (error) {
@@ -307,34 +285,13 @@ async function handleMultiDateBooking({ selectedDates, className, classTime, loc
       console.log(`Booking created for ${date}: ${booking._id}`);
     }
     
-    // Create a single Stripe checkout session for all bookings
-    const dateList = selectedDates.map(d => new Date(d).toLocaleDateString('en-NZ', { 
-      day: 'numeric', 
-      month: 'short' 
-    })).join(', ');
-    
-    const checkoutSession = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      mode: 'payment',
-      customer_email: userEmailAddress,
-      line_items: [
-        {
-          price_data: {
-            currency: 'nzd',
-            product_data: {
-              name: `${className} - ${selectedDates.length} classes`,
-              description: `Dates: ${dateList} at ${classTime}`,
-              metadata: {
-                bookingIds: bookings.map(b => b._id.toString()).join(','),
-              },
-            },
-            unit_amount: Math.round(amount * 100), // Convert to cents
-          },
-          quantity: 1,
-        },
-      ],
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/checkout/success?session_id={CHECKOUT_SESSION_ID}&booking_ids=${bookings.map(b => b._id.toString()).join(',')}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/wednesday-classes?cancelled=true`,
+    // Create a single Stripe PaymentIntent for all bookings (embedded - no redirect)
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(amount * 100),
+      currency: 'nzd',
+      automatic_payment_methods: {
+        enabled: true,
+      },
       metadata: {
         bookingIds: bookings.map(b => b._id.toString()).join(','),
         userEmail: userEmailAddress,
@@ -342,36 +299,27 @@ async function handleMultiDateBooking({ selectedDates, className, classTime, loc
         className,
         selectedDates: selectedDates.join(','),
         classTime,
-        location,
-        amount: amount.toString(),
-        totalClasses: selectedDates.length.toString(),
-        couponCode: couponCode || '',
       },
-      payment_intent_data: {
-        metadata: {
-          bookingIds: bookings.map(b => b._id.toString()).join(','),
-          userEmail: userEmailAddress,
-        },
-      },
-      expires_at: Math.floor(Date.now() / 1000) + (30 * 60), // 30 minutes expiry
+      description: `${className} - ${selectedDates.length} classes`,
+      receipt_email: userEmailAddress,
     });
-    
-    // Update all bookings with checkout session ID
+
+    // Update all bookings with payment intent ID
     for (const booking of bookings) {
-      booking.checkoutSessionId = checkoutSession.id;
+      booking.paymentIntentId = paymentIntent.id;
       booking.paymentStatus = 'processing';
       await booking.save();
     }
-    
-    console.log(`Multi-date checkout session created: ${checkoutSession.id} for ${bookings.length} bookings`);
-    
-    // Return checkout URL
+
+    console.log(`Payment intent created: ${paymentIntent.id} for ${bookings.length} multi-date bookings`);
+
+    // Return client secret for embedded Stripe Elements
     return NextResponse.json({
       success: true,
       bookingIds: bookings.map(b => b._id.toString()),
-      checkoutUrl: checkoutSession.url,
-      sessionId: checkoutSession.id,
-      message: `${bookings.length} bookings created and checkout initiated`,
+      clientSecret: paymentIntent.client_secret,
+      amount: amount,
+      message: `${bookings.length} bookings created. Proceed to embedded payment form.`,
     });
     
   } catch (error) {

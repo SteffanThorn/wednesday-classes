@@ -4,14 +4,35 @@ import { useState, useEffect } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import { X, Calendar, Clock, MapPin, DollarSign, Loader2, LogIn, Check, ChevronLeft, ChevronRight, Tag, Gift } from 'lucide-react';
 
-// Generate available Wednesdays starting from 18th Feb 2025 for 3 months
-function getAvailableWednesdays(startDate = '2025-02-18', weeksAhead = 12) {
+// Generate available Wednesdays starting from the next upcoming Wednesday
+function getAvailableWednesdays(weeksAhead = 12) {
   const wednesdays = [];
-  const start = new Date(startDate);
+  
+  // Calculate the next upcoming Wednesday
+  const today = new Date();
+  const currentDay = today.getDay(); // 0 = Sunday, 3 = Wednesday
+  const daysUntilWednesday = (3 - currentDay + 7) % 7;
+  
+  // If today is Wednesday, show today's date (before 6pm) or next Wednesday
+  let startDate;
+  if (currentDay === 3) {
+    // Check if it's before 6pm - if so, include today
+    if (today.getHours() < 18) {
+      startDate = new Date(today);
+    } else {
+      // Otherwise, start from next Wednesday
+      startDate = new Date(today);
+      startDate.setDate(today.getDate() + 7);
+    }
+  } else {
+    // Calculate next Wednesday
+    startDate = new Date(today);
+    startDate.setDate(today.getDate() + daysUntilWednesday);
+  }
   
   for (let i = 0; i < weeksAhead; i++) {
-    const wed = new Date(start);
-    wed.setDate(start.getDate() + (i * 7));
+    const wed = new Date(startDate);
+    wed.setDate(startDate.getDate() + (i * 7));
     wednesdays.push({
       date: wed.toISOString().split('T')[0],
       displayDate: wed.toLocaleDateString('en-NZ', { 
@@ -57,7 +78,7 @@ export default function BookingModal({
   const DATES_PER_PAGE = 4;
   
   // Get available dates
-  const availableDates = getAvailableWednesdays('2025-02-18', 12);
+  const availableDates = getAvailableWednesdays(12);
   const totalPages = Math.ceil(availableDates.length / DATES_PER_PAGE);
   const displayedDates = availableDates.slice(currentPage * DATES_PER_PAGE, (currentPage + 1) * DATES_PER_PAGE);
   
@@ -159,52 +180,32 @@ export default function BookingModal({
     setError('');
 
     try {
-      const response = await fetch('/api/book-and-checkout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          className: classDetails.name,
-          selectedDates: selectedDates.map(d => d.date),
-          classTime: classDetails.time,
-          location: classDetails.location,
-          amount: finalPrice,
-          notes: formData.notes,
-          bookingType: 'multi-date',
-          couponCode: appliedCoupon ? appliedCoupon.code : null,
-        }),
-      });
-
-      let data;
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        data = await response.json();
-      } else {
-        const text = await response.text();
-        console.error('Non-JSON response:', text);
-        throw new Error('Server returned an invalid response');
+      // Build query params for checkout page
+      const params = new URLSearchParams();
+      params.set('class_name', classDetails.name);
+      params.set('amount', finalPrice.toString());
+      params.set('class_time', classDetails.time);
+      params.set('location', classDetails.location);
+      
+      // Add selected dates (for multi-date booking)
+      if (selectedDates.length > 0) {
+        params.set('selected_dates', selectedDates.map(d => d.date).join(','));
       }
-
-      if (response.status === 401 && data.requireAuth) {
-        signIn();
-        return;
+      
+      // Add coupon if applied
+      if (appliedCoupon) {
+        params.set('coupon_code', appliedCoupon.code);
       }
-
-      if (!response.ok) {
-        console.error('Booking error response:', data);
-        throw new Error(data.error || `Failed to create booking (${response.status})`);
+      
+      // Add notes
+      if (formData.notes) {
+        params.set('notes', formData.notes);
       }
-
-      if (data.interested) {
-        alert(language === 'zh' ? '感谢您的兴趣！我们会稍后通知您。' : 'Thanks for your interest! We\'ll be in touch.');
-        onClose();
-        return;
-      }
-
-      if (data.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
-      }
+      
+      // Redirect to embedded checkout page with Stripe Elements
+      // The checkout page will create the booking and payment intent
+      window.location.href = `/checkout?${params.toString()}`;
+      
     } catch (err) {
       console.error('Booking error:', err);
       setError(err.message || 'Something went wrong. Please try again.');

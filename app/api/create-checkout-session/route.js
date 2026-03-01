@@ -82,20 +82,37 @@ export async function POST(request) {
     const totalAmount = bookings.reduce((sum, b) => sum + b.amount, 0);
 
     // Prepare line items for Stripe Checkout
-    const lineItems = bookings.map((booking) => ({
-      price_data: {
-        currency: 'nzd',
-        product_data: {
-          name: booking.className,
-          description: `${booking.classDate.toLocaleDateString()} at ${booking.classTime} - ${booking.location}`,
+    // Use pre-created price for $15 bookings, otherwise create dynamic price_data
+    const STANDARD_PRICE_ID = 'price_1T5XvFQeBUhKgFebVNUsQinq'; // $15 NZD
+    
+    const lineItems = bookings.map((booking) => {
+      // Use pre-created price if amount is exactly $15
+      if (booking.amount === 15) {
+        return {
+          price: STANDARD_PRICE_ID,
+          quantity: 1,
           metadata: {
             bookingId: booking._id.toString(),
           },
+        };
+      }
+      
+      // For other amounts, use dynamic price_data
+      return {
+        price_data: {
+          currency: 'nzd',
+          product_data: {
+            name: booking.className,
+            description: `${booking.classDate.toLocaleDateString()} at ${booking.classTime} - ${booking.location}`,
+            metadata: {
+              bookingId: booking._id.toString(),
+            },
+          },
+          unit_amount: Math.round(booking.amount * 100), // Convert to cents
         },
-        unit_amount: Math.round(booking.amount * 100), // Convert to cents
-      },
-      quantity: 1,
-    }));
+        quantity: 1,
+      };
+    });
 
     // Create Stripe Checkout Session
     const checkoutSession = await stripe.checkout.sessions.create({

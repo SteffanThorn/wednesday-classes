@@ -7,23 +7,55 @@ import { useLanguage } from '@/hooks/useLanguage';
 import { Calendar, MapPin, Users, DollarSign, Clock, CheckCircle, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 
+// Calculate the next upcoming Wednesday for display
+function getNextWednesday() {
+  const today = new Date();
+  const currentDay = today.getDay(); // 0 = Sunday, 3 = Wednesday
+  const daysUntilWednesday = (3 - currentDay + 7) % 7;
+  
+  const nextWed = new Date(today);
+  nextWed.setDate(today.getDate() + daysUntilWednesday);
+  return nextWed.toISOString().split('T')[0];
+}
+
 // Wednesday class details
 const WEDNESDAY_CLASS = {
   name: 'New Alignment Yoga',
-  date: '2025-02-18', // Next Wednesday - starting from 18th Feb 2025
+  date: getNextWednesday(), // Dynamically calculated
   time: '6:00 PM',
   location: 'Village Valley Centre, Ashhurst',
   price: 15
 };
 
-// Generate available Wednesdays starting from 18th Feb 2025 for 3 months
-export function getAvailableWednesdays(startDate = '2025-02-18', weeksAhead = 12) {
+// Generate available Wednesdays starting from the next upcoming Wednesday
+export function getAvailableWednesdays(weeksAhead = 12) {
   const wednesdays = [];
-  const start = new Date(startDate);
+  
+  // Calculate the next upcoming Wednesday
+  const today = new Date();
+  const currentDay = today.getDay(); // 0 = Sunday, 3 = Wednesday
+  const daysUntilWednesday = (3 - currentDay + 7) % 7;
+  
+  // If today is Wednesday, show today's date (before 6pm) or next Wednesday
+  let startDate;
+  if (currentDay === 3) {
+    // Check if it's before 6pm - if so, include today
+    if (today.getHours() < 18) {
+      startDate = new Date(today);
+    } else {
+      // Otherwise, start from next Wednesday
+      startDate = new Date(today);
+      startDate.setDate(today.getDate() + 7);
+    }
+  } else {
+    // Calculate next Wednesday
+    startDate = new Date(today);
+    startDate.setDate(today.getDate() + daysUntilWednesday);
+  }
   
   for (let i = 0; i < weeksAhead; i++) {
-    const wed = new Date(start);
-    wed.setDate(start.getDate() + (i * 7));
+    const wed = new Date(startDate);
+    wed.setDate(startDate.getDate() + (i * 7));
     wednesdays.push({
       date: wed.toISOString().split('T')[0],
       displayDate: wed.toLocaleDateString('en-NZ', { 

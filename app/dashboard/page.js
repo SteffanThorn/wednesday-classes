@@ -5,20 +5,33 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import FloatingParticles from '@/components/FloatingParticle';
 import Header from '@/components/Header';
+import BookingModal from '@/components/BookingModal';
+import { useLanguage } from '@/hooks/useLanguage';
 import { Calendar, Clock, MapPin, CreditCard, User, Mail, LogOut, ChevronRight, CheckCircle, XCircle, Wallet, X } from 'lucide-react';
 import Link from 'next/link';
 
 // Force dynamic rendering to avoid session issues during build
 export const dynamic = 'force-dynamic';
 
+// Wednesday class details for booking
+const WEDNESDAY_CLASS = {
+  name: 'New Alignment Yoga',
+  date: '2025-02-18', // Will be dynamically calculated in the modal
+  time: '6:00 PM',
+  location: 'Village Valley Centre, Ashhurst',
+  price: 15
+};
+
 const DashboardPage = () => {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { mounted, language } = useLanguage();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState(null);
   const [cancellationOptions, setCancellationOptions] = useState(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -158,18 +171,18 @@ const DashboardPage = () => {
         <section className="px-6 pb-12">
           <div className="max-w-4xl mx-auto">
             <div className="grid md:grid-cols-3 gap-4 animate-fade-in-up animation-delay-200">
-              <Link 
-                href="/wednesday-classes"
+              <button 
+                onClick={() => setIsBookingModalOpen(true)}
                 className="p-6 rounded-3xl border border-glow-cyan/20 bg-card/60 backdrop-blur-sm 
                          hover:border-glow-cyan/40 hover:box-glow transition-all duration-500
-                         flex items-center justify-between group"
+                         flex items-center justify-between group cursor-pointer"
               >
                 <div className="flex items-center gap-3">
                   <Calendar className="w-5 h-5 text-glow-cyan" />
                   <span className="font-medium">Book a Class</span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-glow-cyan transition-colors" />
-              </Link>
+              </button>
               
               <Link 
                 href="/first-class"
@@ -304,15 +317,15 @@ const DashboardPage = () => {
                 <p className="text-muted-foreground mb-6">
                   You haven&apos;t booked any classes yet. Start your yoga journey today!
                 </p>
-                <Link 
-                  href="/wednesday-classes"
+                <button 
+                  onClick={() => setIsBookingModalOpen(true)}
                   className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-glow-cyan/20 
                            border border-glow-cyan/40 text-glow-cyan font-medium 
-                           hover:bg-glow-cyan/30 hover:box-glow transition-all duration-300"
+                           hover:bg-glow-cyan/30 hover:box-glow transition-all duration-300 cursor-pointer"
                 >
                   Book Your First Class
                   <ChevronRight className="w-4 h-4" />
-                </Link>
+                </button>
               </div>
             </div>
           </section>
@@ -420,6 +433,14 @@ const DashboardPage = () => {
         </div>
       )}
     </div>
+
+    {/* Booking Modal */}
+    <BookingModal
+      isOpen={isBookingModalOpen}
+      onClose={() => setIsBookingModalOpen(false)}
+      classDetails={WEDNESDAY_CLASS}
+      language={mounted ? language : 'en'}
+    />
   );
 };
 

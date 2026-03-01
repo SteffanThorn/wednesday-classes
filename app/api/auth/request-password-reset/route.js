@@ -11,21 +11,32 @@ const RESET_TOKEN_BYTES = 32;
 const RESET_TOKEN_TTL_MINUTES = parseInt(process.env.RESET_TOKEN_TTL_MINUTES || '30', 10);
 
 export async function POST(request) {
+  console.log('Starting password reset request...');
+  
   try {
     const body = await request.json();
     const { email } = body || {};
+
+    console.log('Received email:', email);
 
     if (!email || typeof email !== 'string') {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
 
+    console.log('Connecting to database...');
     await dbConnect();
+    console.log('Database connected');
 
+    console.log('Looking for user:', email.toLowerCase().trim());
     const user = await User.findOne({ email: email.toLowerCase().trim() });
+    
     if (!user) {
+      console.log('User not found, returning success');
       // Return success regardless to prevent email enumeration
       return NextResponse.json({ message: 'If an account exists, a reset email will be sent' });
     }
+
+    console.log('User found:', user._id);
 
     // Create secure random token and hash it
     const tokenRaw = crypto.randomBytes(RESET_TOKEN_BYTES).toString('hex');
@@ -34,9 +45,11 @@ export async function POST(request) {
     // Compute expiry
     const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MINUTES * 60 * 1000);
 
+    console.log('Deleting old tokens...');
     // Optionally: Invalidate prior unconsumed tokens for this user to enforce one active token policy
     await ResetToken.deleteMany({ userId: user._id, consumedAt: null, expiresAt: { $gt: new Date() } });
 
+    console.log('Creating new token...');
     // Save token
     await ResetToken.create({
       userId: user._id,
@@ -51,6 +64,7 @@ export async function POST(request) {
     // Get user's name for the email
     const userName = user.name || 'there';
 
+    console.log('Sending reset email...');
     // Send reset email using the styled template
     await sendEmail({
       to: user.email,
@@ -67,10 +81,32 @@ export async function POST(request) {
       }),
     });
 
+    console.log('Password reset email sent successfully');
     return NextResponse.json({ message: 'If an account exists, a reset email will be sent' });
   } catch (err) {
     console.error('request-password-reset error:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Error name:', err?.name);
+    console.error('Error message:', err?.message);
+    console.error('Error cause:', err?.cause);
+    console.error('Error stack:', err?.stack);
+    
+    // Provide more specific error messages for common issues
+    let errorMessage = 'Internal server error';
+    const errorStr = String(err?.message || err || '');
+    
+    if (errorStr.includes('fetch failed') || errorStr.includes('ECONNREFUSED') || errorStr.includes('NetworkError')) {
+      errorMessage = 'Unable to connect to email service. Please try again later.';
+    } else if (errorStr.includes('Failed to send email')) {
+      errorMessage = 'Failed to send reset email. Please try again later.';
+    } else if (errorStr.includes('Authentication required') || errorStr.includes('Internal API key') || errorStr.includes('x-internal-api-key')) {
+      errorMessage = 'Email service is not configured. Please contact the administrator.';
+    } else if (errorStr.includes('Invalid email type')) {
+      errorMessage = 'Email service configuration error. Please contact support.';
+    } else if (errorStr.includes('MONGODB_URI') || errorStr.includes('MongoServerError')) {
+      errorMessage = 'Database connection error. Please try again later.';
+    }
+    
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
