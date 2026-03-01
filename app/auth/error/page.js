@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect } from 'react';
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import FloatingParticles from '@/components/FloatingParticle';
 import Header from '@/components/Header';
 import { AlertCircle, ArrowLeft } from 'lucide-react';
 
-const ErrorPage = () => {
+const ErrorContent = () => {
   const searchParams = useSearchParams();
   const error = searchParams.get('error');
 
@@ -91,6 +91,27 @@ const ErrorPage = () => {
         </div>
       </div>
     </div>
+  );
+};
+
+const ErrorPage = () => {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen relative overflow-hidden">
+        <FloatingParticles />
+        <div className="relative z-10">
+          <Header />
+          <div className="flex items-center justify-center min-h-[80vh]">
+            <div className="flex items-center gap-3 text-glow-cyan">
+              <span className="w-8 h-8 border-2 border-glow-cyan/30 border-t-glow-cyan rounded-full animate-spin" />
+              <span>Loading...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    }>
+      <ErrorContent />
+    </Suspense>
   );
 };
 
