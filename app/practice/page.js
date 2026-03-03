@@ -1,5 +1,8 @@
 'use client';
 
+// force dynamic rendering due to booking modal & session
+export const dynamic = 'force-dynamic';
+
 import { useState } from 'react';
 import FloatingParticles from '@/components/FloatingParticle';
 import Header from '@/components/Header';

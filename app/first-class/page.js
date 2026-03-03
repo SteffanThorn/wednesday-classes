@@ -1,5 +1,8 @@
 'use client';
 
+// Mark page dynamic due to client components (booking modal) and session usage
+export const dynamic = 'force-dynamic';
+
 import { useState } from 'react';
 import FloatingParticles from '@/components/FloatingParticle';
 import Header from '@/components/Header';

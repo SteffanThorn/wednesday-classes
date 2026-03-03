@@ -1,5 +1,8 @@
 'use client';
 
+// dynamic rendering because we embed BookingModal (client) and session info
+export const dynamic = 'force-dynamic';
+
 import FloatingParticles from '@/components/FloatingParticle';
 import Header from '@/components/Header';
 import BookingModal from '@/components/BookingModal';
