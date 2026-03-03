@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import dbConnect from '@/lib/mongodb';
 import Booking from '@/lib/models/Booking';
+import AuditLog from '@/lib/models/AuditLog';
+import { sendBookingConfirmationEmail } from '@/lib/email';
 
 // PUT /api/admin/bookings/confirm-cash
 export async function PUT(request) {
@@ -42,6 +44,40 @@ export async function PUT(request) {
     booking.updatedAt = new Date();
 
     await booking.save();
+
+    // record admin action in audit log
+    try {
+      const log = new AuditLog({
+        type: 'confirm_cash',
+        adminId: session.user.id,
+        adminEmail: session.user.email,
+        bookingId: booking._id,
+        details: `Cash payment confirmed by admin ${session.user.email}`,
+      });
+      await log.save();
+    } catch (logErr) {
+      console.error('Failed to write audit log for cash confirmation:', logErr);
+    }
+
+    // Send confirmation email to user about cash payment
+    try {
+      const formattedDate = new Date(booking.classDate).toLocaleDateString('en-NZ', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+      });
+
+      await sendBookingConfirmationEmail({
+        userEmail: booking.userEmail,
+        userName: booking.userName,
+        className: booking.className,
+        classDate: formattedDate,
+        classTime: booking.classTime,
+        location: booking.location,
+        amount: booking.amount,
+        bookingId: booking._id.toString()
+      });
+    } catch (emailErr) {
+      console.error('Failed to send cash confirmation email:', emailErr);
+    }
 
     return NextResponse.json({ message: 'Booking marked as paid (cash)', bookingId: booking._id.toString() });
   } catch (error) {
