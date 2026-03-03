@@ -39,9 +39,9 @@ const DashboardPage = () => {
       fetchBookings();
     }
   }, [session]);
-+
-+  // detect redirect from cash booking flow and show success banner
-+  useEffect(() => {
+
+  // detect redirect from cash booking flow and show success banner
+  useEffect(() => {
 +    if (typeof window !== 'undefined') {
 +      const params = new URLSearchParams(window.location.search);
 +      if (params.get('paid') === 'cash') {
@@ -61,6 +61,11 @@ const DashboardPage = () => {
 +      }
 +    }
 +  }, []);
+
+  const fetchBookings = async () => {
+    try {
+      const response = await fetch('/api/bookings');
+      if (response.ok) {
         const data = await response.json();
         setBookings(data.bookings);
       }
