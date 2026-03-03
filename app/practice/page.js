@@ -1,14 +1,17 @@
 'use client';
 
+import { useState } from 'react';
 import FloatingParticles from '@/components/FloatingParticle';
 import Header from '@/components/Header';
 import HeroSection from '@/components/HeroSection';
 import FeatureCard from '@/components/FeatureCard';
+import BookingModal from '@/components/BookingModal';
 import { Heart, Baby, Sparkles, Sun, Wind, Moon } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
 
 const PracticePage = () => {
   const { t, mounted } = useLanguage();
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
 
   const benefits = [
     {
@@ -123,14 +126,35 @@ const PracticePage = () => {
               <p className="text-muted-foreground mb-6">
                 {mounted ? t('ctaSubtitle') : 'Join us for a class and discover the transformative power of yoga.'}
               </p>
-              <button className="px-8 py-3 rounded-full bg-glow-cyan/10 border border-glow-cyan/30 
+              <button 
+                onClick={() => setIsBookingModalOpen(true)}
+                className="px-8 py-3 rounded-full bg-glow-cyan/10 border border-glow-cyan/30 
                                text-glow-cyan font-medium hover:bg-glow-cyan/20 hover:box-glow
-                               transition-all duration-300">
+                               transition-all duration-300 cursor-pointer">
                 {mounted ? t('bookFirstClass') : 'Book Your First Class'}
               </button>
             </div>
           </div>
         </section>
+
+        {/* BookingModal */}
+        <BookingModal 
+          isOpen={isBookingModalOpen}
+          onClose={() => setIsBookingModalOpen(false)}
+          classDetails={{
+            name: 'Beginner Yoga',
+            location: 'Village Valley Centre, Ashhurst',
+            price: 15,
+            time: '6:00 PM'
+          }}
+          selectedDates={[(() => {
+            const next = new Date();
+            const day = next.getDay();
+            const daysUntilWednesday = (3 - day + 7) % 7 || 7;
+            next.setDate(next.getDate() + daysUntilWednesday);
+            return next.toISOString().split('T')[0];
+          })()]}
+        />
 
         {/* Footer */}
         <footer className="relative z-10 py-12 px-6 border-t border-border/30">

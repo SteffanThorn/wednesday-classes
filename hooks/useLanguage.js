@@ -31,7 +31,7 @@ const translations = {
     pregnancyDesc: 'Full-cycle maternity yoga creates a sacred space for expectant mothers, easing discomfort, preparing the body for birth, and nurturing the deep connection between mother and child.',
     
     kneePainRecovery: 'Mindfulness Through Meditation',
-    kneePainDesc: 'Guided meditation practices calm the mind, reduce stress, and cultivate inner peace—helping you find stillness and clarity in our fast-paced world.',
+    kneePainDesc: 'Guided meditation practices calm the mind, reduce stress, and cultivate inner peace. Helping you find stillness and clarity in our fast-paced world.',
 
     
     quote: 'The body achieves what the mind believes.',
@@ -57,7 +57,7 @@ const translations = {
     momentsOfWonder: 'Moments of Wonder',
     
     // Footer
-    copyright: '© 2026 Inner Light Yoga · Auckland, New Zealand',
+    copyright: '© 2026 Inner Light Yoga · Palmerston North, New Zealand',
     footerMotto: 'Breathe deeply. Move gently. Live fully.',
 
     // Practice Page
@@ -243,7 +243,7 @@ suggestions: 'Suggestions',
     firstTimer: 'First Time',
     firstTimerDesc: 'Tell us it\'s your first class so we can give you extra attention.',
     readyToBegin: 'Ready to Begin?',
-    readyToBeginDesc: 'Book your first class and take the first step towards inner peace.',
+    readyToBeginDesc: 'Book your first class and take the first step to a healthier, happier you.',
     firstClassSuccess: 'Booking Received!',
     firstClassSuccessDesc: 'Thank you for booking your first class with us. We will confirm your appointment within 24 hours.',
     bookNow: 'Book Now',

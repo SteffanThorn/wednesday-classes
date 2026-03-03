@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { useLanguage } from '@/hooks/useLanguage';
+import BookingModal from './BookingModal';
 
 const testimonials = [
   {
@@ -9,6 +11,8 @@ const testimonials = [
     role: 'Software Engineer',
     avatar: '陈',
     color: 'from-glow-cyan to-glow-teal'
+    // Optional screenshot image (place under /public/testimonials/)
+    ,screenshot: '/testimonials/sarah.png'
   },
   {
     id: 2,
@@ -16,6 +20,7 @@ const testimonials = [
     role: 'Marketing Director',
     avatar: '苏',
     color: 'from-glow-purple to-glow-cyan'
+    ,screenshot: '/testimonials/emma.png'
   },
   {
     id: 3,
@@ -23,11 +28,13 @@ const testimonials = [
     role: 'New Mother',
     avatar: '李',
     color: 'from-glow-teal to-glow-purple'
+    ,screenshot: '/testimonials/lisa.png'
   }
 ];
 
 const TestimonialsColumn = () => {
   const { language, t, mounted } = useLanguage();
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
 
   return (
     <section className="px-6 py-16 md:py-24 relative">
@@ -98,29 +105,37 @@ const TestimonialsColumn = () => {
                 </div>
               </div>
 
-              {/* Quote */}
+              {/* Screenshot (if available) or Quote */}
               <div className="relative">
-                <span className="absolute -top-4 -left-2 text-6xl text-glow-cyan/20 font-display">
-                  "
-                </span>
-                <p className="text-muted-foreground leading-relaxed italic relative z-10">
-                  {language === 'zh' ? (
-                    <>
-                      {testimonial.id === 1 && '在Yuki老师的课堂上，我找到了内心的平静。这里的正念练习彻底改变了我应对压力的方式。每次课后，我都感觉与自己更加连接。'}
-                      {testimonial.id === 2 && '作为一个高压职业者，我尝试过很多放松方式，但这里的课程真正触及了我的灵魂。Yuki老师的指导温柔而有力，帮我重新发现了生活的美好。'}
-                      {testimonial.id === 3 && '孕产瑜伽课程是我孕期最珍贵的礼物。Yuki老师不仅教会我如何与宝宝建立连接，还帮助我度过了身体和情绪上的挑战。强烈推荐给所有准妈妈！'}
-                    </>
-                  ) : (
-                    <>
-                      {testimonial.id === 1 && 'I found inner peace in Yuki\'s classes. The mindfulness practices here have completely transformed how I handle stress. After each session, I feel more connected to myself.'}
-                      {testimonial.id === 2 && 'As a high-pressure professional, I\'ve tried many relaxation methods, but these sessions truly touch my soul. Yuki\'s guidance is gentle yet powerful, helping me rediscover the beauty of life.'}
-                      {testimonial.id === 3 && 'The prenatal yoga classes were the most precious gift of my pregnancy. Yuki helped me connect with my baby and navigate the physical and emotional challenges. Highly recommend for all expecting mothers!'}
-                    </>
-                  )}
-                </p>
-                <span className="absolute -bottom-8 right-0 text-6xl text-glow-purple/20 font-display">
-                  "
-                </span>
+                {testimonial.screenshot ? (
+                  <div className="w-full h-48 md:h-40 lg:h-48 overflow-hidden rounded-xl bg-muted/5">
+                    <img
+                      src={testimonial.screenshot}
+                      alt={`${testimonial.name} testimonial`}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <>
+                    <span className="absolute -top-4 -left-2 text-6xl text-glow-cyan/20 font-display">"</span>
+                    <p className="text-muted-foreground leading-relaxed italic relative z-10">
+                      {language === 'zh' ? (
+                        <>
+                          {testimonial.id === 1 && '在Yuki老师的课堂上，我找到了内心的平静。这里的正念练习彻底改变了我应对压力的方式。每次课后，我都感觉与自己更加连接。'}
+                          {testimonial.id === 2 && '作为一个高压职业者，我尝试过很多放松方式，但这里的课程真正触及了我的灵魂。Yuki老师的指导温柔而有力，帮我重新发现了生活的美好。'}
+                          {testimonial.id === 3 && '孕产瑜伽课程是我孕期最珍贵的礼物。Yuki老师不仅教会我如何与宝宝建立连接，还帮助我度过了身体和情绪上的挑战。强烈推荐给所有准妈妈！'}
+                        </>
+                      ) : (
+                        <>
+                          {testimonial.id === 1 && 'I found inner peace in Yuki\'s classes. The mindfulness practices here have completely transformed how I handle stress. After each session, I feel more connected to myself.'}
+                          {testimonial.id === 2 && 'As a high-pressure professional, I\'ve tried many relaxation methods, but these sessions truly touch my soul. Yuki\'s guidance is gentle yet powerful, helping me rediscover the beauty of life.'}
+                          {testimonial.id === 3 && 'The prenatal yoga classes were the most precious gift of my pregnancy. Yuki helped me connect with my baby and navigate the physical and emotional challenges. Highly recommend for all expecting mothers!'}
+                        </>
+                      )}
+                    </p>
+                    <span className="absolute -bottom-8 right-0 text-6xl text-glow-purple/20 font-display">"</span>
+                  </>
+                )}
               </div>
 
               {/* Rating Stars */}
@@ -146,15 +161,36 @@ const TestimonialsColumn = () => {
           <p className="text-muted-foreground mb-6">
             {mounted ? t('testimonialsCTA') : 'Ready to write your own story?'}
           </p>
-          <button className="px-8 py-3 bg-gradient-to-r from-glow-cyan/20 to-glow-purple/20 
+          <button 
+            onClick={() => setIsBookingModalOpen(true)}
+            className="px-8 py-3 bg-gradient-to-r from-glow-cyan/20 to-glow-purple/20 
                            border border-glow-cyan/30 rounded-full text-foreground
                            hover:from-glow-cyan/30 hover:to-glow-purple/30 
                            hover:border-glow-cyan/50 transition-all duration-300
                            hover:shadow-lg hover:shadow-glow-cyan/20
-                           animate-fade-in-up animation-delay-600">
+                           animate-fade-in-up animation-delay-600 cursor-pointer">
             {mounted ? t('bookFirstClass') : 'Book Your First Class'}
           </button>
         </div>
+
+        {/* BookingModal */}
+        <BookingModal 
+          isOpen={isBookingModalOpen}
+          onClose={() => setIsBookingModalOpen(false)}
+          classDetails={{
+            name: 'Beginner Yoga',
+            location: 'Village Valley Centre, Ashhurst',
+            price: 15,
+            time: '6:00 PM'
+          }}
+          selectedDates={[(() => {
+            const next = new Date();
+            const day = next.getDay();
+            const daysUntilWednesday = (3 - day + 7) % 7 || 7;
+            next.setDate(next.getDate() + daysUntilWednesday);
+            return next.toISOString().split('T')[0];
+          })()]}
+        />
       </div>
     </section>
   );

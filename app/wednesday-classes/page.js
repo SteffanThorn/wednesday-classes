@@ -20,7 +20,7 @@ function getNextWednesday() {
 
 // Wednesday class details
 const WEDNESDAY_CLASS = {
-  name: 'New Alignment Yoga',
+  name: 'Beginner Yoga',
   date: getNextWednesday(), // Dynamically calculated
   time: '6:00 PM',
   location: 'Village Valley Centre, Ashhurst',
@@ -139,7 +139,7 @@ const WednesdayClassesPage = () => {
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="font-display text-4xl md:text-6xl lg:text-7xl font-light 
                          text-glow animate-fade-in-up mb-6">
-              {mounted ? (language === 'zh' ? 'Ashhurst新对齐瑜伽课程' : 'New Alignment Yoga Classes in Ashhurst') : 'New Alignment Yoga Classes in Ashhurst'}
+              {mounted ? (language === 'zh' ? 'Ashhurst初级瑜伽' : 'Beginner Yoga in Ashhurst') : 'Beginner Yoga in Ashhurst'}
             </h1>
             
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto 

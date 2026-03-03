@@ -9,6 +9,13 @@ import { Lock, Loader2, CreditCard, CheckCircle, AlertCircle } from 'lucide-reac
 const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 
+// Debug: log publishable key prefix to detect environment mismatches
+if (stripePublishableKey) {
+  console.log('Stripe publishable key prefix (module load):', stripePublishableKey.substring(0, 8));
+} else {
+  console.log('Stripe publishable key missing');
+}
+
 // Only log warning if keys are missing (not during initial load when env vars might not be ready)
 // This is expected behavior during SSR - keys will be available on client
 const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;

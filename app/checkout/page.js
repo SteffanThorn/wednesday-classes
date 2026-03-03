@@ -37,7 +37,6 @@ function CheckoutContent() {
   // Use refs that persist across renders
   const clientSecretRef = useRef(clientSecret);
   const bookingDataRef = useRef(bookingData);
-  const paramsRef = useRef(null);
   const isLocalInitialized = useRef(false);
   
   // Update refs when clientSecret and bookingData change
@@ -49,9 +48,12 @@ function CheckoutContent() {
     bookingDataRef.current = bookingData;
   }, [bookingData]);
 
-  // Initialize params only once - this runs synchronously before any renders
-  if (!paramsRef.current) {
-    paramsRef.current = {
+  // Use state for params instead of ref to ensure proper reactivity
+  const [params, setParams] = useState(null);
+
+  // Initialize params from searchParams - use effect to ensure proper client-side initialization
+  useEffect(() => {
+    const paramsData = {
       bookingId: searchParams.get('booking_id'),
       amount: searchParams.get('amount'),
       className: searchParams.get('class_name'),
@@ -62,21 +64,47 @@ function CheckoutContent() {
       couponCode: searchParams.get('coupon_code'),
       notes: searchParams.get('notes')
     };
-  }
-  
-  const { bookingId, amount, className, classDate, classTime, location, selectedDates, couponCode, notes } = paramsRef.current;
+    
+    console.log('Initialized params from searchParams:', paramsData);
+    setParams(paramsData);
+  }, [searchParams]);
+
+  // Extract params with fallbacks
+  const bookingId = params?.bookingId || null;
+  const amount = params?.amount || null;
+  const className = params?.className || null;
+  const classDate = params?.classDate || null;
+  const classTime = params?.classTime || null;
+  const location = params?.location || null;
+  const selectedDates = params?.selectedDates || null;
+  const couponCode = params?.couponCode || null;
+  const notes = params?.notes || null;
   
   useEffect(() => {
+    // Debug: Log publishable key prefix (client-side env)
+    console.log('Stripe publishable key prefix (client):',
+      process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+        ? process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.substring(0, 8)
+        : 'none'
+    );
+
     // Debug: Log the search params we're receiving
     console.log('Checkout page useEffect - params:', {
       bookingId,
       amount,
       className,
+      classDate,
+      classTime,
+      location,
+      selectedDates,
+      couponCode,
+      notes,
       hasClientSecret: !!clientSecretRef.current,
       globalAPICalled,
       globalInitComplete,
       isLocalInitialized: isLocalInitialized.current,
-      sessionStatus: status
+      sessionStatus: status,
+      rawSearchParams: searchParams.toString()
     });
     
     // Wait for session to load before making API calls
@@ -116,6 +144,12 @@ function CheckoutContent() {
     }
     
     // Check if we have valid params - redirect to home if not
+    // But first, make sure params have been initialized from searchParams
+    if (params === null) {
+      console.log('Params not yet initialized, waiting...');
+      return;
+    }
+    
     if (!bookingId && (!className || !amount)) {
       console.error('Missing required params - redirecting to home');
       setError(language === 'zh' 
@@ -155,7 +189,7 @@ function CheckoutContent() {
       });
       
       // Create a payment intent for this ad-hoc booking (with or without coupon)
-      createAdHocPaymentIntent(dates, couponCode);
+      createAdHocPaymentIntent(dates, couponCode, { amount, className, classTime, location });
     } else {
       // More helpful error message for debugging
       const missingParams = [];
@@ -181,7 +215,7 @@ function CheckoutContent() {
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [status]); // Empty dependency array - run only once on mount
+  }, [status, language, bookingId, className, amount, params, router]);
 
   const fetchClientSecret = async () => {
     try {
@@ -200,13 +234,38 @@ function CheckoutContent() {
       console.log('API response:', { status: response.status, data });
 
       if (!response.ok) {
-        // Handle specific error cases
-        if (data.error === 'Booking ID or booking details are required') {
+        // Handle specific error cases with more detail
+        console.error('API error response:', data);
+        
+        if (data.code === 'NO_SESSION' || data.error?.includes('Unauthorized')) {
           throw new Error(language === 'zh' 
-            ? '预订信息无效，请重新选择课程' 
-            : 'Invalid booking information. Please select your class again.');
+            ? '请先登录后再进行支付' 
+            : 'Please sign in to complete payment. Redirecting to login...');
         }
-        throw new Error(data.error || 'Failed to initialize payment');
+        
+        if (data.error === 'Booking ID or booking details are required' || data.code === 'MISSING_FIELDS') {
+          const debugMsg = `${
+            language === 'zh' 
+              ? '预订信息无效，请重新选择课程' 
+              : 'Invalid booking information. Please select your class again.'
+          } -- ${JSON.stringify(data)}`;
+          throw new Error(debugMsg);
+        }
+        
+        if (data.error === 'Booking not found') {
+          throw new Error(language === 'zh' 
+            ? '预订不存在，请重新选择课程' 
+            : 'Booking not found. Please select your class again.');
+        }
+        
+        if (data.error === 'Booking is already paid') {
+          throw new Error(language === 'zh' 
+            ? '此预订已完成支付' 
+            : 'This booking has already been paid.');
+        }
+        
+        // Show more detailed error for debugging
+        throw new Error(data.error || `Payment initialization failed (${response.status}). Please try again.`);
       }
 
       if (!data.clientSecret) {
@@ -232,28 +291,37 @@ function CheckoutContent() {
     }
   };
 
-  const createAdHocPaymentIntent = async (dates = [], couponCode = null) => {
+  const createAdHocPaymentIntent = async (dates = [], couponCode = null, classDetails = {}) => {
     try {
       setIsLoading(true);
       
       // Debug: Log the params we're working with
+      const { amount: classAmount, className: classClassName, classTime: classClassTime, location: classLocation } = classDetails;
+      
       console.log('Creating ad-hoc payment intent with:', {
-        amount,
-        className,
+        amount: classAmount,
+        className: classClassName,
         classDate,
-        classTime,
-        location,
+        classTime: classClassTime,
+        location: classLocation,
         dates,
         couponCode,
         notes
       });
+      if (!classAmount || !classClassName || isNaN(parseFloat(classAmount))) {
+        console.error('Ad-hoc booking parameters appear invalid:', {
+          classAmount,
+          classClassName,
+          parsedAmount: parseFloat(classAmount)
+        });
+      }
       
       // For ad-hoc bookings (not yet created in database), create a payment intent directly
       const requestBody = {
-        amount: parseFloat(amount),
-        className,
-        classTime,
-        location,
+        amount: parseFloat(classAmount),
+        className: classClassName,
+        classTime: classClassTime,
+        location: classLocation,
       };
       
       // Add single date or multiple dates
@@ -276,6 +344,10 @@ function CheckoutContent() {
       }
       
       console.log('Sending request body to API:', requestBody);
+      if (!requestBody.amount || !requestBody.className || isNaN(requestBody.amount)) {
+        console.error('Request body is missing required fields before API call', requestBody);
+        throw new Error(`Local error: invalid booking parameters ${JSON.stringify(requestBody)}`);
+      }
       
       const response = await fetch('/api/create-payment-intent', {
         method: 'POST',
@@ -288,18 +360,26 @@ function CheckoutContent() {
       console.log('API response for ad-hoc:', { status: response.status, data });
 
       if (!response.ok) {
-        // Handle specific error cases
-        if (data.error === 'Booking ID or booking details are required') {
+        // Handle specific error cases with more detail
+        console.error('API error response for ad-hoc:', data);
+        
+        if (data.code === 'NO_SESSION' || data.error?.includes('Unauthorized')) {
           throw new Error(language === 'zh' 
-            ? '预订信息无效，请重新选择课程' 
-            : 'Invalid booking information. Please select your class again.');
+            ? '请先登录后再进行支付' 
+            : 'Please sign in to complete payment. Redirecting to login...');
         }
-        if (data.error?.includes('Unauthorized')) {
-          throw new Error(language === 'zh' 
-            ? '请先登录再进行支付' 
-            : 'Please sign in to complete payment.');
+        
+        if (data.error === 'Booking ID or booking details are required' || data.code === 'MISSING_FIELDS') {
+          const debugMsg = `${
+            language === 'zh' 
+              ? '预订信息无效，请重新选择课程' 
+              : 'Invalid booking information. Please select your class again.'
+          } -- ${JSON.stringify(data)}`;
+          throw new Error(debugMsg);
         }
-        throw new Error(data.error || 'Failed to initialize payment');
+        
+        // Show more detailed error for debugging
+        throw new Error(data.error || `Payment initialization failed (${response.status}). Please try again.`);
       }
 
       if (!data.clientSecret) {
@@ -319,6 +399,7 @@ function CheckoutContent() {
         selectedDates: data.selectedDates || dates
       }));
     } catch (err) {
+      console.error('Error creating ad-hoc payment intent:', err);
       setError(err.message);
     } finally {
       setIsLoading(false);

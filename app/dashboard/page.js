@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
 
 // Wednesday class details for booking
 const WEDNESDAY_CLASS = {
-  name: 'New Alignment Yoga',
+  name: 'Beginner Yoga',
   date: '2025-02-18', // Will be dynamically calculated in the modal
   time: '6:00 PM',
   location: 'Village Valley Centre, Ashhurst',

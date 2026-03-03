@@ -11,6 +11,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 console.log('Stripe configuration:', {
   secretKeyPrefix: process.env.STRIPE_SECRET_KEY?.substring(0, 8),
   hasSecretKey: !!process.env.STRIPE_SECRET_KEY,
+  nodeEnv: process.env.NODE_ENV,
 });
 
 /**
@@ -23,20 +24,28 @@ console.log('Stripe configuration:', {
  * Body: { bookingId: string }
  */
 export async function POST(request) {
+  let session = null;
   try {
     // Verify user is authenticated
-    const session = await auth();
+    session = await auth();
+    console.log('Auth session check:', { 
+      hasSession: !!session, 
+      hasUser: !!session?.user, 
+      hasEmail: !!session?.user?.email,
+      userEmail: session?.user?.email 
+    });
     
     if (!session?.user?.email) {
+      console.error('Unauthorized: No valid session or email');
       return NextResponse.json(
-        { error: 'Unauthorized - Please sign in to complete payment' },
+        { error: 'Unauthorized - Please sign in to complete payment', code: 'NO_SESSION' },
         { status: 401 }
       );
     }
 
     // Parse request body
     const body = await request.json();
-    const { bookingId, amount: requestedAmount, className, classDate, classTime, location } = body;
+    const { bookingId, amount: requestedAmount, className, classDate, classTime, location, selectedDates, couponCode, notes } = body;
 
     // Debug logging
     console.log('Create Payment Intent Request:', {
@@ -46,12 +55,16 @@ export async function POST(request) {
       classDate,
       classTime,
       location,
-      bodyKeys: Object.keys(body)
+      selectedDates,
+      couponCode,
+      notes,
+      bodyKeys: Object.keys(body),
+      rawBody: JSON.stringify(body)
     });
 
     // If no bookingId, create a new booking from the provided details
     if (!bookingId && requestedAmount && className) {
-      console.log('Creating ad-hoc booking with params:', { requestedAmount, className, classDate });
+      console.log('Creating ad-hoc booking with params:', { requestedAmount, className, classDate, selectedDates });
       return await createAdHocBookingAndPaymentIntent({
         session,
         amount: requestedAmount,
@@ -59,13 +72,16 @@ export async function POST(request) {
         classDate,
         classTime,
         location,
+        selectedDates,
+        couponCode,
+        notes,
       });
     }
 
     if (!bookingId) {
       console.error('Missing booking details:', { bookingId, requestedAmount, className });
       return NextResponse.json(
-        { error: 'Booking ID or booking details are required', received: { bookingId, requestedAmount: !!requestedAmount, className: !!className } },
+        { error: 'Booking ID or booking details are required', received: { bookingId: !!bookingId, requestedAmount: !!requestedAmount, className: !!className }, code: 'MISSING_FIELDS' },
         { status: 400 }
       );
     }
@@ -175,12 +191,45 @@ export async function POST(request) {
     });
 
   } catch (error) {
-    console.error('Error creating payment intent:', error);
+    console.error('========== ERROR CREATING PAYMENT INTENT ==========');
+    console.error('Error type:', error.constructor.name);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    console.error('Session info at time of error:', { 
+      hasSession: !!session, 
+      hasUser: !!session?.user, 
+      userEmail: session?.user?.email 
+    });
+    
+    // Handle specific error types
+    if (error.name === 'ValidationError') {
+      console.error('Mongoose validation error:', error.errors);
+      return NextResponse.json(
+        { error: 'Invalid booking data. Please check your selections.', details: error.message, code: 'VALIDATION_ERROR' },
+        { status: 400 }
+      );
+    }
+    
+    if (error.name === 'CastError') {
+      console.error('Mongoose cast error (invalid ID format):', error);
+      return NextResponse.json(
+        { error: 'Invalid booking ID format.', code: 'INVALID_ID' },
+        { status: 400 }
+      );
+    }
+    
+    if (error.message?.includes('JWT')) {
+      console.error('JWT/Auth error detected');
+      return NextResponse.json(
+        { error: 'Session expired. Please sign in again.', code: 'SESSION_EXPIRED' },
+        { status: 401 }
+      );
+    }
     
     // Handle specific Stripe errors
     if (error.type === 'StripeCardError') {
       return NextResponse.json(
-        { error: `Card error: ${error.message}` },
+        { error: `Card error: ${error.message}`, code: 'CARD_ERROR' },
         { status: 400 }
       );
     }
@@ -188,13 +237,18 @@ export async function POST(request) {
     if (error.type === 'StripeInvalidRequestError') {
       console.error('Invalid Stripe request:', error);
       return NextResponse.json(
-        { error: 'Invalid payment configuration' },
+        { error: 'Invalid payment configuration. Please contact support.', code: 'STRIPE_CONFIG_ERROR' },
         { status: 500 }
       );
     }
 
+    // Generic error - include message for debugging
+    const errorMessage = process.env.NODE_ENV === 'development' 
+      ? error.message 
+      : 'Failed to create payment intent. Please try again.';
+    
     return NextResponse.json(
-      { error: 'Failed to create payment intent. Please try again.' },
+      { error: errorMessage, code: 'GENERAL_ERROR' },
       { status: 500 }
     );
   }
@@ -278,136 +332,174 @@ export async function GET(request) {
  * Used when user goes directly to checkout without creating a booking first
  */
 async function createAdHocBookingAndPaymentIntent({ session, amount, className, classDate, classTime, location, selectedDates, couponCode, notes }) {
-  await dbConnect();
+  console.log('=== Starting createAdHocBookingAndPaymentIntent ===');
+  console.log('Input params:', { amount, className, classDate, classTime, location, selectedDates, couponCode, notes });
+  console.log('User from session:', { email: session?.user?.email, name: session?.user?.name, id: session?.user?.id });
+  
+  // Validate required params
+  if (!session?.user?.email) {
+    console.error('No user email in session');
+    return NextResponse.json(
+      { error: 'Unauthorized - No user session found', code: 'NO_SESSION' },
+      { status: 401 }
+    );
+  }
+  
+  if (!amount || !className) {
+    console.error('Missing required params:', { amount, className });
+    return NextResponse.json(
+      { error: 'Missing required booking information', code: 'MISSING_FIELDS' },
+      { status: 400 }
+    );
+  }
+
+  try {
+    await dbConnect();
+    console.log('Database connected successfully');
+  } catch (dbError) {
+    console.error('Database connection failed:', dbError);
+    return NextResponse.json(
+      { error: 'Database connection failed. Please try again.', code: 'DB_ERROR', details: dbError.message },
+      { status: 500 }
+    );
+  }
 
   const userEmail = session.user.email;
   const userName = session.user.name || 'Guest';
   const userId = session.user.id;
   
-  // Handle coupon if provided
-  let finalAmount = parseFloat(amount);
-  let appliedCoupon = null;
-  let numClasses = 1;
-  
-  // Determine number of classes
-  if (selectedDates && Array.isArray(selectedDates) && selectedDates.length > 0) {
-    numClasses = selectedDates.length;
-  } else if (classDate) {
-    numClasses = 1;
-  }
-  
-  // Validate coupon if provided
-  if (couponCode) {
-    try {
-      const Coupon = (await import('@/lib/models/Coupon')).default;
-      const coupon = await Coupon.findOne({ code: couponCode.toUpperCase().trim() });
-      
-      if (coupon && coupon.active) {
-        const now = new Date();
-        const isValid = (!coupon.validUntil || now <= new Date(coupon.validUntil)) &&
-                       (!coupon.validFrom || now >= new Date(coupon.validFrom));
-        const hasUses = coupon.maxUses === null || coupon.currentUses < coupon.maxUses;
-        const meetsMinClasses = !coupon.minClasses || numClasses >= coupon.minClasses;
-        
-        if (isValid && hasUses && meetsMinClasses) {
-          // Calculate discount
-          let discount = 0;
-          if (coupon.discountType === 'percentage') {
-            discount = finalAmount * (coupon.discountValue / 100);
-          } else {
-            discount = coupon.discountValue;
-          }
-          finalAmount = Math.max(0, finalAmount - discount);
-          appliedCoupon = {
-            code: coupon.code,
-            discountType: coupon.discountType,
-            discountValue: coupon.discountValue
-          };
-          
-          // Increment coupon usage
-          coupon.currentUses += 1;
-          await coupon.save();
-        }
-      }
-    } catch (couponErr) {
-      console.error('Error validating coupon:', couponErr);
-      // Continue without coupon
+  try {
+    // Handle coupon if provided
+    let finalAmount = parseFloat(amount);
+    let appliedCoupon = null;
+    let numClasses = 1;
+    
+    // Determine number of classes
+    if (selectedDates && Array.isArray(selectedDates) && selectedDates.length > 0) {
+      numClasses = selectedDates.length;
+    } else if (classDate) {
+      numClasses = 1;
     }
-  }
+    
+    // Validate coupon if provided
+    if (couponCode) {
+      try {
+        const Coupon = (await import('@/lib/models/Coupon')).default;
+        const coupon = await Coupon.findOne({ code: couponCode.toUpperCase().trim() });
+        
+        if (coupon && coupon.active) {
+          const now = new Date();
+          const isValid = (!coupon.validUntil || now <= new Date(coupon.validUntil)) &&
+                         (!coupon.validFrom || now >= new Date(coupon.validFrom));
+          const hasUses = coupon.maxUses === null || coupon.currentUses < coupon.maxUses;
+          const meetsMinClasses = !coupon.minClasses || numClasses >= coupon.minClasses;
+          
+          if (isValid && hasUses && meetsMinClasses) {
+            // Calculate discount
+            let discount = 0;
+            if (coupon.discountType === 'percentage') {
+              discount = finalAmount * (coupon.discountValue / 100);
+            } else {
+              discount = coupon.discountValue;
+            }
+            finalAmount = Math.max(0, finalAmount - discount);
+            appliedCoupon = {
+              code: coupon.code,
+              discountType: coupon.discountType,
+              discountValue: coupon.discountValue
+            };
+            
+            // Increment coupon usage
+            coupon.currentUses += 1;
+            await coupon.save();
+          }
+        }
+      } catch (couponErr) {
+        console.error('Error validating coupon:', couponErr);
+        // Continue without coupon
+      }
+    }
 
-  // Handle multi-date booking
-  if (selectedDates && Array.isArray(selectedDates) && selectedDates.length > 0) {
-    return await createMultiDateBookingAndPaymentIntent({
-      session,
-      selectedDates,
+    // Handle multi-date booking
+    if (selectedDates && Array.isArray(selectedDates) && selectedDates.length > 0) {
+      return await createMultiDateBookingAndPaymentIntent({
+        session,
+        selectedDates,
+        className,
+        classTime,
+        location,
+        amount: finalAmount,
+        notes: notes || '',
+        appliedCoupon,
+      });
+    }
+
+    // Single date booking
+    // Create a new booking
+    const booking = new Booking({
+      userId: userId,
+      userEmail: userEmail,
+      userName: userName,
       className,
-      classTime,
-      location,
+      classDate: classDate ? new Date(classDate) : new Date(),
+      classTime: classTime || 'TBD',
+      location: location || 'TBD',
       amount: finalAmount,
       notes: notes || '',
-      appliedCoupon,
+      status: 'pending',
+      paymentStatus: 'pending',
     });
-  }
 
-  // Single date booking
-  // Create a new booking
-  const booking = new Booking({
-    userId: userId,
-    userEmail: userEmail,
-    userName: userName,
-    className,
-    classDate: classDate ? new Date(classDate) : new Date(),
-    classTime: classTime || 'TBD',
-    location: location || 'TBD',
-    amount: finalAmount,
-    notes: notes || '',
-    status: 'pending',
-    paymentStatus: 'pending',
-  });
+    await booking.save();
+    console.log(`Ad-hoc booking created: ${booking._id}`);
 
-  await booking.save();
-  console.log(`Ad-hoc booking created: ${booking._id}`);
+    // Create a PaymentIntent
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(booking.amount * 100),
+      currency: 'nzd',
+      automatic_payment_methods: {
+        enabled: true,
+      },
+      metadata: {
+        bookingId: booking._id.toString(),
+        userId: userId || 'unknown',
+        userEmail: booking.userEmail,
+        userName: booking.userName,
+        className: booking.className,
+        classDate: booking.classDate.toISOString(),
+        classTime: booking.classTime,
+      },
+      description: `Yoga class booking: ${booking.className}`,
+      receipt_email: booking.userEmail,
+    });
 
-  // Create a PaymentIntent
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount: Math.round(booking.amount * 100),
-    currency: 'nzd',
-    automatic_payment_methods: {
-      enabled: true,
-    },
-    metadata: {
+    // Save payment intent ID to booking
+    booking.paymentIntentId = paymentIntent.id;
+    booking.updatedAt = new Date();
+    await booking.save();
+
+    console.log(`Payment intent created: ${paymentIntent.id} for ad-hoc booking: ${booking._id}`);
+
+    // Return the client secret and booking details
+    return NextResponse.json({
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
+      amount: paymentIntent.amount / 100,
+      currency: paymentIntent.currency.toUpperCase(),
       bookingId: booking._id.toString(),
-      userId: userId || 'unknown',
-      userEmail: booking.userEmail,
-      userName: booking.userName,
       className: booking.className,
       classDate: booking.classDate.toISOString(),
       classTime: booking.classTime,
-    },
-    description: `Yoga class booking: ${booking.className}`,
-    receipt_email: booking.userEmail,
-  });
-
-  // Save payment intent ID to booking
-  booking.paymentIntentId = paymentIntent.id;
-  booking.updatedAt = new Date();
-  await booking.save();
-
-  console.log(`Payment intent created: ${paymentIntent.id} for ad-hoc booking: ${booking._id}`);
-
-  // Return the client secret and booking details
-  return NextResponse.json({
-    clientSecret: paymentIntent.client_secret,
-    paymentIntentId: paymentIntent.id,
-    amount: paymentIntent.amount / 100,
-    currency: paymentIntent.currency.toUpperCase(),
-    bookingId: booking._id.toString(),
-    className: booking.className,
-    classDate: booking.classDate.toISOString(),
-    classTime: booking.classTime,
-    location: booking.location,
-    message: 'Payment intent created successfully',
-  });
+      location: booking.location,
+      message: 'Payment intent created successfully',
+    });
+  } catch (innerError) {
+    console.error('Error in ad-hoc booking creation:', innerError);
+    return NextResponse.json(
+      { error: 'Failed to create booking: ' + innerError.message, code: 'BOOKING_CREATION_ERROR' },
+      { status: 500 }
+    );
+  }
 }
 
 /**
