@@ -58,7 +58,8 @@ export async function POST(request) {
       classTime,
       location,
       amount,
-      notes
+      notes,
+      paymentMethod
     } = body;
 
     // Validate required fields
@@ -84,6 +85,7 @@ export async function POST(request) {
       notes: notes || '',
       status: 'pending',
       paymentStatus: 'pending',
+      paymentMethod: paymentMethod || undefined,
     });
 
     await booking.save();

@@ -65,6 +65,8 @@ export default function BookingModal({
   const [formData, setFormData] = useState({
     notes: ''
   });
+  // Payment method: 'card' (Stripe) or 'cash'
+  const [paymentMethod, setPaymentMethod] = useState('card');
   
   // Coupon state
   const [couponCode, setCouponCode] = useState('');
@@ -184,36 +186,80 @@ export default function BookingModal({
       const params = new URLSearchParams();
       params.set('class_name', classDetails.name);
       params.set('amount', finalPrice.toString());
-      params.set('class_time', classDetails.time);
-      params.set('location', classDetails.location);
-      
-      // Add selected dates (for multi-date booking)
-      if (selectedDates.length > 0) {
-        params.set('selected_dates', selectedDates.map(d => d.date).join(','));
-      }
-      
-      // Add coupon if applied
-      if (appliedCoupon) {
-        params.set('coupon_code', appliedCoupon.code);
-      }
-      
-      // Add notes
-      if (formData.notes) {
-        params.set('notes', formData.notes);
-      }
-      
-      // Redirect to embedded checkout page with Stripe Elements
-      // The checkout page will create the booking and payment intent
-      window.location.href = `/checkout?${params.toString()}`;
-      
-    } catch (err) {
-      console.error('Booking error:', err);
-      setError(err.message || 'Something went wrong. Please try again.');
+        if (paymentMethod === 'card') {
+          // Build query params for checkout page
+          const params = new URLSearchParams();
+          params.set('class_name', classDetails.name);
+          params.set('amount', finalPrice.toString());
+          params.set('class_time', classDetails.time);
+          params.set('location', classDetails.location);
+
+          // Add selected dates (for multi-date booking)
+          if (selectedDates.length > 0) {
+            params.set('selected_dates', selectedDates.map(d => d.date).join(','));
+          }
+
+          // Add coupon if applied
+          if (appliedCoupon) {
+            params.set('coupon_code', appliedCoupon.code);
+          }
+
+          // Add notes
+          if (formData.notes) {
+            params.set('notes', formData.notes);
+          }
+
+          // Redirect to embedded checkout page with Stripe Elements
+          // The checkout page will create the booking and payment intent
+          window.location.href = `/checkout?${params.toString()}`;
+        } else {
+          // Pay by cash: create bookings directly with paymentMethod 'cash'
+          try {
+            setIsLoading(true);
+
+            // Distribute finalPrice across selected dates (per-booking amount)
+            const perBooking = parseFloat((finalPrice / selectedDates.length).toFixed(2));
+
+            const created = [];
+            for (const d of selectedDates) {
+              const payload = {
+                className: classDetails.name,
+                classDate: d.date,
+                classTime: classDetails.time,
+                location: classDetails.location,
+                amount: perBooking,
+                notes: formData.notes || '',
+                paymentMethod: 'cash'
+              };
+
+              const res = await fetch('/api/bookings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+
+              const data = await res.json();
+              if (!res.ok) {
+                throw new Error(data.error || 'Failed to create booking');
+              }
+              created.push(data.booking);
+            }
+
+            // Redirect to dashboard with success message
+            window.location.href = '/dashboard?paid=cash&created=' + encodeURIComponent(created.map(b => b._id).join(','));
+          } catch (err) {
+            console.error('Cash booking error:', err);
+            setError(err.message || 'Failed to create cash booking');
+          } finally {
+            setIsLoading(false);
+          }
+        }
     } finally {
       setIsLoading(false);
     }
   };
-
+        // isLoading is toggled in branches above for cash flow; keep consistent
+        if (paymentMethod === 'card') setIsLoading(false);
   const formatDate = (dateStr) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('en-NZ', {
@@ -499,7 +545,35 @@ export default function BookingModal({
               </div>
             )}
 
-            {/* Submit Button */}
+            {/* Payment Method Selection */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">{language === 'zh' ? '支付方式' : 'Payment Method'}</label>
+              <div className="flex gap-3">
+                <label className={`px-3 py-2 rounded-lg border ${paymentMethod === 'card' ? 'border-glow-cyan/40 bg-glow-cyan/10' : 'border-border/30 bg-card/60'} cursor-pointer flex-1 text-center`}> 
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="card"
+                    checked={paymentMethod === 'card'}
+                    onChange={() => setPaymentMethod('card')}
+                    className="hidden"
+                  />
+                  {language === 'zh' ? '卡 (Stripe)' : 'Card (Stripe)'}
+                </label>
+                <label className={`px-3 py-2 rounded-lg border ${paymentMethod === 'cash' ? 'border-glow-cyan/40 bg-glow-cyan/10' : 'border-border/30 bg-card/60'} cursor-pointer flex-1 text-center`}> 
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="cash"
+                    checked={paymentMethod === 'cash'}
+                    onChange={() => setPaymentMethod('cash')}
+                    className="hidden"
+                  />
+                  {language === 'zh' ? '现金支付' : 'Pay Cash'}
+                </label>
+              </div>
+            </div>
+
             <button
               type="submit"
               disabled={isLoading || selectedDates.length === 0}

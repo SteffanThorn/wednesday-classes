@@ -400,7 +400,8 @@ export default function AdminBookingsPage() {
                           </span>
                         </td>
                         <td className="p-4">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                             booking.paymentStatus === 'completed' || booking.paymentStatus === 'paid' ? 'bg-green-500/20 text-green-400' :
                             booking.paymentStatus === 'processing' ? 'bg-blue-500/20 text-blue-400' :
                             booking.paymentStatus === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
@@ -408,7 +409,32 @@ export default function AdminBookingsPage() {
                             'bg-gray-500/20 text-gray-400'
                           }`}>
                             {booking.paymentStatus === 'failed' ? 'Payment Failed' : booking.paymentStatus}
-                          </span>
+                            </span>
+
+                            {/* Confirm cash payment button (admin) */}
+                            {booking.paymentMethod === 'cash' && booking.paymentStatus === 'pending' && (
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    const res = await fetch('/api/admin/bookings/confirm-cash', {
+                                      method: 'PUT',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ bookingId: booking._id })
+                                    });
+                                    const data = await res.json();
+                                    if (!res.ok) throw new Error(data.error || 'Failed to confirm');
+                                    // Refresh bookings
+                                    await fetch('/api/admin/bookings').then(r => r.json()).then(j => setBookings(j.bookings));
+                                  } catch (err) {
+                                    console.error('Confirm cash error:', err);
+                                  }
+                                }}
+                                className="px-2 py-1 rounded-md text-xs bg-green-500/10 border border-green-500/20 text-green-400 hover:bg-green-500/20"
+                              >
+                                Confirm Cash
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))
