@@ -56,13 +56,13 @@ const Header = () => {
         </Link>
 
         <nav className="hidden md:flex items-center gap-8">
-          {/* Wednesday Classes Link */}
+          {/* Classes Link */}
           <Link
-            href="/wednesday-classes"
+            href="/classes"
             className="text-sm text-muted-foreground hover:text-glow-cyan 
                      transition-colors duration-300 tracking-wide"
           >
-            {mounted ? (t('wednesdayClasses') || 'Wednesday Classes') : 'Wednesday Classes'}
+            {mounted ? (t('classes') || 'Classes') : 'Classes'}
           </Link>
 
           {/* Privacy Policy Link */}
