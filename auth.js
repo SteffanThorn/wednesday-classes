@@ -87,6 +87,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
       return session;
     },
+    async redirect({ url, baseUrl }) {
+      // Allow redirects to same origin only
+      if (url.startsWith('/')) return `${baseUrl}${url}`;
+      if (new URL(url).origin === baseUrl) return url;
+      return baseUrl;
+    },
   },
   trustHost: true,
 });

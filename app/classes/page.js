@@ -4,95 +4,11 @@ import FloatingParticles from '@/components/FloatingParticle';
 import Header from '@/components/Header';
 import HeroSection from '@/components/HeroSection';
 import ClassCard from '@/components/ClassCard';
-import ScheduleTable from '@/components/ScheduleTable';
-import { Zap, Heart, Sun, Star, Calendar, Clock, Wind, Moon } from 'lucide-react';
+import { Zap, Heart, Sun } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
 
 const ClassesPage = () => {
   const { t, mounted } = useLanguage();
-
-  const classTypes = [
-    {
-      icon: Zap,
-      titleEn: 'Mindfulness',
-      titleZh: '正念冥想',
-      descEn: 'Our foundation classes blend traditional Hatha with mindful movement. Suitable for all levels, these sessions focus on building strength, flexibility, and inner awareness.',
-      descZh: '我们的基础课程融合了传统哈他正念和正念运动。适合所有级别，这些课程专注于建立力量、灵活性和内在意识。',
-      duration: '60 min',
-      level: 'All Levels',
-      price: '$25/class',
-      href: '/classes/mindfulness',
-    },
-    {
-      icon: Heart,
-      titleEn: 'Mom-to-be Mindfulness Practice Online + Offline',
-      titleZh: '孕妈妈正念练习 线上+线下',
-      descEn: 'A nurturing practice designed for expectant mothers. Gentle stretches, breathing techniques, and poses that support the changing body and prepare for birth.',
-      descZh: '为准妈妈设计的滋养练习。轻柔的伸展、呼吸技术和姿势支持变化的身体并为分娩做准备。',
-      duration: '75 min',
-      level: 'Prenatal',
-      price: '$30/class',
-      href: '/classes/mom-to-be-mindfulness',
-    },
-    {
-      icon: Sun,
-      titleEn: 'Outdoor Yoga',
-      titleZh: '户外瑜伽',
-      descEn: 'Connect with nature in our outdoor sessions. Held in beautiful garden settings, these classes blend yoga with the grounding energy of the earth.',
-      descZh: '在我们的户外课程中与自然连接。在美丽的花园环境中进行，这些课程将瑜伽与大地的接地能量相结合。',
-      duration: '90 min',
-      level: 'All Levels',
-      price: '$35/class',
-      href: '/classes/outdoor-yoga',
-    },
-    {
-      icon: Wind,
-      titleEn: 'Insight Flow',
-      titleZh: '内观流',
-      descEn: 'A dynamic meditative flow that connects music with movement. Build strength, flexibility, and inner awareness through fluid fascia sequences—a meditation movement of music and yoga.',
-      descZh: '将音乐与运动相连的动态冥想流程。通过流畅的筋膜序列建立力量、灵活性和内在意识——一种音乐与瑜伽的冥想运动。',
-      duration: '60 min',
-      level: 'All Levels',
-      price: '$28/class',
-      href: '/classes/insight-flow',
-    },
-    {
-      icon: Moon,
-      titleEn: 'Full Moon Ceremony',
-      titleZh: '满月仪式',
-      descEn: 'Join us for a transformative evening under the full moon. This special ceremony combines meditation, intention setting, and energy healing to harness lunar energy.',
-      descZh: '加入我们在满月之夜的变革性晚会。这个特别的仪式结合了冥想、意图设定和能量疗愈，以利用月球能量。',
-      duration: '90 min',
-      level: 'All Levels',
-      price: '$45/class',
-      href: '/classes/full-moon-ceremony',
-    },
-    {
-      icon: Star,
-      titleEn: 'VIP (1 on 1)',
-      titleZh: '私教课程',
-      descEn: 'Personalized sessions tailored to your unique needs and goals. Deepen your practice with individualized attention and custom sequences.',
-      descZh: '根据您独特的需求和目标量身定制的个人课程。通过个性化关注和定制序列深化您的练习。',
-      duration: '60 min',
-      level: 'Personalized',
-      price: '$80/session',
-      href: '/classes/vip-1on1',
-    },
-  ];
-
-  const schedule = [
-    { dayKey: 'monday', time: '7:00 AM', classKey: 'yoga', teacher: 'Mei Lin', spots: 5 },
-    { dayKey: 'monday', time: '6:00 PM', classKey: 'pregnantYoga', teacher: 'Mei Lin', spots: 3 },
-    { dayKey: 'tuesday', time: '7:00 AM', classKey: 'yoga', teacher: 'Sarah', spots: 8 },
-    { dayKey: 'tuesday', time: '5:30 PM', classKey: 'gardenYoga', teacher: 'Mei Lin', spots: 6 },
-    { dayKey: 'wednesday', time: '7:00 AM', classKey: 'yoga', teacher: 'Mei Lin', spots: 4 },
-    { dayKey: 'wednesday', time: '10:00 AM', classKey: 'pregnantYoga', teacher: 'Mei Lin', spots: 2 },
-    { dayKey: 'thursday', time: '6:00 PM', classKey: 'yoga', teacher: 'Sarah', spots: 7 },
-    { dayKey: 'friday', time: '7:00 AM', classKey: 'yoga', teacher: 'Mei Lin', spots: 6 },
-    { dayKey: 'saturday', time: '9:00 AM', classKey: 'gardenYoga', teacher: 'Mei Lin', spots: 8 },
-    { dayKey: 'saturday', time: '11:00 AM', classKey: 'yoga', teacher: 'Sarah', spots: 5 },
-    { dayKey: 'sunday', time: '10:00 AM', classKey: 'yoga', teacher: 'Mei Lin', spots: 4 },
-  ];
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -103,51 +19,76 @@ const ClassesPage = () => {
         
         {/* Hero Section */}
         <HeroSection
-          titleEn="Our Classes"
-          titleZh="我们的课程"
-          subtitleEn="Discover the perfect practice for your journey. From gentle flows to deep exploration, we have a class for everyone."
-          subtitleZh="发现适合您旅程的完美练习。从轻柔的流动到深度探索，我们为每个人提供课程。"
+          titleEn="Classes"
+          titleZh="课程"
+          subtitleEn="Book A Class That Suits You"
+          subtitleZh="预订适合您的课程"
         />
 
-        {/* Class Types Section */}
+        {/* Classes Section */}
         <section className="px-6 py-16">
           <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-12 animate-fade-in-up">
-              <h2 className="font-display text-4xl md:text-5xl font-light text-glow-subtle mb-4">
-                {mounted ? t('classTypes') : 'Class Types'}
-              </h2>
-              <p className="text-muted-foreground max-w-2xl mx-auto">
-                {mounted ? t('classTypesSubtitle') : 'Choose from our diverse range of offerings, each designed to support your unique path.'}
-              </p>
-            </div>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Beginner Yoga - Wednesday */}
+              <ClassCard
+                icon={Zap}
+                titleEn="Beginner Yoga"
+                titleZh="初级瑜伽"
+                descriptionEn="6pm Every Wednesday"
+                descriptionZh="每周三晚上6点"
+                duration="60 min"
+                level="Beginner"
+                price="$15/class"
+                additionalInfo="B.Y.O mat"
+                href="/wednesday-classes"
+              />
 
-            <div className="grid md:grid-cols-2 gap-6">
-              {classTypes.map((cls) => (
-                <div key={cls.titleEn} id={cls.titleEn.toLowerCase().replace(/[^a-z0-9]/g, '')}>
-                  <ClassCard
-                    icon={cls.icon}
-                    titleEn={cls.titleEn}
-                    titleZh={cls.titleZh}
-                    descriptionEn={cls.descEn}
-                    descriptionZh={cls.descZh}
-                    duration={cls.duration}
-                    level={cls.level}
-                    price={cls.price}
-                    href={cls.href}
-                  />
+              {/* Beginner Yoga - Thursday */}
+              <ClassCard
+                icon={Sun}
+                titleEn="Beginner Yoga"
+                titleZh="初级瑜伽"
+                descriptionEn="12pm Every Thursday"
+                descriptionZh="每周四中午12点"
+                duration="60 min"
+                level="Beginner"
+                price="$15/class"
+                additionalInfo="B.Y.O mat"
+                href="/classes/thursday"
+              />
+
+              {/* Motherscope - Waitlist */}
+              <div className="p-6 rounded-3xl border border-glow-purple/30 bg-card/60 backdrop-blur-sm hover:box-glow transition-all duration-300">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-glow-purple/20 to-glow-cyan/20 flex items-center justify-center">
+                    <Heart className="w-6 h-6 text-glow-purple" />
+                  </div>
+                  <h3 className="font-display text-2xl text-glow-subtle">Motherscope</h3>
                 </div>
-              ))}
+                
+                <div className="space-y-4 mb-6">
+                  <p className="text-muted-foreground">Many mothers experience a range of side effects including:</p>
+                  <ul className="space-y-2 text-muted-foreground ml-4">
+                    <li>• Pelvic discomfort</li>
+                    <li>• Core weakness</li>
+                    <li>• Urinary leakage</li>
+                  </ul>
+                  <p className="text-foreground">But these are common and treatable with the right support.</p>
+                  <p className="text-foreground">Yoga helps you re-awaken the deep core muscles and rebuild stability & safety.</p>
+                </div>
+                
+                <a 
+                  href="/motherscope"
+                  className="block w-full text-center py-3 px-6 rounded-xl bg-glow-purple/20 border border-glow-purple/40 
+                           text-glow-purple font-medium hover:bg-glow-purple/30 hover:box-glow 
+                           transition-all duration-300"
+                >
+                  Join the Waitlist
+                </a>
+              </div>
             </div>
           </div>
         </section>
-
-        {/* Schedule Section */}
-        <section className="px-6 py-16">
-          <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-12 animate-fade-in-up">
-              <div className="flex items-center justify-center gap-2 mb-4">
-                <Calendar className="w-5 h-5 text-glow-cyan" />
-                <h2 className="font-display text-4xl md:text-5xl font-light text-glow-subtle">
                   {mounted ? t('weeklySchedule') : 'Weekly Schedule'}
                 </h2>
               </div>
