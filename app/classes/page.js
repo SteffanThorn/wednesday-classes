@@ -5,7 +5,7 @@ import Header from '@/components/Header';
 import HeroSection from '@/components/HeroSection';
 import ClassCard from '@/components/ClassCard';
 import BookingModal from '@/components/BookingModal';
-import { Zap, Heart, Sun } from 'lucide-react';
+import { Zap, Heart, Sun, Users } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useState } from 'react';
 
@@ -27,20 +27,27 @@ const ClassesPage = () => {
   const { t, mounted } = useLanguage();
   const [isWednesdayModalOpen, setIsWednesdayModalOpen] = useState(false);
   const [isThursdayModalOpen, setIsThursdayModalOpen] = useState(false);
-  const [isWaitlistLoading, setIsWaitlistLoading] = useState(false);
-  const [waitlistEmail, setWaitlistEmail] = useState('');
-  const [waitlistMessage, setWaitlistMessage] = useState('');
+  
+  // Motherscope waitlist state
+  const [motherScopeLoading, setMotherScopeLoading] = useState(false);
+  const [motherScopeEmail, setMotherScopeEmail] = useState('');
+  const [motherScopeMessage, setMotherScopeMessage] = useState('');
+  
+  // One-on-One waitlist state
+  const [oneOnOneLoading, setOneOnOneLoading] = useState(false);
+  const [oneOnOneEmail, setOneOnOneEmail] = useState('');
+  const [oneOnOneMessage, setOneOnOneMessage] = useState('');
 
-  const handleWaitlistSubmit = async (e) => {
+  const handleMotherScopeSubmit = async (e) => {
     e.preventDefault();
-    setIsWaitlistLoading(true);
-    setWaitlistMessage('');
+    setMotherScopeLoading(true);
+    setMotherScopeMessage('');
 
     try {
       const response = await fetch('/api/motherscope/waitlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: waitlistEmail })
+        body: JSON.stringify({ email: motherScopeEmail })
       });
 
       const data = await response.json();
@@ -49,12 +56,39 @@ const ClassesPage = () => {
         throw new Error(data.error || 'Failed to join waitlist');
       }
 
-      setWaitlistMessage('Success! Check your email for next steps.');
-      setWaitlistEmail('');
+      setMotherScopeMessage('Success! Check your email for next steps.');
+      setMotherScopeEmail('');
     } catch (err) {
-      setWaitlistMessage(err.message || 'Error joining waitlist. Please try again.');
+      setMotherScopeMessage(err.message || 'Error joining waitlist. Please try again.');
     } finally {
-      setIsWaitlistLoading(false);
+      setMotherScopeLoading(false);
+    }
+  };
+
+  const handleOneOnOneSubmit = async (e) => {
+    e.preventDefault();
+    setOneOnOneLoading(true);
+    setOneOnOneMessage('');
+
+    try {
+      const response = await fetch('/api/one-on-one/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: oneOnOneEmail })
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to join waitlist');
+      }
+
+      setOneOnOneMessage('Success! Check your email for next steps.');
+      setOneOnOneEmail('');
+    } catch (err) {
+      setOneOnOneMessage(err.message || 'Error joining waitlist. Please try again.');
+    } finally {
+      setOneOnOneLoading(false);
     }
   };
 
@@ -138,32 +172,84 @@ const ClassesPage = () => {
                 </div>
                 
                 {/* Waitlist Form */}
-                <form onSubmit={handleWaitlistSubmit} className="space-y-3">
+                <form onSubmit={handleMotherScopeSubmit} className="space-y-3">
                   <input
                     type="email"
                     placeholder="your@email.com"
-                    value={waitlistEmail}
-                    onChange={(e) => setWaitlistEmail(e.target.value)}
+                    value={motherScopeEmail}
+                    onChange={(e) => setMotherScopeEmail(e.target.value)}
                     className="w-full px-4 py-2 rounded-lg bg-background border border-glow-cyan/30 text-foreground 
                              placeholder-muted-foreground focus:outline-none focus:border-glow-cyan/60 transition-colors"
                     required
                   />
                   <button
                     type="submit"
-                    disabled={isWaitlistLoading || !waitlistEmail.trim()}
+                    disabled={motherScopeLoading || !motherScopeEmail.trim()}
                     className="w-full py-3 px-6 rounded-xl bg-glow-purple/20 border border-glow-purple/40 
                              text-glow-purple font-medium hover:bg-glow-purple/30 hover:box-glow 
                              transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isWaitlistLoading ? 'Sending...' : 'Join the Waitlist'}
+                    {motherScopeLoading ? 'Sending...' : 'Join the Waitlist'}
                   </button>
-                  {waitlistMessage && (
+                  {motherScopeMessage && (
                     <p className={`text-sm text-center ${
-                      waitlistMessage.includes('Success') 
+                      motherScopeMessage.includes('Success') 
                         ? 'text-glow-cyan' 
                         : 'text-red-500'
                     }`}>
-                      {waitlistMessage}
+                      {motherScopeMessage}
+                    </p>
+                  )}
+                </form>
+              </div>
+
+              {/* One-on-One Personal Sessions - Waitlist */}
+              <div className="p-6 rounded-3xl border border-glow-cyan/30 bg-card/60 backdrop-blur-sm hover:box-glow transition-all duration-300">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-glow-cyan/20 to-glow-purple/20 flex items-center justify-center">
+                    <Users className="w-6 h-6 text-glow-cyan" />
+                  </div>
+                  <h3 className="font-display text-2xl text-glow-subtle">One-on-One Sessions</h3>
+                </div>
+                
+                <div className="space-y-4 mb-6">
+                  <p className="text-muted-foreground">Personalized yoga tailored completely to your unique needs, goals, and lifestyle.</p>
+                  <ul className="space-y-2 text-muted-foreground ml-4">
+                    <li>• Completely personalized practice</li>
+                    <li>• Flexible scheduling</li>
+                    <li>• Focused on your specific goals</li>
+                  </ul>
+                  <p className="text-foreground font-semibold">$100 per 60-minute session</p>
+                  <p className="text-foreground">Work one-on-one with Yuki to create the perfect practice for you.</p>
+                </div>
+                
+                {/* Waitlist Form */}
+                <form onSubmit={handleOneOnOneSubmit} className="space-y-3">
+                  <input
+                    type="email"
+                    placeholder="your@email.com"
+                    value={oneOnOneEmail}
+                    onChange={(e) => setOneOnOneEmail(e.target.value)}
+                    className="w-full px-4 py-2 rounded-lg bg-background border border-glow-cyan/30 text-foreground 
+                             placeholder-muted-foreground focus:outline-none focus:border-glow-cyan/60 transition-colors"
+                    required
+                  />
+                  <button
+                    type="submit"
+                    disabled={oneOnOneLoading || !oneOnOneEmail.trim()}
+                    className="w-full py-3 px-6 rounded-xl bg-glow-cyan/20 border border-glow-cyan/40 
+                             text-glow-cyan font-medium hover:bg-glow-cyan/30 hover:box-glow 
+                             transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {oneOnOneLoading ? 'Sending...' : 'Express Interest'}
+                  </button>
+                  {oneOnOneMessage && (
+                    <p className={`text-sm text-center ${
+                      oneOnOneMessage.includes('Success') 
+                        ? 'text-glow-cyan' 
+                        : 'text-red-500'
+                    }`}>
+                      {oneOnOneMessage}
                     </p>
                   )}
                 </form>
