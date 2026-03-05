@@ -4,43 +4,37 @@ import { useState, useEffect } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import { X, Calendar, Clock, MapPin, DollarSign, Loader2, LogIn, Check, ChevronLeft, ChevronRight, Tag, Gift } from 'lucide-react';
 
-// Generate available Wednesdays starting from the next upcoming Wednesday
-function getAvailableWednesdays(weeksAhead = 12) {
-  const wednesdays = [];
-  
-  // Calculate the next upcoming Wednesday
+// Generate available dates based on day of week
+function getAvailableDatesByDay(dayOfWeek, weeksAhead = 12) {
+  const dates = [];
   const today = new Date();
-  const currentDay = today.getDay(); // 0 = Sunday, 3 = Wednesday
-  const daysUntilWednesday = (3 - currentDay + 7) % 7;
+  const currentDay = today.getDay();
   
-  // If today is Wednesday, show today's date (before 6pm) or next Wednesday
-  let startDate;
-  if (currentDay === 3) {
-    // Check if it's before 6pm - if so, include today
-    if (today.getHours() < 18) {
-      startDate = new Date(today);
-    } else {
-      // Otherwise, start from next Wednesday
-      startDate = new Date(today);
-      startDate.setDate(today.getDate() + 7);
-    }
-  } else {
-    // Calculate next Wednesday
-    startDate = new Date(today);
-    startDate.setDate(today.getDate() + daysUntilWednesday);
+  // dayOfWeek: 'wednesday' (3) or 'thursday' (4)
+  const targetDay = dayOfWeek === 'wednesday' ? 3 : 4;
+  const cutoffHour = dayOfWeek === 'wednesday' ? 18 : 12; // 6pm for Wed, 12pm for Thu
+  
+  let daysUntilTarget = (targetDay - currentDay + 7) % 7;
+  
+  // If it's the target day, check if we're before the class time
+  if (currentDay === targetDay && today.getHours() >= cutoffHour) {
+    daysUntilTarget = 7; // Skip to next week
   }
   
+  let startDate = new Date(today);
+  startDate.setDate(today.getDate() + daysUntilTarget);
+  
   for (let i = 0; i < weeksAhead; i++) {
-    const wed = new Date(startDate);
-    wed.setDate(startDate.getDate() + (i * 7));
-    wednesdays.push({
-      date: wed.toISOString().split('T')[0],
-      displayDate: wed.toLocaleDateString('en-NZ', { 
+    const date = new Date(startDate);
+    date.setDate(startDate.getDate() + (i * 7));
+    dates.push({
+      date: date.toISOString().split('T')[0],
+      displayDate: date.toLocaleDateString('en-NZ', { 
         weekday: 'short', 
         day: 'numeric', 
         month: 'short' 
       }),
-      fullDate: wed.toLocaleDateString('en-NZ', { 
+      fullDate: date.toLocaleDateString('en-NZ', { 
         weekday: 'long', 
         day: 'numeric', 
         month: 'long', 
@@ -49,13 +43,19 @@ function getAvailableWednesdays(weeksAhead = 12) {
     });
   }
   
-  return wednesdays;
+  return dates;
+}
+
+// Generate available Wednesdays starting from the next upcoming Wednesday
+function getAvailableWednesdays(weeksAhead = 12) {
+  return getAvailableDatesByDay('wednesday', weeksAhead);
 }
 
 export default function BookingModal({ 
   isOpen, 
   onClose, 
   classDetails,
+  dayOfWeek = 'wednesday', // 'wednesday' or 'thursday'
   language = 'en' 
 }) {
   // ALL hooks must be called unconditionally - no early returns before hooks!
@@ -79,8 +79,8 @@ export default function BookingModal({
   const [currentPage, setCurrentPage] = useState(0);
   const DATES_PER_PAGE = 4;
   
-  // Get available dates
-  const availableDates = getAvailableWednesdays(12);
+  // Get available dates based on day of week
+  const availableDates = getAvailableDatesByDay(dayOfWeek, 12);
   const totalPages = Math.ceil(availableDates.length / DATES_PER_PAGE);
   const displayedDates = availableDates.slice(currentPage * DATES_PER_PAGE, (currentPage + 1) * DATES_PER_PAGE);
   
