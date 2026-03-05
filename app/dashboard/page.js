@@ -241,7 +241,6 @@ const DashboardPage = () => {
          <footer className="relative z-10 py-12 px-6 border-t border-border/30">
            <div className="max-w-7xl mx-auto text-center">
              <p className="text-sm text-muted-foreground">
--              © 2026 INNER LIGHT · Auckland, New Zealand
               © 2026 INNER LIGHT · Palmerston North, New Zealand
              </p>
              <p className="mt-2 text-xs text-muted-foreground/60">
