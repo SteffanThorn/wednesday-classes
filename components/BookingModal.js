@@ -215,8 +215,6 @@ export default function BookingModal({
         } else {
           // Pay by cash: create bookings directly with paymentMethod 'cash'
           try {
-            setIsLoading(true);
-
             // Distribute finalPrice across selected dates (per-booking amount)
             const perBooking = parseFloat((finalPrice / selectedDates.length).toFixed(2));
 
@@ -245,21 +243,23 @@ export default function BookingModal({
               created.push(data.booking);
             }
 
-            // Redirect to dashboard with success message
+            // Successfully created all bookings - redirect to dashboard with success message
+            // Keep loading state until redirect completes
             window.location.href = '/dashboard?paid=cash&created=' + encodeURIComponent(created.map(b => b._id).join(','));
+            return; // Exit early to prevent setIsLoading(false) below
           } catch (err) {
             console.error('Cash booking error:', err);
             setError(err.message || 'Failed to create cash booking');
-          } finally {
-            setIsLoading(false);
+            setIsLoading(false); // Reset loading on error
           }
         }
     } finally {
-      setIsLoading(false);
+      // For card payment flow, ensure loading is reset
+      if (paymentMethod === 'card') {
+        setIsLoading(false);
+      }
     }
   };
-        // isLoading is toggled in branches above for cash flow; keep consistent
-        if (paymentMethod === 'card') setIsLoading(false);
   const formatDate = (dateStr) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('en-NZ', {

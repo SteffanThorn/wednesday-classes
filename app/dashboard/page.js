@@ -42,25 +42,25 @@ const DashboardPage = () => {
 
   // detect redirect from cash booking flow and show success banner
   useEffect(() => {
-+    if (typeof window !== 'undefined') {
-+      const params = new URLSearchParams(window.location.search);
-+      if (params.get('paid') === 'cash') {
-+        const created = params.get('created');
-+        setCashSuccessMsg(
-+          created
-+            ? `Your booking(s) have been created. Please pay cash at class.`
-+            : 'Your booking has been created. Please pay cash at class.'
-+        );
-+        // remove query params silently so reuse doesn't show banner again
-+        if (window.history && window.history.replaceState) {
-+          const url = new URL(window.location.href);
-+          url.searchParams.delete('paid');
-+          url.searchParams.delete('created');
-+          window.history.replaceState({}, document.title, url.pathname + url.search);
-+        }
-+      }
-+    }
-+  }, []);
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('paid') === 'cash') {
+        const created = params.get('created');
+        setCashSuccessMsg(
+          created
+            ? `Your booking(s) have been created. Please pay cash at class.`
+            : 'Your booking has been created. Please pay cash at class.'
+        );
+        // remove query params silently so reuse doesn't show banner again
+        if (window.history && window.history.replaceState) {
+          const url = new URL(window.location.href);
+          url.searchParams.delete('paid');
+          url.searchParams.delete('created');
+          window.history.replaceState({}, document.title, url.pathname + url.search);
+        }
+      }
+    }
+  }, []);
 
   const fetchBookings = async () => {
     try {
@@ -182,28 +182,25 @@ const DashboardPage = () => {
                 </p>
               </div>
             </div>
-+            {cashSuccessMsg && (
-+              <div className="mb-4 p-4 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 flex items-start justify-between">
-+                <div>{cashSuccessMsg}</div>
-+                <button onClick={() => setCashSuccessMsg(null)} className="ml-4 text-green-300">
-+                  <X className="w-4 h-4" />
-+                </button>
-+              </div>
-+            )}
+            {cashSuccessMsg && (
+              <div className="mb-4 p-4 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 flex items-start justify-between">
+                <div>{cashSuccessMsg}</div>
+                <button onClick={() => setCashSuccessMsg(null)} className="ml-4 text-green-300">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
            </div>
          </section>
-@@
-         <footer className="relative z-10 py-12 px-6 border-t border-border/30">
-           <div className="max-w-7xl mx-auto text-center">
-             <p className="text-sm text-muted-foreground">
--              © 2026 INNER LIGHT · Auckland, New Zealand
-+              © 2026 INNER LIGHT · Palmerston North, New Zealand
-             </p>
-             <p className="mt-2 text-xs text-muted-foreground/60">
-               Breathe deeply. Move gently. Live fully.
-             </p>
-           </div>
-         </footer>
+
+        <section className="px-6 pb-12">
+          <div className="max-w-4xl mx-auto">
+            <div className="grid md:grid-cols-3 gap-4 animate-fade-in-up animation-delay-200">
+              <button 
+                onClick={() => setIsBookingModalOpen(true)}
+                className="p-6 rounded-3xl border border-glow-cyan/20 bg-card/60 backdrop-blur-sm 
+                         hover:border-glow-cyan/40 hover:box-glow transition-all duration-500
+                         flex items-center justify-between group cursor-pointer"
               >
                 <div className="flex items-center gap-3">
                   <Calendar className="w-5 h-5 text-glow-cyan" />
@@ -240,6 +237,18 @@ const DashboardPage = () => {
             </div>
           </div>
         </section>
+@@
+         <footer className="relative z-10 py-12 px-6 border-t border-border/30">
+           <div className="max-w-7xl mx-auto text-center">
+             <p className="text-sm text-muted-foreground">
+-              © 2026 INNER LIGHT · Auckland, New Zealand
+              © 2026 INNER LIGHT · Palmerston North, New Zealand
+             </p>
+             <p className="mt-2 text-xs text-muted-foreground/60">
+               Breathe deeply. Move gently. Live fully.
+             </p>
+           </div>
+         </footer>
 
         <section className="px-6 pb-12">
           <div className="max-w-4xl mx-auto">

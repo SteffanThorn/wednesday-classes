@@ -72,7 +72,11 @@ export async function POST(request) {
 
     await dbConnect();
 
-    // Create booking with pending status
+    // Create booking with appropriate status based on payment method
+    // For cash: status='confirmed', paymentStatus='pending' (waiting for admin confirmation)
+    // For card: status='pending', paymentStatus='pending' (waiting for payment)
+    const isPaymentMethodCash = paymentMethod === 'cash';
+    
     const booking = new Booking({
       userId: session.user.id,
       userEmail: session.user.email,
@@ -83,7 +87,7 @@ export async function POST(request) {
       location,
       amount,
       notes: notes || '',
-      status: 'pending',
+      status: isPaymentMethodCash ? 'confirmed' : 'pending',
       paymentStatus: 'pending',
       paymentMethod: paymentMethod || undefined,
     });
