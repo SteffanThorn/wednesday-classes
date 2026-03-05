@@ -6,9 +6,40 @@ import HeroSection from '@/components/HeroSection';
 import ClassCard from '@/components/ClassCard';
 import { Zap, Heart, Sun } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
+import { useState } from 'react';
 
 const ClassesPage = () => {
   const { t, mounted } = useLanguage();
+  const [isWaitlistLoading, setIsWaitlistLoading] = useState(false);
+  const [waitlistEmail, setWaitlistEmail] = useState('');
+  const [waitlistMessage, setWaitlistMessage] = useState('');
+
+  const handleWaitlistSubmit = async (e) => {
+    e.preventDefault();
+    setIsWaitlistLoading(true);
+    setWaitlistMessage('');
+
+    try {
+      const response = await fetch('/api/motherscope/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: waitlistEmail })
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to join waitlist');
+      }
+
+      setWaitlistMessage('Success! Check your email for next steps.');
+      setWaitlistEmail('');
+    } catch (err) {
+      setWaitlistMessage(err.message || 'Error joining waitlist. Please try again.');
+    } finally {
+      setIsWaitlistLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -40,7 +71,7 @@ const ClassesPage = () => {
                 level="Beginner"
                 price="$15/class"
                 additionalInfo="B.Y.O mat"
-                href="/wednesday-classes"
+                href="/book-classes"
               />
 
               {/* Beginner Yoga - Thursday */}
@@ -54,7 +85,7 @@ const ClassesPage = () => {
                 level="Beginner"
                 price="$15/class"
                 additionalInfo="B.Y.O mat"
-                href="/classes/thursday"
+                href="/book-classes"
               />
 
               {/* Motherscope - Waitlist */}
@@ -77,14 +108,36 @@ const ClassesPage = () => {
                   <p className="text-foreground">Yoga helps you re-awaken the deep core muscles and rebuild stability & safety.</p>
                 </div>
                 
-                <a 
-                  href="/motherscope"
-                  className="block w-full text-center py-3 px-6 rounded-xl bg-glow-purple/20 border border-glow-purple/40 
-                           text-glow-purple font-medium hover:bg-glow-purple/30 hover:box-glow 
-                           transition-all duration-300"
-                >
-                  Join the Waitlist
-                </a>
+                {/* Waitlist Form */}
+                <form onSubmit={handleWaitlistSubmit} className="space-y-3">
+                  <input
+                    type="email"
+                    placeholder="your@email.com"
+                    value={waitlistEmail}
+                    onChange={(e) => setWaitlistEmail(e.target.value)}
+                    className="w-full px-4 py-2 rounded-lg bg-background border border-glow-cyan/30 text-foreground 
+                             placeholder-muted-foreground focus:outline-none focus:border-glow-cyan/60 transition-colors"
+                    required
+                  />
+                  <button
+                    type="submit"
+                    disabled={isWaitlistLoading || !waitlistEmail.trim()}
+                    className="w-full py-3 px-6 rounded-xl bg-glow-purple/20 border border-glow-purple/40 
+                             text-glow-purple font-medium hover:bg-glow-purple/30 hover:box-glow 
+                             transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isWaitlistLoading ? 'Sending...' : 'Join the Waitlist'}
+                  </button>
+                  {waitlistMessage && (
+                    <p className={`text-sm text-center ${
+                      waitlistMessage.includes('Success') 
+                        ? 'text-glow-cyan' 
+                        : 'text-red-500'
+                    }`}>
+                      {waitlistMessage}
+                    </p>
+                  )}
+                </form>
               </div>
             </div>
           </div>
