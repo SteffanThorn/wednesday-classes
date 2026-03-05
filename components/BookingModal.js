@@ -55,7 +55,7 @@ export default function BookingModal({
   isOpen, 
   onClose, 
   classDetails,
-  dayOfWeek = 'wednesday', // 'wednesday' or 'thursday'
+  dayOfWeek = null, // null means allow user to select, 'wednesday' or 'thursday'
   language = 'en' 
 }) {
   // ALL hooks must be called unconditionally - no early returns before hooks!
@@ -79,8 +79,12 @@ export default function BookingModal({
   const [currentPage, setCurrentPage] = useState(0);
   const DATES_PER_PAGE = 4;
   
+  // Day selection state (for homepage)
+  const [selectedDay, setSelectedDay] = useState(dayOfWeek || 'wednesday');
+  
   // Get available dates based on day of week
-  const availableDates = getAvailableDatesByDay(dayOfWeek, 12);
+  const effectiveDayOfWeek = dayOfWeek || selectedDay;
+  const availableDates = getAvailableDatesByDay(effectiveDayOfWeek, 12);
   const totalPages = Math.ceil(availableDates.length / DATES_PER_PAGE);
   const displayedDates = availableDates.slice(currentPage * DATES_PER_PAGE, (currentPage + 1) * DATES_PER_PAGE);
   
@@ -183,15 +187,22 @@ export default function BookingModal({
 
     try {
       // Build query params for checkout page
+      const className = effectiveDayOfWeek === 'wednesday' 
+        ? 'Beginner Yoga - Wednesday'
+        : 'Beginner Yoga - Thursday';
+      const classTime = effectiveDayOfWeek === 'wednesday' 
+        ? '6:00 PM' 
+        : '12:00 PM';
+      
       const params = new URLSearchParams();
-      params.set('class_name', classDetails.name);
+      params.set('class_name', className);
       params.set('amount', finalPrice.toString());
         if (paymentMethod === 'card') {
           // Build query params for checkout page
           const params = new URLSearchParams();
-          params.set('class_name', classDetails.name);
+          params.set('class_name', className);
           params.set('amount', finalPrice.toString());
-          params.set('class_time', classDetails.time);
+          params.set('class_time', classTime);
           params.set('location', classDetails.location);
 
           // Add selected dates (for multi-date booking)
@@ -221,9 +232,9 @@ export default function BookingModal({
             const created = [];
             for (const d of selectedDates) {
               const payload = {
-                className: classDetails.name,
+                className: className,
                 classDate: d.date,
-                classTime: classDetails.time,
+                classTime: classTime,
                 location: classDetails.location,
                 amount: perBooking,
                 notes: formData.notes || '',
@@ -308,7 +319,7 @@ export default function BookingModal({
           <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-1">
               <Clock className="w-3 h-3" />
-              {classDetails.time}
+              {effectiveDayOfWeek === 'wednesday' ? '6:00 PM' : '12:00 PM'}
             </div>
             <div className="flex items-center gap-1">
               <MapPin className="w-3 h-3" />
@@ -325,6 +336,44 @@ export default function BookingModal({
             </span>
           </div>
         </div>
+
+        {/* Day Selection Tabs (only if dayOfWeek not pre-specified) */}
+        {!dayOfWeek && (
+          <div className="px-6 py-4 border-b border-glow-cyan/10">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedDay('wednesday');
+                  setSelectedDates([]);
+                  setCurrentPage(0);
+                }}
+                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+                  selectedDay === 'wednesday'
+                    ? 'bg-glow-cyan/20 border border-glow-cyan/50 text-glow-cyan'
+                    : 'bg-background/50 border border-glow-cyan/20 text-muted-foreground hover:border-glow-cyan/40'
+                }`}
+              >
+                {language === 'zh' ? '周三 6PM' : 'Wednesday 6PM'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedDay('thursday');
+                  setSelectedDates([]);
+                  setCurrentPage(0);
+                }}
+                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+                  selectedDay === 'thursday'
+                    ? 'bg-glow-cyan/20 border border-glow-cyan/50 text-glow-cyan'
+                    : 'bg-background/50 border border-glow-cyan/20 text-muted-foreground hover:border-glow-cyan/40'
+                }`}
+              >
+                {language === 'zh' ? '周四 12PM' : 'Thursday 12PM'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Date Selection */}
         <div className="px-6 py-4 border-b border-glow-cyan/10">
