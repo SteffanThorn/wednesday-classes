@@ -18,6 +18,7 @@ import { useLanguage } from '@/hooks/useLanguage';
 const Index = () => {
   const { language, t, mounted } = useLanguage();
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [selectedDay, setSelectedDay] = useState('wednesday'); // 'wednesday' or 'thursday'
   const { data: session, status } = useSession();
   const router = useRouter();
 
@@ -81,24 +82,43 @@ const Index = () => {
               <div className="h-px w-24 bg-gradient-to-l from-transparent to-glow-cyan/50" />
             </div>
 
-            {/* Book a Class CTA - opens booking modal for Wednesday class */}
-            <div className="mt-8 flex items-center justify-center animate-fade-in-up animation-delay-500">
-              <button
-                type="button"
-                onClick={() => setIsBookingModalOpen(true)}
-                className="px-8 py-3 bg-gradient-to-r from-glow-cyan/20 to-glow-purple/20 
+            {/* Book a Class CTA - opens booking modal for Wednesday or Thursday class */}
+            <div className="mt-8 flex flex-col items-center gap-4 animate-fade-in-up animation-delay-500">
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedDay('wednesday');
+                    setIsBookingModalOpen(true);
+                  }}
+                  className="px-6 py-3 bg-gradient-to-r from-glow-cyan/20 to-glow-purple/20 
                              border border-glow-cyan/30 rounded-full text-foreground
                              hover:from-glow-cyan/30 hover:to-glow-purple/30 
                              hover:border-glow-cyan/50 transition-all duration-300
                              hover:shadow-lg hover:shadow-glow-cyan/20"
-              >
-                Book a Class
-              </button>
+                >
+                  {language === 'zh' ? '周三 6PM' : 'Wednesday 6PM'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedDay('thursday');
+                    setIsBookingModalOpen(true);
+                  }}
+                  className="px-6 py-3 bg-gradient-to-r from-glow-cyan/20 to-glow-purple/20 
+                             border border-glow-cyan/30 rounded-full text-foreground
+                             hover:from-glow-cyan/30 hover:to-glow-purple/30 
+                             hover:border-glow-cyan/50 transition-all duration-300
+                             hover:shadow-lg hover:shadow-glow-cyan/20"
+                >
+                  {language === 'zh' ? '周四 12PM' : 'Thursday 12PM'}
+                </button>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* Booking Modal for homepage CTA - reuse Wednesday class details */}
+        {/* Booking Modal for homepage CTA - supports both Wednesday and Thursday */}
         <BookingModal
           isOpen={isBookingModalOpen}
           onClose={() => setIsBookingModalOpen(false)}
@@ -107,15 +127,21 @@ const Index = () => {
             date: (() => {
               const today = new Date();
               const currentDay = today.getDay();
-              const daysUntilWednesday = (3 - currentDay + 7) % 7;
-              const nextWed = new Date(today);
-              nextWed.setDate(today.getDate() + daysUntilWednesday);
-              return nextWed.toISOString().split('T')[0];
+              const targetDay = selectedDay === 'wednesday' ? 3 : 4;
+              const cutoffHour = selectedDay === 'wednesday' ? 18 : 12;
+              let daysUntilTarget = (targetDay - currentDay + 7) % 7;
+              if (currentDay === targetDay && today.getHours() >= cutoffHour) {
+                daysUntilTarget = 7;
+              }
+              const nextDate = new Date(today);
+              nextDate.setDate(today.getDate() + daysUntilTarget);
+              return nextDate.toISOString().split('T')[0];
             })(),
-            time: '6:00 PM',
+            time: selectedDay === 'wednesday' ? '6:00 PM' : '12:00 PM',
             location: 'Village Valley Centre, Ashhurst',
             price: 15
           }}
+          dayOfWeek={selectedDay}
           language={mounted ? language : 'en'}
         />
 
@@ -143,13 +169,28 @@ const Index = () => {
               <p className="text-muted-foreground mb-6">
                 {mounted ? t('readyToBeginDesc') : 'Book your first class and take the first step towards inner peace.'}
               </p>
-              <button 
-                onClick={() => setIsBookingModalOpen(true)}
-                className="px-8 py-3 rounded-full bg-glow-cyan/10 border border-glow-cyan/30 
+              <div className="flex gap-3 justify-center">
+                <button 
+                  onClick={() => {
+                    setSelectedDay('wednesday');
+                    setIsBookingModalOpen(true);
+                  }}
+                  className="px-6 py-3 rounded-full bg-glow-cyan/10 border border-glow-cyan/30 
                                text-glow-cyan font-medium hover:bg-glow-cyan/20 hover:box-glow
                                transition-all duration-300 cursor-pointer">
-                Book A Class
-              </button>
+                  {language === 'zh' ? '周三 6PM' : 'Wednesday 6PM'}
+                </button>
+                <button 
+                  onClick={() => {
+                    setSelectedDay('thursday');
+                    setIsBookingModalOpen(true);
+                  }}
+                  className="px-6 py-3 rounded-full bg-glow-cyan/10 border border-glow-cyan/30 
+                               text-glow-cyan font-medium hover:bg-glow-cyan/20 hover:box-glow
+                               transition-all duration-300 cursor-pointer">
+                  {language === 'zh' ? '周四 12PM' : 'Thursday 12PM'}
+                </button>
+              </div>
             </div>
           </div>
         </section>
