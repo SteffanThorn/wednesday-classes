@@ -24,7 +24,7 @@ export async function POST(req) {
 
     // Send email via Resend
     const result = await resend.emails.send({
-      from: 'noreply@yukiswebsite.com',
+      from: 'Motherscope <onboarding@resend.dev>',
       to: email,
       subject: 'Welcome to Motherscope Waitlist - Choose Your Preferred Time',
       html: `
