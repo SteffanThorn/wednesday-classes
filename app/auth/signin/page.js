@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import FloatingParticles from '@/components/FloatingParticle';
 import Header from '@/components/Header';
@@ -10,6 +10,8 @@ import { Mail, Lock, ArrowRight, AlertCircle, CheckCircle } from 'lucide-react';
 
 const SigninPage = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -32,14 +34,15 @@ const SigninPage = () => {
         email: formData.email,
         password: formData.password,
         redirect: false,
+        callbackUrl,
       });
 
       if (result.error) {
         throw new Error(result.error);
       }
 
-      // Redirect to dashboard on success
-      router.push('/dashboard');
+      // Redirect back to intended destination (e.g., checkout flow)
+      router.push(result?.url || callbackUrl);
       router.refresh();
     } catch (err) {
       setError(err.message || 'Invalid email or password');
@@ -145,7 +148,7 @@ const SigninPage = () => {
                 <p className="text-muted-foreground text-sm">
                   Don't have an account?{' '}
                   <Link 
-                    href="/auth/signup" 
+                    href={`/auth/signup${callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ''}`} 
                     className="text-glow-cyan hover:text-glow-cyan/80 transition-colors"
                   >
                     Create one

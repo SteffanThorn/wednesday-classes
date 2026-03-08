@@ -59,11 +59,12 @@ export async function POST(request) {
       location,
       amount,
       notes,
-      paymentMethod
+      paymentMethod,
+      bringAFriend
     } = body;
 
     // Validate required fields
-    if (!className || !classDate || !classTime || !location || !amount) {
+    if (!className || !classDate || !classTime || !location || amount === undefined || amount === null) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -76,6 +77,18 @@ export async function POST(request) {
     // For cash: status='confirmed', paymentStatus='pending' (waiting for admin confirmation)
     // For card: status='pending', paymentStatus='pending' (waiting for payment)
     const isPaymentMethodCash = paymentMethod === 'cash';
+    const isBringAFriend = Boolean(bringAFriend);
+    const normalizedAmount = isBringAFriend ? 0 : Number(amount);
+    const isAmountValid = Number.isFinite(normalizedAmount) && normalizedAmount >= 0;
+
+    if (!isAmountValid) {
+      return NextResponse.json(
+        { error: 'Invalid amount' },
+        { status: 400 }
+      );
+    }
+
+    const isInstantlyConfirmed = isPaymentMethodCash || isBringAFriend;
     
     const booking = new Booking({
       userId: session.user.id,
@@ -85,11 +98,14 @@ export async function POST(request) {
       classDate: new Date(classDate),
       classTime,
       location,
-      amount,
+      amount: normalizedAmount,
       notes: notes || '',
-      status: isPaymentMethodCash ? 'confirmed' : 'pending',
-      paymentStatus: 'pending',
-      paymentMethod: paymentMethod || undefined,
+      status: isInstantlyConfirmed ? 'confirmed' : 'pending',
+      paymentStatus: isBringAFriend ? 'completed' : 'pending',
+      paymentMethod: isBringAFriend ? 'bring_a_friend' : (paymentMethod || undefined),
+      paidAt: isBringAFriend ? new Date() : undefined,
+      bringAFriend: isBringAFriend,
+      bringAFriendConfirmed: false,
     });
 
     await booking.save();

@@ -51,6 +51,18 @@ const DashboardPage = () => {
             ? `Your booking(s) have been created. Please pay cash at class.`
             : 'Your booking has been created. Please pay cash at class.'
         );
+      }
+
+      if (params.get('paid') === 'bring-friend') {
+        const created = params.get('created');
+        setCashSuccessMsg(
+          created
+            ? 'Your Bring a Friend booking(s) are confirmed as free. Admin will confirm after class that your friend attended.'
+            : 'Your Bring a Friend booking is confirmed as free. Admin will confirm after class that your friend attended.'
+        );
+      }
+
+      if (params.get('paid') === 'cash' || params.get('paid') === 'bring-friend') {
         // remove query params silently so reuse doesn't show banner again
         if (window.history && window.history.replaceState) {
           const url = new URL(window.location.href);
@@ -301,6 +313,17 @@ const DashboardPage = () => {
                             {booking.paymentStatus === 'paid' || booking.paymentStatus === 'completed' ? 'Paid' : 
                              booking.paymentStatus === 'failed' ? 'Payment Failed' : 'Payment Pending'}
                           </span>
+                          {booking.bringAFriend && (
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                              booking.bringAFriendConfirmed
+                                ? 'bg-purple-500/20 text-purple-300'
+                                : 'bg-blue-500/20 text-blue-300'
+                            }`}>
+                              {booking.bringAFriendConfirmed
+                                ? 'Bring a Friend Used'
+                                : 'Bring a Friend Pending'}
+                            </span>
+                          )}
                         </div>
                         <h3 className="font-display text-xl text-foreground mb-2">
                           {booking.className}
@@ -392,7 +415,14 @@ const DashboardPage = () => {
                       {booking.status === 'cancelled' ? (
                         <XCircle className="w-5 h-5 text-red-400" />
                       ) : (
-                        <CheckCircle className="w-5 h-5 text-green-400" />
+                        <div className="flex items-center gap-2">
+                          {booking.bringAFriend && booking.bringAFriendConfirmed && (
+                            <span className="px-2 py-1 rounded-full text-xs bg-purple-500/20 text-purple-300">
+                              Bring a Friend Used
+                            </span>
+                          )}
+                          <CheckCircle className="w-5 h-5 text-green-400" />
+                        </div>
                       )}
                     </div>
                   </div>

@@ -65,6 +65,7 @@ export default function BookingModal({
   const [formData, setFormData] = useState({
     notes: ''
   });
+  const [bringAFriend, setBringAFriend] = useState(false);
   // Payment method: 'card' (Stripe) or 'cash'
   const [paymentMethod, setPaymentMethod] = useState('card');
   
@@ -100,6 +101,7 @@ export default function BookingModal({
       setCouponCode('');
       setAppliedCoupon(null);
       setCouponError('');
+      setBringAFriend(false);
     }
   }, [isOpen]);
 
@@ -114,6 +116,7 @@ export default function BookingModal({
 
   const discount = calculateDiscount();
   const finalPrice = Math.max(0, totalPrice - discount);
+  const payableAmount = bringAFriend ? 0 : finalPrice;
 
   // Handle coupon application
   const handleApplyCoupon = async () => {
@@ -194,14 +197,11 @@ export default function BookingModal({
         ? '6:00 PM' 
         : '12:00 PM';
       
-      const params = new URLSearchParams();
-      params.set('class_name', className);
-      params.set('amount', finalPrice.toString());
-        if (paymentMethod === 'card') {
+        if (!bringAFriend && paymentMethod === 'card') {
           // Build query params for checkout page
           const params = new URLSearchParams();
           params.set('class_name', className);
-          params.set('amount', finalPrice.toString());
+          params.set('amount', payableAmount.toString());
           params.set('class_time', classTime);
           params.set('location', classDetails.location);
 
@@ -224,10 +224,12 @@ export default function BookingModal({
           // The checkout page will create the booking and payment intent
           window.location.href = `/checkout?${params.toString()}`;
         } else {
-          // Pay by cash: create bookings directly with paymentMethod 'cash'
+          // Pay by cash or Bring a Friend: create bookings directly
           try {
-            // Distribute finalPrice across selected dates (per-booking amount)
-            const perBooking = parseFloat((finalPrice / selectedDates.length).toFixed(2));
+            // Distribute payable total across selected dates (per-booking amount)
+            const perBooking = bringAFriend
+              ? 0
+              : parseFloat((payableAmount / selectedDates.length).toFixed(2));
 
             const created = [];
             for (const d of selectedDates) {
@@ -238,7 +240,8 @@ export default function BookingModal({
                 location: classDetails.location,
                 amount: perBooking,
                 notes: formData.notes || '',
-                paymentMethod: 'cash'
+                paymentMethod: bringAFriend ? 'bring_a_friend' : 'cash',
+                bringAFriend: bringAFriend
               };
 
               const res = await fetch('/api/bookings', {
@@ -256,21 +259,56 @@ export default function BookingModal({
 
             // Successfully created all bookings - redirect to dashboard with success message
             // Keep loading state until redirect completes
-            window.location.href = '/dashboard?paid=cash&created=' + encodeURIComponent(created.map(b => b._id).join(','));
+            const paidType = bringAFriend ? 'bring-friend' : 'cash';
+            window.location.href = '/dashboard?paid=' + paidType + '&created=' + encodeURIComponent(created.map(b => b._id).join(','));
             return; // Exit early to prevent setIsLoading(false) below
           } catch (err) {
             console.error('Cash booking error:', err);
-            setError(err.message || 'Failed to create cash booking');
+            setError(err.message || (bringAFriend ? 'Failed to create Bring a Friend booking' : 'Failed to create cash booking'));
             setIsLoading(false); // Reset loading on error
           }
         }
     } finally {
       // For card payment flow, ensure loading is reset
-      if (paymentMethod === 'card') {
+      if (!bringAFriend && paymentMethod === 'card') {
         setIsLoading(false);
       }
     }
   };
+
+  const handleSignInFromBooking = async () => {
+    // If user already selected dates, send them directly back to checkout flow after login
+    if (selectedDates.length > 0) {
+      const className = effectiveDayOfWeek === 'wednesday'
+        ? 'Beginner Yoga - Wednesday'
+        : 'Beginner Yoga - Thursday';
+      const classTime = effectiveDayOfWeek === 'wednesday'
+        ? '6:00 PM'
+        : '12:00 PM';
+
+      const params = new URLSearchParams();
+      params.set('class_name', className);
+      params.set('amount', finalPrice.toString());
+      params.set('class_time', classTime);
+      params.set('location', classDetails.location);
+      params.set('selected_dates', selectedDates.map(d => d.date).join(','));
+
+      if (appliedCoupon) {
+        params.set('coupon_code', appliedCoupon.code);
+      }
+
+      const callbackUrl = `/checkout?${params.toString()}`;
+      await signIn(undefined, { callbackUrl });
+      return;
+    }
+
+    // Fallback: return to current page
+    const fallbackCallback = typeof window !== 'undefined'
+      ? window.location.href
+      : '/dashboard';
+    await signIn(undefined, { callbackUrl: fallbackCallback });
+  };
+
   const formatDate = (dateStr) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('en-NZ', {
@@ -597,8 +635,27 @@ export default function BookingModal({
             {/* Payment Method Selection */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">{language === 'zh' ? '支付方式' : 'Payment Method'}</label>
+              <label className={`w-full p-3 rounded-lg border flex items-start gap-3 transition-colors ${bringAFriend ? 'border-green-500/40 bg-green-500/10' : 'border-border/30 bg-card/60'}`}>
+                <input
+                  type="checkbox"
+                  checked={bringAFriend}
+                  onChange={(e) => setBringAFriend(e.target.checked)}
+                  className="mt-1"
+                />
+                <div>
+                  <div className="font-medium text-foreground">
+                    {language === 'zh' ? '带朋友来（免费课程）' : 'Bring a Friend (Free Class)'}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {language === 'zh'
+                      ? '选择后本次预约免费，管理员将在线下确认你已带朋友。'
+                      : 'This booking is free. Admin will confirm after class that you brought a friend.'}
+                  </p>
+                </div>
+              </label>
+
               <div className="flex gap-3">
-                <label className={`px-3 py-2 rounded-lg border ${paymentMethod === 'card' ? 'border-glow-cyan/40 bg-glow-cyan/10' : 'border-border/30 bg-card/60'} cursor-pointer flex-1 text-center`}> 
+                <label className={`px-3 py-2 rounded-lg border ${paymentMethod === 'card' ? 'border-glow-cyan/40 bg-glow-cyan/10' : 'border-border/30 bg-card/60'} cursor-pointer flex-1 text-center ${bringAFriend ? 'opacity-50 pointer-events-none' : ''}`}> 
                   <input
                     type="radio"
                     name="paymentMethod"
@@ -609,7 +666,7 @@ export default function BookingModal({
                   />
                   {language === 'zh' ? '卡 (Stripe)' : 'Card (Stripe)'}
                 </label>
-                <label className={`px-3 py-2 rounded-lg border ${paymentMethod === 'cash' ? 'border-glow-cyan/40 bg-glow-cyan/10' : 'border-border/30 bg-card/60'} cursor-pointer flex-1 text-center`}> 
+                <label className={`px-3 py-2 rounded-lg border ${paymentMethod === 'cash' ? 'border-glow-cyan/40 bg-glow-cyan/10' : 'border-border/30 bg-card/60'} cursor-pointer flex-1 text-center ${bringAFriend ? 'opacity-50 pointer-events-none' : ''}`}> 
                   <input
                     type="radio"
                     name="paymentMethod"
@@ -639,7 +696,9 @@ export default function BookingModal({
               ) : (
                 <>
                   <DollarSign className="w-5 h-5" />
-                  {language === 'zh' ? `支付 $${finalPrice.toFixed(2)}` : `Pay $${finalPrice.toFixed(2)}`}
+                  {bringAFriend
+                    ? (language === 'zh' ? '免费预约（带朋友）' : 'Book Free (Bring a Friend)')
+                    : (language === 'zh' ? `支付 $${payableAmount.toFixed(2)}` : `Pay $${payableAmount.toFixed(2)}`)}
                 </>
               )}
             </button>
@@ -667,7 +726,7 @@ export default function BookingModal({
             
             <div className="flex gap-3">
               <button
-                onClick={() => signIn()}
+                onClick={handleSignInFromBooking}
                 className="flex-1 py-3 rounded-xl bg-glow-cyan/20 border border-glow-cyan/40 
                          text-glow-cyan font-medium hover:bg-glow-cyan/30 
                          hover:box-glow transition-all duration-300"

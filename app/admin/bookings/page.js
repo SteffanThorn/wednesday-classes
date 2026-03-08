@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import FloatingParticles from '@/components/FloatingParticle';
-import { Calendar, Clock, MapPin, CreditCard, User, Mail, Search, Filter, CheckCircle, XCircle, Loader2, Download } from 'lucide-react';
+import { Calendar, Clock, MapPin, Search, Loader2, Download } from 'lucide-react';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -66,7 +66,7 @@ export default function AdminBookingsPage() {
 
   // Export to CSV
   const exportToCSV = () => {
-    const headers = ['Date', 'Name', 'Email', 'Class', 'Time', 'Location', 'Amount', 'Status', 'Payment'];
+    const headers = ['Date', 'Name', 'Email', 'Class', 'Time', 'Location', 'Amount', 'Status', 'Payment', 'Bring a Friend', 'Friend Confirmed'];
     const rows = filteredBookings.map(b => [
       new Date(b.classDate).toLocaleDateString(),
       b.userName,
@@ -76,7 +76,9 @@ export default function AdminBookingsPage() {
       b.location,
       b.amount,
       b.status,
-      b.paymentStatus
+      b.paymentStatus,
+      b.bringAFriend ? 'yes' : 'no',
+      b.bringAFriendConfirmed ? 'yes' : 'no'
     ]);
     
     const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
@@ -351,12 +353,13 @@ export default function AdminBookingsPage() {
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">Amount</th>
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">Status</th>
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">Payment</th>
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Bring a Friend</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredBookings.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="p-8 text-center text-muted-foreground">
+                      <td colSpan={8} className="p-8 text-center text-muted-foreground">
                         No bookings found
                       </td>
                     </tr>
@@ -435,6 +438,43 @@ export default function AdminBookingsPage() {
                               </button>
                             )}
                           </div>
+                        </td>
+                        <td className="p-4">
+                          {booking.bringAFriend ? (
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                booking.bringAFriendConfirmed
+                                  ? 'bg-green-500/20 text-green-400'
+                                  : 'bg-yellow-500/20 text-yellow-400'
+                              }`}>
+                                {booking.bringAFriendConfirmed ? 'Confirmed' : 'Pending'}
+                              </span>
+
+                              {!booking.bringAFriendConfirmed && (
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      const res = await fetch('/api/admin/bookings/confirm-bring-friend', {
+                                        method: 'PUT',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ bookingId: booking._id })
+                                      });
+                                      const data = await res.json();
+                                      if (!res.ok) throw new Error(data.error || 'Failed to confirm');
+                                      await fetch('/api/admin/bookings').then(r => r.json()).then(j => setBookings(j.bookings));
+                                    } catch (err) {
+                                      console.error('Confirm bring-a-friend error:', err);
+                                    }
+                                  }}
+                                  className="px-2 py-1 rounded-md text-xs bg-glow-cyan/10 border border-glow-cyan/20 text-glow-cyan hover:bg-glow-cyan/20"
+                                >
+                                  Confirm Friend
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
                         </td>
                       </tr>
                     ))
