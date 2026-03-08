@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import FloatingParticles from '@/components/FloatingParticle';
 import Header from '@/components/Header';
@@ -10,14 +10,19 @@ import { Mail, Lock, ArrowRight, AlertCircle, CheckCircle } from 'lucide-react';
 
 const SigninPage = () => {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
+  const [callbackUrl, setCallbackUrl] = useState('/dashboard');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    setCallbackUrl(params.get('callbackUrl') || '/dashboard');
+  }, []);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
