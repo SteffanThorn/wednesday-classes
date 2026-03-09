@@ -368,7 +368,7 @@ export default function BookingModal({
                     : 'bg-background/50 border border-glow-cyan/20 text-muted-foreground hover:border-glow-cyan/40'
                 }`}
               >
-                {language === 'zh' ? '周五 12PM' : 'Friday 12PM'}
+                {language === 'zh' ? '周五 6PM' : 'Friday 6PM'}
               </button>
             </div>
           </div>
