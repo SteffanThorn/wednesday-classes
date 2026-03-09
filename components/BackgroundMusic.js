@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
 
 export default function BackgroundMusic() {
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true); // Start with true for autoplay
   const [volume, setVolume] = useState(0.3); // 30% default volume
   const audioRef = useRef(null);
 
@@ -17,9 +17,13 @@ export default function BackgroundMusic() {
       setVolume(parseFloat(savedVolume));
     }
     
-    // Don't autoplay - wait for user interaction
-    if (savedPlaying === 'true') {
+    // If user previously turned it off, respect that. Otherwise, autoplay
+    if (savedPlaying === 'false') {
+      setIsPlaying(false);
+    } else {
       setIsPlaying(true);
+      // Save autoplay preference
+      localStorage.setItem('bgMusicPlaying', 'true');
     }
   }, []);
 
