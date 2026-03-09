@@ -641,7 +641,7 @@ export default function BookingModal({
                     onChange={() => setPaymentMethod('card')}
                     className="hidden"
                   />
-                  {language === 'zh' ? '卡 (Stripe)' : 'Card (Stripe)'}
+                  {language === 'zh' ? '卡' : 'Card'}
                 </label>
                 <label className={`px-3 py-2 rounded-lg border ${paymentMethod === 'cash' ? 'border-glow-cyan/40 bg-glow-cyan/10' : 'border-border/30 bg-card/60'} cursor-pointer flex-1 text-center ${bringAFriend ? 'opacity-50 pointer-events-none' : ''}`}> 
                   <input
