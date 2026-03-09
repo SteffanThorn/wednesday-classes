@@ -23,10 +23,18 @@ const THURSDAY_CLASS = {
   price: 15
 };
 
+const FRIDAY_CLASS = {
+  name: 'Beginner Yoga',
+  time: '6:00 PM',
+  location: 'Village Valley Centre, Ashhurst',
+  price: 15
+};
+
 const ClassesPage = () => {
   const { t, mounted } = useLanguage();
   const [isWednesdayModalOpen, setIsWednesdayModalOpen] = useState(false);
   const [isThursdayModalOpen, setIsThursdayModalOpen] = useState(false);
+  const [isFridayModalOpen, setIsFridayModalOpen] = useState(false);
   
   // Motherscope waitlist state
   const [motherScopeLoading, setMotherScopeLoading] = useState(false);
@@ -117,7 +125,7 @@ const ClassesPage = () => {
                   icon={Zap}
                   titleEn="Beginner Yoga"
                   titleZh="初级瑜伽"
-                  descriptionEn="6pm Every Wednesday"
+                  descriptionEn="6PM Every Wednesday"
                   descriptionZh="每周三晚上6点"
                   duration="60 min"
                   level="Beginner"
@@ -137,8 +145,8 @@ const ClassesPage = () => {
                   icon={Sun}
                   titleEn="Beginner Yoga"
                   titleZh="初级瑜伽"
-                  descriptionEn="12pm Every Thursday"
-                  descriptionZh="每周四中午12点"
+                  descriptionEn="12PM Selected Thursdays"
+                  descriptionZh="特定周四中午12点"
                   duration="60 min"
                   level="Beginner"
                   price="$15/class"
@@ -151,11 +159,31 @@ const ClassesPage = () => {
                 />
               </div>
 
+              {/* Beginner Yoga - Friday */}
+              <div className="relative group cursor-pointer" onClick={() => setIsFridayModalOpen(true)}>
+                <ClassCard
+                  icon={Heart}
+                  titleEn="Beginner Yoga"
+                  titleZh="初级瑜伽"
+                  descriptionEn="6PM Selected Fridays"
+                  descriptionZh="特定周五晚上6点"
+                  duration="60 min"
+                  level="Beginner"
+                  price="$15/class"
+                  additionalInfo="B.Y.O mat"
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setIsFridayModalOpen(true);
+                  }}
+                />
+              </div>
+
               {/* Motherscope - Waitlist */}
               <div className="p-6 rounded-3xl border border-glow-purple/30 bg-card/60 backdrop-blur-sm hover:box-glow transition-all duration-300">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-glow-purple/20 to-glow-cyan/20 flex items-center justify-center">
-                    <Heart className="w-6 h-6 text-glow-purple" />
+                    <Users className="w-6 h-6 text-glow-purple" />
                   </div>
                   <h3 className="font-display text-2xl text-glow-subtle">Motherscope</h3>
                 </div>
@@ -207,7 +235,7 @@ const ClassesPage = () => {
               <div className="p-6 rounded-3xl border border-glow-cyan/30 bg-card/60 backdrop-blur-sm hover:box-glow transition-all duration-300">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-glow-cyan/20 to-glow-purple/20 flex items-center justify-center">
-                    <Users className="w-6 h-6 text-glow-cyan" />
+                    <Heart className="w-6 h-6 text-glow-cyan" />
                   </div>
                   <h3 className="font-display text-2xl text-glow-subtle">One-on-One Sessions</h3>
                 </div>
@@ -282,6 +310,14 @@ const ClassesPage = () => {
         onClose={() => setIsThursdayModalOpen(false)}
         classDetails={THURSDAY_CLASS}
         dayOfWeek="thursday"
+      />
+
+      {/* Friday Booking Modal */}
+      <BookingModal
+        isOpen={isFridayModalOpen}
+        onClose={() => setIsFridayModalOpen(false)}
+        classDetails={FRIDAY_CLASS}
+        dayOfWeek="friday"
       />
     </div>
   );
