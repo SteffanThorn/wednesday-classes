@@ -3,6 +3,7 @@ import { auth } from '@/auth';
 import dbConnect from '@/lib/mongodb';
 import Booking from '@/lib/models/Booking';
 import { sendBookingConfirmationEmail, sendCancellationEmail } from '@/lib/email';
+import { inferDayFromClassName, isAllowedClassDate } from '@/lib/class-schedule';
 
 // GET - Fetch user's bookings
 export async function GET() {
@@ -76,6 +77,22 @@ export async function POST(request) {
     // Create booking with appropriate status based on payment method
     // For cash: status='confirmed', paymentStatus='pending' (waiting for admin confirmation)
     // For card: status='pending', paymentStatus='pending' (waiting for payment)
+    const normalizedClassDate = new Date(classDate);
+    if (Number.isNaN(normalizedClassDate.getTime())) {
+      return NextResponse.json(
+        { error: 'Invalid class date' },
+        { status: 400 }
+      );
+    }
+
+    const scheduleDay = inferDayFromClassName(className);
+    if (scheduleDay && !isAllowedClassDate(scheduleDay, normalizedClassDate)) {
+      return NextResponse.json(
+        { error: `Selected date is not available for ${scheduleDay} classes` },
+        { status: 400 }
+      );
+    }
+
     const isPaymentMethodCash = paymentMethod === 'cash';
     const isBringAFriend = Boolean(bringAFriend);
     const normalizedAmount = isBringAFriend ? 0 : Number(amount);
@@ -95,7 +112,7 @@ export async function POST(request) {
       userEmail: session.user.email,
       userName: session.user.name || 'Guest',
       className,
-      classDate: new Date(classDate),
+      classDate: normalizedClassDate,
       classTime,
       location,
       amount: normalizedAmount,

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import FloatingParticles from '@/components/FloatingParticle';
 import Header from '@/components/Header';
 import { useLanguage } from '@/hooks/useLanguage';
@@ -7,6 +8,12 @@ import { Shield, Eye, Lock, User, Mail, Calendar, AlertCircle, MapPin } from 'lu
 
 const PrivacyPage = () => {
   const { t, mounted, language } = useLanguage();
+  const [contactForm, setContactForm] = useState({
+    name: '',
+    email: '',
+    subject: '',
+    message: '',
+  });
 
   const principles = [
     {
@@ -81,9 +88,31 @@ const PrivacyPage = () => {
   ];
 
   const contactInfo = {
-    email: 'yukis yogayuki@gmail.com',
-    phone: '+64 27 888 8888',
+    email: 'innerlightyuki@gmail.com',
     address: 'Village Valley Centre, Ashhurst, New Zealand',
+  };
+
+  const handleContactChange = (e) => {
+    setContactForm((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+  };
+
+  const handleContactSubmit = (e) => {
+    e.preventDefault();
+
+    const subject = contactForm.subject || (language === 'zh' ? '隐私咨询' : 'Privacy Inquiry');
+    const body = [
+      `${language === 'zh' ? '姓名' : 'Name'}: ${contactForm.name}`,
+      `${language === 'zh' ? '邮箱' : 'Email'}: ${contactForm.email}`,
+      '',
+      `${language === 'zh' ? '留言' : 'Message'}:`,
+      contactForm.message,
+    ].join('\n');
+
+    const mailto = `mailto:${contactInfo.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailto;
   };
 
   return (
@@ -375,20 +404,71 @@ const PrivacyPage = () => {
             </div>
             
             <div className="bg-card/60 border border-glow-cyan/20 rounded-3xl p-8 animate-fade-in-up animation-delay-200">
-              <div className="space-y-4">
+              <div className="space-y-4 mb-8">
                 <div className="flex items-center gap-3">
                   <Mail className="w-5 h-5 text-glow-cyan" />
-                  <span className="text-foreground">{contactInfo.email}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Shield className="w-5 h-5 text-glow-cyan" />
-                  <span className="text-foreground">{contactInfo.phone}</span>
+                  <a href={`mailto:${contactInfo.email}`} className="text-foreground hover:text-glow-cyan transition-colors">
+                    {contactInfo.email}
+                  </a>
                 </div>
                 <div className="flex items-start gap-3">
                   <MapPin className="w-5 h-5 text-glow-cyan shrink-0 mt-1" />
                   <span className="text-foreground">{contactInfo.address}</span>
                 </div>
               </div>
+
+              <form onSubmit={handleContactSubmit} className="space-y-4 border-t border-glow-cyan/10 pt-6">
+                <h3 className="font-display text-xl text-foreground">
+                  {mounted ? (language === 'zh' ? '发送邮件' : 'Send an Email') : 'Send an Email'}
+                </h3>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <input
+                    name="name"
+                    type="text"
+                    value={contactForm.name}
+                    onChange={handleContactChange}
+                    required
+                    placeholder={mounted ? (language === 'zh' ? '您的姓名' : 'Your name') : 'Your name'}
+                    className="w-full px-4 py-3 rounded-xl bg-card/50 border border-glow-cyan/20 focus:border-glow-cyan/50 focus:outline-none"
+                  />
+                  <input
+                    name="email"
+                    type="email"
+                    value={contactForm.email}
+                    onChange={handleContactChange}
+                    required
+                    placeholder={mounted ? (language === 'zh' ? '您的邮箱' : 'Your email') : 'Your email'}
+                    className="w-full px-4 py-3 rounded-xl bg-card/50 border border-glow-cyan/20 focus:border-glow-cyan/50 focus:outline-none"
+                  />
+                </div>
+
+                <input
+                  name="subject"
+                  type="text"
+                  value={contactForm.subject}
+                  onChange={handleContactChange}
+                  placeholder={mounted ? (language === 'zh' ? '主题（可选）' : 'Subject (optional)') : 'Subject (optional)'}
+                  className="w-full px-4 py-3 rounded-xl bg-card/50 border border-glow-cyan/20 focus:border-glow-cyan/50 focus:outline-none"
+                />
+
+                <textarea
+                  name="message"
+                  rows={5}
+                  value={contactForm.message}
+                  onChange={handleContactChange}
+                  required
+                  placeholder={mounted ? (language === 'zh' ? '请输入您的问题...' : 'Write your message...') : 'Write your message...'}
+                  className="w-full px-4 py-3 rounded-xl bg-card/50 border border-glow-cyan/20 focus:border-glow-cyan/50 focus:outline-none resize-none"
+                />
+
+                <button
+                  type="submit"
+                  className="w-full py-3 rounded-xl bg-glow-cyan/20 border border-glow-cyan/40 text-glow-cyan font-medium hover:bg-glow-cyan/30 transition-all"
+                >
+                  {mounted ? (language === 'zh' ? '发送邮件' : 'Send Email') : 'Send Email'}
+                </button>
+              </form>
             </div>
           </div>
         </section>

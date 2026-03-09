@@ -3,59 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import { X, Calendar, Clock, MapPin, DollarSign, Loader2, LogIn, Check, ChevronLeft, ChevronRight, Tag, Gift } from 'lucide-react';
-
-// Generate available dates based on day of week
-function getAvailableDatesByDay(dayOfWeek, weeksAhead = 12) {
-  const dates = [];
-  const today = new Date();
-  const currentDay = today.getDay();
-  
-  // dayOfWeek: 'wednesday' (3) or 'thursday' (4)
-  const targetDay = dayOfWeek === 'wednesday' ? 3 : 4;
-  const cutoffHour = dayOfWeek === 'wednesday' ? 18 : 12; // 6pm for Wed, 12pm for Thu
-  
-  let daysUntilTarget = (targetDay - currentDay + 7) % 7;
-  
-  // If it's the target day, check if we're before the class time
-  if (currentDay === targetDay && today.getHours() >= cutoffHour) {
-    daysUntilTarget = 7; // Skip to next week
-  }
-  
-  let startDate = new Date(today);
-  startDate.setDate(today.getDate() + daysUntilTarget);
-  
-  for (let i = 0; i < weeksAhead; i++) {
-    const date = new Date(startDate);
-    date.setDate(startDate.getDate() + (i * 7));
-    dates.push({
-      date: date.toISOString().split('T')[0],
-      displayDate: date.toLocaleDateString('en-NZ', { 
-        weekday: 'short', 
-        day: 'numeric', 
-        month: 'short' 
-      }),
-      fullDate: date.toLocaleDateString('en-NZ', { 
-        weekday: 'long', 
-        day: 'numeric', 
-        month: 'long', 
-        year: 'numeric' 
-      })
-    });
-  }
-  
-  return dates;
-}
-
-// Generate available Wednesdays starting from the next upcoming Wednesday
-function getAvailableWednesdays(weeksAhead = 12) {
-  return getAvailableDatesByDay('wednesday', weeksAhead);
-}
+import { getAvailableDatesByDay, getClassNameForDay, getClassTimeForDay } from '@/lib/class-schedule';
 
 export default function BookingModal({ 
   isOpen, 
   onClose, 
   classDetails,
-  dayOfWeek = null, // null means allow user to select, 'wednesday' or 'thursday'
+  dayOfWeek = null, // null means allow user to select, 'wednesday', 'thursday', or 'friday'
   language = 'en' 
 }) {
   // ALL hooks must be called unconditionally - no early returns before hooks!
@@ -190,12 +144,8 @@ export default function BookingModal({
 
     try {
       // Build query params for checkout page
-      const className = effectiveDayOfWeek === 'wednesday' 
-        ? 'Beginner Yoga - Wednesday'
-        : 'Beginner Yoga - Thursday';
-      const classTime = effectiveDayOfWeek === 'wednesday' 
-        ? '6:00 PM' 
-        : '12:00 PM';
+      const className = getClassNameForDay(effectiveDayOfWeek);
+      const classTime = getClassTimeForDay(effectiveDayOfWeek);
       
         if (!bringAFriend && paymentMethod === 'card') {
           // Build query params for checkout page
@@ -279,12 +229,8 @@ export default function BookingModal({
   const handleSignInFromBooking = async () => {
     // If user already selected dates, send them directly back to checkout flow after login
     if (selectedDates.length > 0) {
-      const className = effectiveDayOfWeek === 'wednesday'
-        ? 'Beginner Yoga - Wednesday'
-        : 'Beginner Yoga - Thursday';
-      const classTime = effectiveDayOfWeek === 'wednesday'
-        ? '6:00 PM'
-        : '12:00 PM';
+      const className = getClassNameForDay(effectiveDayOfWeek);
+      const classTime = getClassTimeForDay(effectiveDayOfWeek);
 
       const params = new URLSearchParams();
       params.set('class_name', className);
@@ -357,7 +303,7 @@ export default function BookingModal({
           <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-1">
               <Clock className="w-3 h-3" />
-              {effectiveDayOfWeek === 'wednesday' ? '6:00 PM' : '12:00 PM'}
+              {getClassTimeForDay(effectiveDayOfWeek)}
             </div>
             <div className="flex items-center gap-1">
               <MapPin className="w-3 h-3" />
@@ -409,7 +355,33 @@ export default function BookingModal({
               >
                 {language === 'zh' ? '周四 12PM' : 'Thursday 12PM'}
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedDay('friday');
+                  setSelectedDates([]);
+                  setCurrentPage(0);
+                }}
+                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+                  selectedDay === 'friday'
+                    ? 'bg-glow-cyan/20 border border-glow-cyan/50 text-glow-cyan'
+                    : 'bg-background/50 border border-glow-cyan/20 text-muted-foreground hover:border-glow-cyan/40'
+                }`}
+              >
+                {language === 'zh' ? '周五 12PM' : 'Friday 12PM'}
+              </button>
             </div>
+          </div>
+        )}
+
+        {/* Limited schedule notice for Thu/Fri */}
+        {(effectiveDayOfWeek === 'thursday' || effectiveDayOfWeek === 'friday') && (
+          <div className="px-6 py-3 border-b border-glow-cyan/10 bg-blue-500/5">
+            <p className="text-xs text-blue-300">
+              {language === 'zh'
+                ? '周四与周五课程仅在已确认日期开放预约。'
+                : 'Thursday and Friday classes are available on confirmed dates only.'}
+            </p>
           </div>
         )}
 
@@ -426,6 +398,11 @@ export default function BookingModal({
           
           {/* Date Grid */}
           <div className="space-y-2">
+            {displayedDates.length === 0 && (
+              <div className="p-3 rounded-xl bg-card/40 border border-glow-cyan/10 text-sm text-muted-foreground">
+                {language === 'zh' ? '当前没有可预约日期，请稍后再查看。' : 'No available dates right now. Please check back soon.'}
+              </div>
+            )}
             {displayedDates.map((date) => {
               const isSelected = selectedDates.some(d => d.date === date.date);
               return (
@@ -447,7 +424,7 @@ export default function BookingModal({
                     </div>
                     <div className="text-left">
                       <div className="font-medium">{date.displayDate}</div>
-                      <div className="text-xs text-muted-foreground">{classDetails.time}</div>
+                      <div className="text-xs text-muted-foreground">{getClassTimeForDay(effectiveDayOfWeek)}</div>
                     </div>
                   </div>
                   <div className="text-glow-cyan font-medium">
@@ -458,7 +435,7 @@ export default function BookingModal({
             })}
           </div>
           
-          {/* Pagination */}
+                {language === 'zh' ? '周五 6PM' : 'Friday 6PM'}
           {totalPages > 1 && (
             <div className="flex items-center justify-between mt-4">
               <button
