@@ -338,7 +338,10 @@ export default function BookingModal({
                     : 'bg-background/50 border border-glow-cyan/20 text-muted-foreground hover:border-glow-cyan/40'
                 }`}
               >
-                {language === 'zh' ? '周三 6PM' : 'Wednesday 6PM'}
+                <div className="text-center">
+                  <div>{language === 'zh' ? '周三' : 'Wednesday'}</div>
+                  <div className="text-sm">{language === 'zh' ? '6PM' : '6PM'}</div>
+                </div>
               </button>
               <button
                 type="button"
@@ -353,7 +356,10 @@ export default function BookingModal({
                     : 'bg-background/50 border border-glow-cyan/20 text-muted-foreground hover:border-glow-cyan/40'
                 }`}
               >
-                {language === 'zh' ? '周四 12PM' : 'Thursday 12PM'}
+                <div className="text-center">
+                  <div>{language === 'zh' ? '周四' : 'Thursday'}</div>
+                  <div className="text-sm">{language === 'zh' ? '12PM' : '12PM'}</div>
+                </div>
               </button>
               <button
                 type="button"
@@ -368,7 +374,10 @@ export default function BookingModal({
                     : 'bg-background/50 border border-glow-cyan/20 text-muted-foreground hover:border-glow-cyan/40'
                 }`}
               >
-                {language === 'zh' ? '周五 6PM' : 'Friday 6PM'}
+                <div className="text-center">
+                  <div>{language === 'zh' ? '周五' : 'Friday'}</div>
+                  <div className="text-sm">{language === 'zh' ? '6PM' : '6PM'}</div>
+                </div>
               </button>
             </div>
           </div>
