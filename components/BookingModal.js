@@ -9,7 +9,7 @@ export default function BookingModal({
   isOpen, 
   onClose, 
   classDetails,
-  dayOfWeek = null, // null means allow user to select, 'wednesday', 'thursday', or 'friday'
+  dayOfWeek = null, // null means allow user to select, 'wednesday' or 'friday'
   language = 'en' 
 }) {
   // ALL hooks must be called unconditionally - no early returns before hooks!
@@ -346,24 +346,6 @@ export default function BookingModal({
               <button
                 type="button"
                 onClick={() => {
-                  setSelectedDay('thursday');
-                  setSelectedDates([]);
-                  setCurrentPage(0);
-                }}
-                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-                  selectedDay === 'thursday'
-                    ? 'bg-glow-cyan/20 border border-glow-cyan/50 text-glow-cyan'
-                    : 'bg-background/50 border border-glow-cyan/20 text-muted-foreground hover:border-glow-cyan/40'
-                }`}
-              >
-                <div className="text-center">
-                  <div>{language === 'zh' ? '周四' : 'Thursday'}</div>
-                  <div className="text-sm">{language === 'zh' ? '12PM' : '12PM'}</div>
-                </div>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
                   setSelectedDay('friday');
                   setSelectedDates([]);
                   setCurrentPage(0);
@@ -376,21 +358,10 @@ export default function BookingModal({
               >
                 <div className="text-center">
                   <div>{language === 'zh' ? '周五' : 'Friday'}</div>
-                  <div className="text-sm">{language === 'zh' ? '6PM' : '6PM'}</div>
+                  <div className="text-sm">{language === 'zh' ? '2PM' : '2PM'}</div>
                 </div>
               </button>
             </div>
-          </div>
-        )}
-
-        {/* Limited schedule notice for Thu/Fri */}
-        {(effectiveDayOfWeek === 'thursday' || effectiveDayOfWeek === 'friday') && (
-          <div className="px-6 py-3 border-b border-glow-cyan/10 bg-blue-500/5">
-            <p className="text-xs text-blue-300">
-              {language === 'zh'
-                ? '周四与周五课程仅在已确认日期开放预约。'
-                : 'Thursday and Friday classes are available on confirmed dates only.'}
-            </p>
           </div>
         )}
 
@@ -443,8 +414,7 @@ export default function BookingModal({
               );
             })}
           </div>
-          
-                {language === 'zh' ? '周五 6PM' : 'Friday 6PM'}
+
           {totalPages > 1 && (
             <div className="flex items-center justify-between mt-4">
               <button

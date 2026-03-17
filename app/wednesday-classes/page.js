@@ -154,7 +154,7 @@ const WednesdayClassesPage = () => {
             <div className="flex flex-wrap justify-center gap-4 md:gap-6 mb-10 animate-fade-in-up animation-delay-300">
               <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card/60 border border-glow-cyan/20">
                 <Calendar className="w-4 h-4 text-glow-cyan" />
-                <span className="text-sm">Wednesdays · 6:00 PM · Thu/Fri on confirmed dates</span>
+                <span className="text-sm">Wednesdays · 6:00 PM · Fridays · 2:00 PM</span>
               </div>
               <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card/60 border border-glow-cyan/20">
                 <MapPin className="w-4 h-4 text-glow-cyan" />
@@ -275,7 +275,7 @@ const WednesdayClassesPage = () => {
                       {mounted ? (language === 'zh' ? '时间：' : 'When:') : 'When:'}
                     </h4>
                     <p className="text-muted-foreground">Wednesdays · 6:00 PM · 60 minutes</p>
-                    <p className="text-muted-foreground">Thursdays · 12:00 PM · Fridays · 6:00 PM · confirmed dates only</p>
+                    <p className="text-muted-foreground">Fridays · 2:00 PM · 60 minutes</p>
                   </div>
                 </div>
                 

@@ -5,7 +5,7 @@ import Header from '@/components/Header';
 import HeroSection from '@/components/HeroSection';
 import ClassCard from '@/components/ClassCard';
 import BookingModal from '@/components/BookingModal';
-import { Zap, Heart, Sun, Users } from 'lucide-react';
+import { Zap, Heart, Users } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useState } from 'react';
 
@@ -16,16 +16,9 @@ const WEDNESDAY_CLASS = {
   price: 15
 };
 
-const THURSDAY_CLASS = {
-  name: 'Beginner Yoga',
-  time: '12:00 PM',
-  location: 'Village Valley Centre, Ashhurst',
-  price: 15
-};
-
 const FRIDAY_CLASS = {
   name: 'Beginner Yoga',
-  time: '6:00 PM',
+  time: '2:00 PM',
   location: 'Village Valley Centre, Ashhurst',
   price: 15
 };
@@ -33,7 +26,6 @@ const FRIDAY_CLASS = {
 const ClassesPage = () => {
   const { t, mounted } = useLanguage();
   const [isWednesdayModalOpen, setIsWednesdayModalOpen] = useState(false);
-  const [isThursdayModalOpen, setIsThursdayModalOpen] = useState(false);
   const [isFridayModalOpen, setIsFridayModalOpen] = useState(false);
   
   // Motherscope waitlist state
@@ -139,34 +131,14 @@ const ClassesPage = () => {
                 />
               </div>
 
-              {/* Beginner Yoga - Thursday */}
-              <div className="relative group cursor-pointer" onClick={() => setIsThursdayModalOpen(true)}>
-                <ClassCard
-                  icon={Sun}
-                  titleEn="Beginner Yoga"
-                  titleZh="初级瑜伽"
-                  descriptionEn="12PM Selected Thursdays"
-                  descriptionZh="特定周四中午12点"
-                  duration="60 min"
-                  level="Beginner"
-                  price="$15/class"
-                  additionalInfo="B.Y.O mat"
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setIsThursdayModalOpen(true);
-                  }}
-                />
-              </div>
-
               {/* Beginner Yoga - Friday */}
               <div className="relative group cursor-pointer" onClick={() => setIsFridayModalOpen(true)}>
                 <ClassCard
                   icon={Heart}
                   titleEn="Beginner Yoga"
                   titleZh="初级瑜伽"
-                  descriptionEn="6PM Selected Fridays"
-                  descriptionZh="特定周五晚上6点"
+                  descriptionEn="2PM Every Friday"
+                  descriptionZh="每周五下午2点"
                   duration="60 min"
                   level="Beginner"
                   price="$15/class"
@@ -302,14 +274,6 @@ const ClassesPage = () => {
         onClose={() => setIsWednesdayModalOpen(false)}
         classDetails={WEDNESDAY_CLASS}
         dayOfWeek="wednesday"
-      />
-
-      {/* Thursday Booking Modal */}
-      <BookingModal
-        isOpen={isThursdayModalOpen}
-        onClose={() => setIsThursdayModalOpen(false)}
-        classDetails={THURSDAY_CLASS}
-        dayOfWeek="thursday"
       />
 
       {/* Friday Booking Modal */}
