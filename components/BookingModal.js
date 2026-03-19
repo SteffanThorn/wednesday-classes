@@ -9,7 +9,7 @@ export default function BookingModal({
   isOpen, 
   onClose, 
   classDetails,
-  dayOfWeek = null, // null means allow user to select, 'wednesday' or 'friday'
+  dayOfWeek = null, // null means allow user to select, 'wednesday-morning', 'wednesday-evening', 'thursday-afternoon', or 'thursday-evening'
   language = 'en' 
 }) {
   // ALL hooks must be called unconditionally - no early returns before hooks!
@@ -35,7 +35,7 @@ export default function BookingModal({
   const DATES_PER_PAGE = 4;
   
   // Day selection state (for homepage)
-  const [selectedDay, setSelectedDay] = useState(dayOfWeek || 'wednesday');
+  const [selectedDay, setSelectedDay] = useState(dayOfWeek || 'wednesday-evening');
   
   // Get available dates based on day of week
   const effectiveDayOfWeek = dayOfWeek || selectedDay;
@@ -324,43 +324,33 @@ export default function BookingModal({
         {/* Day Selection Tabs (only if dayOfWeek not pre-specified) */}
         {!dayOfWeek && (
           <div className="px-6 py-4 border-b border-glow-cyan/10">
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedDay('wednesday');
-                  setSelectedDates([]);
-                  setCurrentPage(0);
-                }}
-                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-                  selectedDay === 'wednesday'
-                    ? 'bg-glow-cyan/20 border border-glow-cyan/50 text-glow-cyan'
-                    : 'bg-background/50 border border-glow-cyan/20 text-muted-foreground hover:border-glow-cyan/40'
-                }`}
-              >
-                <div className="text-center">
-                  <div>{language === 'zh' ? '周三' : 'Wednesday'}</div>
-                  <div className="text-sm">{language === 'zh' ? '6PM' : '6PM'}</div>
-                </div>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedDay('friday');
-                  setSelectedDates([]);
-                  setCurrentPage(0);
-                }}
-                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-                  selectedDay === 'friday'
-                    ? 'bg-glow-cyan/20 border border-glow-cyan/50 text-glow-cyan'
-                    : 'bg-background/50 border border-glow-cyan/20 text-muted-foreground hover:border-glow-cyan/40'
-                }`}
-              >
-                <div className="text-center">
-                  <div>{language === 'zh' ? '周五' : 'Friday'}</div>
-                  <div className="text-sm">{language === 'zh' ? '2PM' : '2PM'}</div>
-                </div>
-              </button>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { key: 'wednesday-morning', dayZh: '周三', timeZh: '9:15AM', dayEn: 'Wednesday', timeEn: '9:15 AM' },
+                { key: 'wednesday-evening', dayZh: '周三', timeZh: '6PM',    dayEn: 'Wednesday', timeEn: '6:00 PM' },
+                { key: 'thursday-afternoon', dayZh: '周四', timeZh: '2PM',   dayEn: 'Thursday',  timeEn: '2:00 PM' },
+                { key: 'thursday-evening',  dayZh: '周四', timeZh: '5:30PM', dayEn: 'Thursday',  timeEn: '5:30 PM' },
+              ].map((slot) => (
+                <button
+                  key={slot.key}
+                  type="button"
+                  onClick={() => {
+                    setSelectedDay(slot.key);
+                    setSelectedDates([]);
+                    setCurrentPage(0);
+                  }}
+                  className={`py-2 px-3 rounded-lg font-medium transition-colors ${
+                    selectedDay === slot.key
+                      ? 'bg-glow-cyan/20 border border-glow-cyan/50 text-glow-cyan'
+                      : 'bg-background/50 border border-glow-cyan/20 text-muted-foreground hover:border-glow-cyan/40'
+                  }`}
+                >
+                  <div className="text-center">
+                    <div className="text-sm font-semibold">{language === 'zh' ? slot.dayZh : slot.dayEn}</div>
+                    <div className="text-xs">{language === 'zh' ? slot.timeZh : slot.timeEn}</div>
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
         )}

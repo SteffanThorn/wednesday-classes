@@ -13,7 +13,7 @@ import Link from 'next/link';
 // Force dynamic rendering to avoid session issues during build
 export const dynamic = 'force-dynamic';
 
-// Wednesday class details for booking
+// Class details for booking modal (time is determined by slot selected in modal)
 const WEDNESDAY_CLASS = {
   name: 'Beginner Yoga',
   date: '2025-02-18', // Will be dynamically calculated in the modal
