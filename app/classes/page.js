@@ -23,13 +23,6 @@ const WED_EVENING_CLASS = {
   price: 15
 };
 
-const THU_AFTERNOON_CLASS = {
-  name: 'Beginner Yoga',
-  time: '2:00 PM',
-  location: 'Village Valley Centre, Ashhurst',
-  price: 15
-};
-
 const THU_EVENING_CLASS = {
   name: 'Beginner Yoga',
   time: '5:30 PM',
@@ -41,7 +34,6 @@ const ClassesPage = () => {
   const { t, mounted } = useLanguage();
   const [isWedMorningModalOpen, setIsWedMorningModalOpen] = useState(false);
   const [isWedEveningModalOpen, setIsWedEveningModalOpen] = useState(false);
-  const [isThuAfternoonModalOpen, setIsThuAfternoonModalOpen] = useState(false);
   const [isThuEveningModalOpen, setIsThuEveningModalOpen] = useState(false);
   
   // Motherscope waitlist state
@@ -163,26 +155,6 @@ const ClassesPage = () => {
                   onClick={(e) => {
                     e.preventDefault();
                     setIsWedEveningModalOpen(true);
-                  }}
-                />
-              </div>
-
-              {/* Beginner Yoga - Thursday 2 PM */}
-              <div className="relative group cursor-pointer" onClick={() => setIsThuAfternoonModalOpen(true)}>
-                <ClassCard
-                  icon={Heart}
-                  titleEn="Beginner Yoga"
-                  titleZh="初级瑜伽"
-                  descriptionEn="Thursday 2:00 PM"
-                  descriptionZh="每周四下午2点"
-                  duration="60 min"
-                  level="Beginner"
-                  price="$15/class"
-                  additionalInfo="B.Y.O mat"
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setIsThuAfternoonModalOpen(true);
                   }}
                 />
               </div>
@@ -338,14 +310,6 @@ const ClassesPage = () => {
         onClose={() => setIsWedEveningModalOpen(false)}
         classDetails={WED_EVENING_CLASS}
         dayOfWeek="wednesday-evening"
-      />
-
-      {/* Thursday 2 PM Booking Modal */}
-      <BookingModal
-        isOpen={isThuAfternoonModalOpen}
-        onClose={() => setIsThuAfternoonModalOpen(false)}
-        classDetails={THU_AFTERNOON_CLASS}
-        dayOfWeek="thursday-afternoon"
       />
 
       {/* Thursday 5:30 PM Booking Modal */}

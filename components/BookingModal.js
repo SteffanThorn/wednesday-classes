@@ -9,7 +9,7 @@ export default function BookingModal({
   isOpen, 
   onClose, 
   classDetails,
-  dayOfWeek = null, // null means allow user to select, 'wednesday-morning', 'wednesday-evening', 'thursday-afternoon', or 'thursday-evening'
+  dayOfWeek = null, // null means allow user to select: 'wednesday-morning', 'wednesday-evening', or 'thursday-evening'
   language = 'en' 
 }) {
   // ALL hooks must be called unconditionally - no early returns before hooks!
@@ -311,7 +311,6 @@ export default function BookingModal({
             </div>
           </div>
           <div className="mt-3 flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-glow-cyan" />
             <span className="text-2xl font-display text-glow-cyan">
               ${classDetails.price}
             </span>
@@ -328,7 +327,6 @@ export default function BookingModal({
               {[
                 { key: 'wednesday-morning', dayZh: '周三', timeZh: '9:15AM', dayEn: 'Wednesday', timeEn: '9:15 AM' },
                 { key: 'wednesday-evening', dayZh: '周三', timeZh: '6PM',    dayEn: 'Wednesday', timeEn: '6:00 PM' },
-                { key: 'thursday-afternoon', dayZh: '周四', timeZh: '2PM',   dayEn: 'Thursday',  timeEn: '2:00 PM' },
                 { key: 'thursday-evening',  dayZh: '周四', timeZh: '5:30PM', dayEn: 'Thursday',  timeEn: '5:30 PM' },
               ].map((slot) => (
                 <button
