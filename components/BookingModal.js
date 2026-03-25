@@ -5,6 +5,7 @@ import { useSession, signIn } from 'next-auth/react';
 import { X, Calendar, Clock, MapPin, DollarSign, Loader2, LogIn, Check, ChevronLeft, ChevronRight, Tag, Gift } from 'lucide-react';
 import { getAvailableDatesByDay, getClassNameForDay, getClassTimeForDay } from '@/lib/class-schedule';
 import { calculateClassBookingTotal, SINGLE_CLASS_PRICE } from '@/lib/pricing';
+import HealthIntakeForm from '@/components/HealthIntakeForm';
 
 export default function BookingModal({ 
   isOpen, 
@@ -37,6 +38,10 @@ export default function BookingModal({
   
   // Day selection state (for homepage)
   const [selectedDay, setSelectedDay] = useState(dayOfWeek || 'wednesday-evening');
+
+  // Health intake gate
+  const [showIntakeForm, setShowIntakeForm] = useState(false);
+  const [pendingSubmitAction, setPendingSubmitAction] = useState(null);
   
   // Get available dates based on day of week
   const effectiveDayOfWeek = dayOfWeek || selectedDay;
@@ -134,14 +139,12 @@ export default function BookingModal({
     });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
+  const proceedWithBooking = async () => {
     if (selectedDates.length === 0) {
       setError(language === 'zh' ? '请至少选择一个日期' : 'Please select at least one date');
       return;
     }
-    
+
     setIsLoading(true);
     setError('');
 
@@ -149,7 +152,7 @@ export default function BookingModal({
       // Build query params for checkout page
       const className = getClassNameForDay(effectiveDayOfWeek);
       const classTime = getClassTimeForDay(effectiveDayOfWeek);
-      
+
         if (!bringAFriend && paymentMethod === 'card') {
           // Build query params for checkout page
           const params = new URLSearchParams();
@@ -229,6 +232,34 @@ export default function BookingModal({
     }
   };
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (selectedDates.length === 0) {
+      setError(language === 'zh' ? '请至少选择一个日期' : 'Please select at least one date');
+      return;
+    }
+    
+    setIsLoading(true);
+    setError('');
+
+    // Check if user has completed health intake form
+    try {
+      const intakeRes = await fetch('/api/health-intake');
+      const intakeData = await intakeRes.json();
+      if (!intakeData.hasIntake) {
+        setIsLoading(false);
+        setShowIntakeForm(true);
+        return;
+      }
+    } catch {
+      // If check fails, still allow booking
+    }
+    setIsLoading(false);
+
+    await proceedWithBooking();
+  };
+
   const handleSignInFromBooking = async () => {
     // If user already selected dates, send them directly back to checkout flow after login
     if (selectedDates.length > 0) {
@@ -270,6 +301,31 @@ export default function BookingModal({
 
   // Use conditional rendering instead of early return to maintain hook order
   if (!isOpen) return null;
+
+  // If intake form is needed, show it as a fullscreen overlay
+  if (showIntakeForm) {
+    return (
+      <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
+        <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-background/90 backdrop-blur border-b border-glow-cyan/20">
+          <button
+            onClick={() => setShowIntakeForm(false)}
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-glow-cyan transition-colors"
+          >
+            ← Back to booking
+          </button>
+          <p className="text-xs text-muted-foreground">Step 1 of 2 — Health Form</p>
+        </div>
+        <HealthIntakeForm
+          userName={session?.user?.name || ''}
+          userEmail={session?.user?.email || ''}
+          onComplete={() => {
+            setShowIntakeForm(false);
+            proceedWithBooking();
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">

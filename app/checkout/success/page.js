@@ -1,8 +1,6 @@
 
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/auth';
 import dbConnect from '@/lib/mongodb';
 import Booking from '@/lib/models/Booking';
 import Stripe from 'stripe';

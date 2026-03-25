@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import PaymentForm from '@/components/PaymentForm';
+import HealthIntakeForm from '@/components/HealthIntakeForm';
 import { ArrowLeft, Loader2, AlertCircle, CheckCircle, Gift } from 'lucide-react';
 import { FIVE_CLASS_PACKAGE_PRICE, FIVE_CLASS_PACKAGE_SIZE } from '@/lib/pricing';
 
@@ -11,10 +12,11 @@ export const dynamic = 'force-dynamic';
 
 export default function PackageCheckoutPage() {
   const router = useRouter();
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const [clientSecret, setClientSecret] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [needsIntake, setNeedsIntake] = useState(false);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -24,30 +26,36 @@ export default function PackageCheckoutPage() {
       return;
     }
 
-    const createPaymentIntent = async () => {
+    const init = async () => {
       try {
         setIsLoading(true);
         setError('');
 
-        const response = await fetch('/api/package-payment-intent', {
-          method: 'POST',
-        });
+        // Check if user has completed intake form
+        const intakeRes = await fetch('/api/health-intake');
+        const intakeData = await intakeRes.json();
+        if (!intakeData.hasIntake) {
+          setNeedsIntake(true);
+          setIsLoading(false);
+          return;
+        }
 
+        const response = await fetch('/api/package-payment-intent', { method: 'POST' });
         const data = await response.json();
 
         if (!response.ok || !data.clientSecret) {
-          throw new Error(data.error || 'Failed to initialize package checkout');
+          throw new Error(data.error || 'Failed to initialise package checkout');
         }
 
         setClientSecret(data.clientSecret);
       } catch (err) {
-        setError(err.message || 'Failed to initialize package checkout');
+        setError(err.message || 'Failed to initialise package checkout');
       } finally {
         setIsLoading(false);
       }
     };
 
-    createPaymentIntent();
+    init();
   }, [status, router]);
 
   const handlePaymentSuccess = (paymentIntent) => {
@@ -67,6 +75,42 @@ export default function PackageCheckoutPage() {
           <Loader2 className="w-12 h-12 text-glow-cyan animate-spin mx-auto mb-4" />
           <p className="text-muted-foreground">Preparing package checkout...</p>
         </div>
+      </div>
+    );
+  }
+
+  // Show intake form fullscreen if not yet completed
+  if (needsIntake) {
+    return (
+      <div className="min-h-screen bg-background overflow-y-auto">
+        <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-background/90 backdrop-blur border-b border-glow-cyan/20">
+          <button
+            onClick={() => router.back()}
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-glow-cyan transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Go Back
+          </button>
+          <p className="text-xs text-muted-foreground">Step 1 of 2 — Health Form</p>
+        </div>
+        <HealthIntakeForm
+          userName={session?.user?.name || ''}
+          userEmail={session?.user?.email || ''}
+          onComplete={async () => {
+            setNeedsIntake(false);
+            setIsLoading(true);
+            try {
+              const response = await fetch('/api/package-payment-intent', { method: 'POST' });
+              const data = await response.json();
+              if (!response.ok || !data.clientSecret) throw new Error(data.error || 'Failed to initialise');
+              setClientSecret(data.clientSecret);
+            } catch (err) {
+              setError(err.message);
+            } finally {
+              setIsLoading(false);
+            }
+          }}
+        />
       </div>
     );
   }
