@@ -166,7 +166,7 @@ const WednesdayClassesPage = () => {
               </div>
               <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card/60 border border-glow-cyan/20">
                 <DollarSign className="w-4 h-4 text-glow-cyan" />
-                <span className="text-sm">$15 per class</span>
+                <span className="text-sm">$15 per class · 5 for $65</span>
               </div>
             </div>
             
@@ -320,6 +320,12 @@ const WednesdayClassesPage = () => {
                       <span className="text-muted-foreground">{mounted ? (language === 'zh' ? '每节课' : 'per class') : 'per class'}</span>
                     </div>
                   </div>
+                  <button
+                    onClick={() => { window.location.href = '/checkout/package'; }}
+                    className="px-5 py-2 rounded-full bg-glow-purple/10 border border-glow-purple/30 text-glow-purple text-sm font-medium hover:bg-glow-purple/20 transition-all duration-300"
+                  >
+                    {mounted ? (language === 'zh' ? '购买5节课套餐' : 'Buy 5-Class Package') : 'Buy 5-Class Package'}
+                  </button>
                 </div>
               </div>
             </div>

@@ -129,7 +129,7 @@ const ClassesPage = () => {
                   descriptionZh="每周三早上9:15"
                   duration="60 min"
                   level="Beginner"
-                  price="$15/class"
+                  price="$15/class · 5 for $65"
                   additionalInfo="B.Y.O mat"
                   href="#"
                   onClick={(e) => {
@@ -149,7 +149,7 @@ const ClassesPage = () => {
                   descriptionZh="每周三晚上6点"
                   duration="60 min"
                   level="Beginner"
-                  price="$15/class"
+                  price="$15/class · 5 for $65"
                   additionalInfo="B.Y.O mat"
                   href="#"
                   onClick={(e) => {
@@ -169,7 +169,7 @@ const ClassesPage = () => {
                   descriptionZh="每周四下午5:30"
                   duration="60 min"
                   level="Beginner"
-                  price="$15/class"
+                  price="$15/class · 5 for $65"
                   additionalInfo="B.Y.O mat"
                   href="#"
                   onClick={(e) => {

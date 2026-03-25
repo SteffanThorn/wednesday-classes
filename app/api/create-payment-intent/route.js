@@ -5,6 +5,7 @@ import Stripe from 'stripe';
 import dbConnect from '@/lib/mongodb';
 import Booking from '@/lib/models/Booking';
 import { inferDayFromClassName, isAllowedClassDate } from '@/lib/class-schedule';
+import { calculateClassBookingTotal } from '@/lib/pricing';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -418,6 +419,12 @@ async function createAdHocBookingAndPaymentIntent({ session, amount, className, 
       numClasses = 1;
     }
     
+    // Apply package pricing from class count (server-side source of truth)
+    const packageBasedAmount = calculateClassBookingTotal(numClasses);
+    if (packageBasedAmount > 0) {
+      finalAmount = packageBasedAmount;
+    }
+
     // Validate coupon if provided
     if (couponCode) {
       try {

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import { X, Calendar, Clock, MapPin, DollarSign, Loader2, LogIn, Check, ChevronLeft, ChevronRight, Tag, Gift } from 'lucide-react';
 import { getAvailableDatesByDay, getClassNameForDay, getClassTimeForDay } from '@/lib/class-schedule';
+import { calculateClassBookingTotal, SINGLE_CLASS_PRICE } from '@/lib/pricing';
 
 export default function BookingModal({ 
   isOpen, 
@@ -43,8 +44,10 @@ export default function BookingModal({
   const totalPages = Math.ceil(availableDates.length / DATES_PER_PAGE);
   const displayedDates = availableDates.slice(currentPage * DATES_PER_PAGE, (currentPage + 1) * DATES_PER_PAGE);
   
-  // Calculate total price
-  const totalPrice = selectedDates.length * (classDetails?.price || 15);
+  // Calculate total price (supports 5-class package pricing)
+  const totalPrice = calculateClassBookingTotal(selectedDates.length);
+  const regularPrice = selectedDates.length * SINGLE_CLASS_PRICE;
+  const packageSavings = Math.max(0, regularPrice - totalPrice);
 
   // Reset state when modal opens - useEffect must always be called
   useEffect(() => {
@@ -310,13 +313,24 @@ export default function BookingModal({
               {classDetails.location}
             </div>
           </div>
-          <div className="mt-3 flex items-center gap-2">
-            <span className="text-2xl font-display text-glow-cyan">
-              ${classDetails.price}
-            </span>
-            <span className="text-muted-foreground">
-              {language === 'zh' ? '每节课' : 'per class'}
-            </span>
+          <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-display text-glow-cyan">
+                ${classDetails.price}
+              </span>
+              <span className="text-muted-foreground">
+                {language === 'zh' ? '每节课' : 'per class'}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                window.location.href = '/checkout/package';
+              }}
+              className="py-2 px-3 rounded-lg font-medium transition-colors bg-glow-cyan/20 border border-glow-cyan/50 text-glow-cyan hover:bg-glow-cyan/30"
+            >
+              {language === 'zh' ? '购买5节课套餐（$65）' : 'Buy 5-Class Package ($65)'}
+            </button>
           </div>
         </div>
 
@@ -441,6 +455,15 @@ export default function BookingModal({
                 </span>
               </div>
             </div>
+
+            {packageSavings > 0 && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">
+                  {language === 'zh' ? '套餐优惠' : 'Package savings'}
+                </span>
+                <span className="text-green-400 font-medium">-${packageSavings.toFixed(2)}</span>
+              </div>
+            )}
 
             {/* Coupon Input Section */}
             {!appliedCoupon ? (
