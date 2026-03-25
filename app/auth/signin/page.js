@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { signIn } from 'next-auth/react';
+import { getSession, signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import FloatingParticles from '@/components/FloatingParticle';
@@ -46,8 +46,12 @@ const SigninPage = () => {
         throw new Error(result.error);
       }
 
+      const currentSession = await getSession();
+      const fallbackDestination = currentSession?.user?.role === 'admin' ? '/admin' : '/dashboard';
+      const destination = callbackUrl === '/dashboard' ? fallbackDestination : (result?.url || callbackUrl);
+
       // Redirect back to intended destination (e.g., checkout flow)
-      router.push(result?.url || callbackUrl);
+      router.push(destination);
       router.refresh();
     } catch (err) {
       setError(err.message || 'Invalid email or password');

@@ -36,9 +36,13 @@ const DashboardPage = () => {
 
   useEffect(() => {
     if (session?.user) {
+      if (session.user.role === 'admin') {
+        router.push('/admin');
+        return;
+      }
       fetchBookings();
     }
-  }, [session]);
+  }, [session, router]);
 
   // detect redirect from cash booking flow and show success banner
   useEffect(() => {

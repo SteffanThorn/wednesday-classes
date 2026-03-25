@@ -16,6 +16,7 @@ export default function AdminStudentsPage() {
   const [newStudentName, setNewStudentName] = useState('');
   const [newStudentEmail, setNewStudentEmail] = useState('');
   const [newStudentPhone, setNewStudentPhone] = useState('');
+  const [newStudentClassCredits, setNewStudentClassCredits] = useState('');
   const [newStudentHealthNotes, setNewStudentHealthNotes] = useState('');
   const [newStudentEmergencyName, setNewStudentEmergencyName] = useState('');
   const [newStudentEmergencyPhone, setNewStudentEmergencyPhone] = useState('');
@@ -56,6 +57,7 @@ export default function AdminStudentsPage() {
         name: newStudentName.trim(),
         email: newStudentEmail.trim(),
         phone: newStudentPhone.trim(),
+        classCredits: newStudentClassCredits === '' ? undefined : Number(newStudentClassCredits),
         healthNotes: newStudentHealthNotes.trim(),
         emergencyContactName: newStudentEmergencyName.trim(),
         emergencyContactPhone: newStudentEmergencyPhone.trim(),
@@ -80,6 +82,7 @@ export default function AdminStudentsPage() {
       setNewStudentName('');
       setNewStudentEmail('');
       setNewStudentPhone('');
+      setNewStudentClassCredits('');
       setNewStudentHealthNotes('');
       setNewStudentEmergencyName('');
       setNewStudentEmergencyPhone('');
@@ -169,6 +172,15 @@ export default function AdminStudentsPage() {
                   value={newStudentPhone}
                   onChange={(e) => setNewStudentPhone(e.target.value)}
                   placeholder="Phone (optional)"
+                  className="w-full px-3 py-2 rounded-lg bg-card/60 border border-glow-cyan/20 focus:border-glow-cyan/50 focus:outline-none"
+                />
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={newStudentClassCredits}
+                  onChange={(e) => setNewStudentClassCredits(e.target.value)}
+                  placeholder="Transferred class credits (optional)"
                   className="w-full px-3 py-2 rounded-lg bg-card/60 border border-glow-cyan/20 focus:border-glow-cyan/50 focus:outline-none"
                 />
 

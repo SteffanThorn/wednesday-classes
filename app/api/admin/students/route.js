@@ -67,6 +67,7 @@ export async function POST(request) {
       name,
       email,
       phone,
+      classCredits,
       healthNotes,
       emergencyContactName,
       emergencyContactPhone,
@@ -96,6 +97,9 @@ export async function POST(request) {
       !!signedAt;
 
     const normalizedEmail = email.toLowerCase().trim();
+    const parsedClassCredits = Number.isFinite(Number(classCredits))
+      ? Math.max(0, Number(classCredits))
+      : null;
 
     await dbConnect();
 
@@ -111,11 +115,21 @@ export async function POST(request) {
       existing.name = name.trim();
       existing.phone = phone?.trim() || '';
       existing.role = 'student';
-      if (typeof existing.classCredits !== 'number') {
+      if (parsedClassCredits !== null) {
+        existing.classCredits = parsedClassCredits;
+      } else if (typeof existing.classCredits !== 'number') {
         existing.classCredits = 0;
       }
       if (!Array.isArray(existing.classCreditHistory)) {
         existing.classCreditHistory = [];
+      }
+      if (parsedClassCredits !== null) {
+        existing.classCreditHistory.push({
+          change: parsedClassCredits,
+          type: 'adjustment',
+          description: 'Migration opening balance set by admin',
+          createdAt: new Date(),
+        });
       }
       existing.updatedAt = new Date();
       await existing.save();
@@ -162,8 +176,13 @@ export async function POST(request) {
       phone: phone?.trim() || '',
       role: 'student',
       password: temporaryPassword,
-      classCredits: 0,
-      classCreditHistory: [],
+      classCredits: parsedClassCredits ?? 0,
+      classCreditHistory: parsedClassCredits !== null ? [{
+        change: parsedClassCredits,
+        type: 'adjustment',
+        description: 'Migration opening balance set by admin',
+        createdAt: new Date(),
+      }] : [],
     });
 
     await student.save();
