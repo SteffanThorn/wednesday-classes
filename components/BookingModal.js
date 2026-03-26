@@ -97,6 +97,23 @@ export default function BookingModal({
   const finalPrice = Math.max(0, totalPrice - discount);
   const payableAmount = bringAFriend ? 0 : finalPrice;
   const displayClassName = language === 'zh' ? '功能性整合瑜伽' : 'Functional Integrative Yoga';
+  const slotSeriesInfo = {
+    'wednesday-morning': {
+      title: 'Functional Pain Relief Series',
+      subtitle: 'Release tension. Reduce pain. Restore natural movement.',
+      focus: 'Lower back relief, spinal decompression, and daily movement quality',
+    },
+    'wednesday-evening': {
+      title: 'Nervous System Reset & Breathwork Series',
+      subtitle: 'Calm the mind. Regulate stress. Reconnect with breath.',
+      focus: 'Stress regulation, breath control, and deep relaxation response',
+    },
+    'thursday-evening': {
+      title: 'Structural Alignment & Deep Mobility Series',
+      subtitle: 'Improve posture. Unlock joints. Build resilient movement.',
+      focus: 'Postural alignment, hip and shoulder mobility, and joint stability',
+    },
+  };
 
   // Handle coupon application
   const handleApplyCoupon = async () => {
@@ -419,7 +436,6 @@ export default function BookingModal({
                   timeZh: '9:15AM',
                   dayEn: 'Wednesday',
                   timeEn: '9:15 AM',
-                  series: 'Functional Pain Relief Series',
                 },
                 {
                   key: 'wednesday-evening',
@@ -427,7 +443,6 @@ export default function BookingModal({
                   timeZh: '6PM',
                   dayEn: 'Wednesday',
                   timeEn: '6:00 PM',
-                  series: 'Nervous System Reset & Breathwork Series',
                 },
                 {
                   key: 'thursday-evening',
@@ -435,7 +450,6 @@ export default function BookingModal({
                   timeZh: '5:30PM',
                   dayEn: 'Thursday',
                   timeEn: '5:30 PM',
-                  series: 'Structural Alignment & Deep Mobility Series',
                 },
               ].map((slot) => (
                 <button
@@ -446,7 +460,7 @@ export default function BookingModal({
                     setSelectedDates([]);
                     setCurrentPage(0);
                   }}
-                  className={`py-2 px-3 rounded-lg font-medium transition-colors ${
+                  className={`group relative py-2 px-3 rounded-lg font-medium transition-colors ${
                     selectedDay === slot.key
                       ? 'bg-glow-cyan/20 border border-glow-cyan/50 text-glow-cyan'
                       : 'bg-background/50 border border-glow-cyan/20 text-muted-foreground hover:border-glow-cyan/40'
@@ -455,7 +469,22 @@ export default function BookingModal({
                   <div className="text-center">
                     <div className="text-sm font-semibold">{language === 'zh' ? slot.dayZh : slot.dayEn}</div>
                     <div className="text-xs">{language === 'zh' ? slot.timeZh : slot.timeEn}</div>
-                    <div className="text-[10px] text-muted-foreground mt-1 leading-tight">{slot.series}</div>
+                  </div>
+
+                  {/* Hover popover: show series details when mouse is over time box */}
+                  <div className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 w-72 -translate-x-1/2 rounded-xl border border-glow-purple/40 bg-background/95 p-3 text-left opacity-0 shadow-xl transition-all duration-200 translate-y-1 hover:opacity-100 focus:opacity-100 group-hover:opacity-100 group-hover:translate-y-0 group-focus-visible:opacity-100">
+                    <p className="text-xs font-semibold text-glow-purple">
+                      {slotSeriesInfo[slot.key]?.title}
+                    </p>
+                    <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
+                      {slotSeriesInfo[slot.key]?.subtitle}
+                    </p>
+                    <p className="mt-2 text-[11px] text-muted-foreground leading-relaxed">
+                      <span className="text-foreground font-medium">
+                        {language === 'zh' ? '专注点：' : 'Focus: '}
+                      </span>
+                      {slotSeriesInfo[slot.key]?.focus}
+                    </p>
                   </div>
                 </button>
               ))}
