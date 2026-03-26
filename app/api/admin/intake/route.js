@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import dbConnect from '@/lib/mongodb';
 import HealthIntake from '@/lib/models/HealthIntake';
+import mongoose from 'mongoose';
 
 export async function GET(request) {
   const session = await auth();
@@ -13,8 +14,15 @@ export async function GET(request) {
 
   const { searchParams } = new URL(request.url);
   const email = searchParams.get('email');
+  const id = searchParams.get('id');
 
-  const query = email ? { userEmail: email.toLowerCase() } : {};
+  let query = {};
+  
+  if (id && mongoose.Types.ObjectId.isValid(id)) {
+    query = { _id: id };
+  } else if (email) {
+    query = { userEmail: email.toLowerCase() };
+  }
 
   const intakes = await HealthIntake.find(query)
     .sort({ createdAt: -1 })

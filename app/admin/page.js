@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import Header from '@/components/Header';
 import FloatingParticles from '@/components/FloatingParticle';
-import { Loader2, CalendarCheck2, TicketPercent, UserPlus, ChevronRight } from 'lucide-react';
+import { Loader2, CalendarCheck2, TicketPercent, UserPlus, ChevronRight, Users } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,11 +56,11 @@ export default function AdminDashboardPage() {
                 Admin Dashboard
               </h1>
               <p className="text-muted-foreground mt-1">
-                Manage bookings, students, and coupons.
+                Manage bookings, students, customer data, and coupons.
               </p>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="grid md:grid-cols-4 gap-4">
               <Link
                 href="/admin/bookings"
                 className="p-6 rounded-3xl border border-glow-cyan/20 bg-card/60 backdrop-blur-sm 
@@ -96,6 +96,19 @@ export default function AdminDashboardPage() {
                 <div className="flex items-center gap-3">
                   <TicketPercent className="w-5 h-5 text-glow-cyan" />
                   <span className="font-medium">Coupons</span>
+                </div>
+                <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-glow-cyan transition-colors" />
+              </Link>
+
+              <Link
+                href="/admin/customers"
+                className="p-6 rounded-3xl border border-glow-cyan/20 bg-card/60 backdrop-blur-sm 
+                         hover:border-glow-cyan/40 hover:box-glow transition-all duration-500
+                         flex items-center justify-between group"
+              >
+                <div className="flex items-center gap-3">
+                  <Users className="w-5 h-5 text-glow-cyan" />
+                  <span className="font-medium">Customer Data</span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-glow-cyan transition-colors" />
               </Link>
