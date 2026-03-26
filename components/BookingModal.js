@@ -7,6 +7,23 @@ import { getAvailableDatesByDay, getClassNameForDay, getClassTimeForDay } from '
 import { calculateClassBookingTotal, SINGLE_CLASS_PRICE } from '@/lib/pricing';
 import HealthIntakeForm from '@/components/HealthIntakeForm';
 
+// Weekly focus template for specific date + slot (easy to extend later)
+const WEEKLY_FOCUS_SERIES = {
+  'wednesday-morning': {
+    '2026-04-01': {
+      title: 'Functional Pain Relief Series',
+      subtitle: 'Release tension. Reduce pain. Restore natural movement.',
+      weekTitle: 'Week 1 — Lower Back Relief',
+      focus: 'Release tension in the lower back and improve mobility',
+      bestFor: 'Sitting long hours, lower back stiffness, morning tightness',
+    },
+  },
+};
+
+function getWeeklyFocusForDate(day, date) {
+  return WEEKLY_FOCUS_SERIES?.[day]?.[date] || null;
+}
+
 export default function BookingModal({ 
   isOpen, 
   onClose, 
@@ -79,6 +96,7 @@ export default function BookingModal({
   const discount = calculateDiscount();
   const finalPrice = Math.max(0, totalPrice - discount);
   const payableAmount = bringAFriend ? 0 : finalPrice;
+  const displayClassName = language === 'zh' ? '功能性整合瑜伽' : 'Functional Integrative Yoga';
 
   // Handle coupon application
   const handleApplyCoupon = async () => {
@@ -356,7 +374,7 @@ export default function BookingModal({
           <div className="flex items-center gap-2 mb-2">
             <Calendar className="w-4 h-4 text-glow-cyan" />
             <span className="font-medium text-foreground">
-              {classDetails.name}
+              {displayClassName}
             </span>
           </div>
           <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
@@ -395,9 +413,30 @@ export default function BookingModal({
           <div className="px-6 py-4 border-b border-glow-cyan/10">
             <div className="grid grid-cols-2 gap-2">
               {[
-                { key: 'wednesday-morning', dayZh: '周三', timeZh: '9:15AM', dayEn: 'Wednesday', timeEn: '9:15 AM' },
-                { key: 'wednesday-evening', dayZh: '周三', timeZh: '6PM',    dayEn: 'Wednesday', timeEn: '6:00 PM' },
-                { key: 'thursday-evening',  dayZh: '周四', timeZh: '5:30PM', dayEn: 'Thursday',  timeEn: '5:30 PM' },
+                {
+                  key: 'wednesday-morning',
+                  dayZh: '周三',
+                  timeZh: '9:15AM',
+                  dayEn: 'Wednesday',
+                  timeEn: '9:15 AM',
+                  series: 'Functional Pain Relief Series',
+                },
+                {
+                  key: 'wednesday-evening',
+                  dayZh: '周三',
+                  timeZh: '6PM',
+                  dayEn: 'Wednesday',
+                  timeEn: '6:00 PM',
+                  series: 'Nervous System Reset & Breathwork Series',
+                },
+                {
+                  key: 'thursday-evening',
+                  dayZh: '周四',
+                  timeZh: '5:30PM',
+                  dayEn: 'Thursday',
+                  timeEn: '5:30 PM',
+                  series: 'Structural Alignment & Deep Mobility Series',
+                },
               ].map((slot) => (
                 <button
                   key={slot.key}
@@ -416,6 +455,7 @@ export default function BookingModal({
                   <div className="text-center">
                     <div className="text-sm font-semibold">{language === 'zh' ? slot.dayZh : slot.dayEn}</div>
                     <div className="text-xs">{language === 'zh' ? slot.timeZh : slot.timeEn}</div>
+                    <div className="text-[10px] text-muted-foreground mt-1 leading-tight">{slot.series}</div>
                   </div>
                 </button>
               ))}
@@ -443,6 +483,7 @@ export default function BookingModal({
             )}
             {displayedDates.map((date) => {
               const isSelected = selectedDates.some(d => d.date === date.date);
+              const weeklyFocus = getWeeklyFocusForDate(effectiveDayOfWeek, date.date);
               return (
                 <button
                   key={date.date}
@@ -463,6 +504,23 @@ export default function BookingModal({
                     <div className="text-left">
                       <div className="font-medium">{date.displayDate}</div>
                       <div className="text-xs text-muted-foreground">{getClassTimeForDay(effectiveDayOfWeek)}</div>
+                      {weeklyFocus && (
+                        <div className="mt-2 p-2 rounded-lg bg-glow-purple/10 border border-glow-purple/30">
+                          <p className="text-[11px] uppercase tracking-wide text-glow-purple font-semibold">
+                            {weeklyFocus.title}
+                          </p>
+                          <p className="text-xs text-foreground mt-1">{weeklyFocus.weekTitle}</p>
+                          <p className="text-[11px] text-muted-foreground mt-1">{weeklyFocus.subtitle}</p>
+                          <p className="text-[11px] text-muted-foreground mt-2">
+                            <span className="text-foreground font-medium">{language === 'zh' ? '专注点：' : 'Focus: '}</span>
+                            {weeklyFocus.focus}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground mt-1">
+                            <span className="text-foreground font-medium">{language === 'zh' ? '适合人群：' : 'Best for: '}</span>
+                            {weeklyFocus.bestFor}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="text-glow-cyan font-medium">

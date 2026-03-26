@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
 
 // Class details for booking modal (time is determined by slot selected in modal)
 const WEDNESDAY_CLASS = {
-  name: 'Beginner Yoga',
+  name: 'Functional Integrative Yoga',
   date: '2025-02-18', // Will be dynamically calculated in the modal
   time: '6:00 PM',
   location: 'Village Valley Centre, Ashhurst',

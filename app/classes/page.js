@@ -10,21 +10,21 @@ import { useLanguage } from '@/hooks/useLanguage';
 import { useState } from 'react';
 
 const WED_MORNING_CLASS = {
-  name: 'Beginner Yoga',
+  name: 'Functional Integrative Yoga',
   time: '9:15 AM',
   location: 'Village Valley Centre, Ashhurst',
   price: 15
 };
 
 const WED_EVENING_CLASS = {
-  name: 'Beginner Yoga',
+  name: 'Functional Integrative Yoga',
   time: '6:00 PM',
   location: 'Village Valley Centre, Ashhurst',
   price: 15
 };
 
 const THU_EVENING_CLASS = {
-  name: 'Beginner Yoga',
+  name: 'Functional Integrative Yoga',
   time: '5:30 PM',
   location: 'Village Valley Centre, Ashhurst',
   price: 15
@@ -125,8 +125,8 @@ const ClassesPage = () => {
                   icon={Zap}
                   titleEn="Beginner Yoga"
                   titleZh="初级瑜伽"
-                  descriptionEn="Wednesday 9:15 AM"
-                  descriptionZh="每周三早上9:15"
+                  descriptionEn={'Wednesday 9:15 AM\nFunctional Pain Relief Series'}
+                  descriptionZh={'每周三早上9:15\nFunctional Pain Relief Series'}
                   duration="60 min"
                   level="Beginner"
                   price="$15/class · 5 for $65"
@@ -145,8 +145,8 @@ const ClassesPage = () => {
                   icon={Zap}
                   titleEn="Beginner Yoga"
                   titleZh="初级瑜伽"
-                  descriptionEn="Wednesday 6:00 PM"
-                  descriptionZh="每周三晚上6点"
+                  descriptionEn={'Wednesday 6:00 PM\nNervous System Reset & Breathwork Series'}
+                  descriptionZh={'每周三晚上6点\nNervous System Reset & Breathwork Series'}
                   duration="60 min"
                   level="Beginner"
                   price="$15/class · 5 for $65"
@@ -165,8 +165,8 @@ const ClassesPage = () => {
                   icon={Heart}
                   titleEn="Beginner Yoga"
                   titleZh="初级瑜伽"
-                  descriptionEn="Thursday 5:30 PM"
-                  descriptionZh="每周四下午5:30"
+                  descriptionEn={'Thursday 5:30 PM\nStructural Alignment & Deep Mobility Series'}
+                  descriptionZh={'每周四下午5:30\nStructural Alignment & Deep Mobility Series'}
                   duration="60 min"
                   level="Beginner"
                   price="$15/class · 5 for $65"

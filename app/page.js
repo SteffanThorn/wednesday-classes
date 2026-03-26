@@ -103,7 +103,7 @@ const Index = () => {
           isOpen={isBookingModalOpen}
           onClose={() => setIsBookingModalOpen(false)}
           classDetails={{
-            name: 'Beginner Yoga',
+            name: 'Functional Integrative Yoga',
             date: '',
             time: '',
             location: 'Village Valley Centre, Ashhurst',
