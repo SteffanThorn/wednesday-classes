@@ -471,8 +471,8 @@ export default function BookingModal({
                     <div className="text-xs">{language === 'zh' ? slot.timeZh : slot.timeEn}</div>
                   </div>
 
-                  {/* Hover popover: show series details when mouse is over time box */}
-                  <div className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 w-72 -translate-x-1/2 rounded-xl border border-glow-purple/40 bg-background/95 p-3 text-left opacity-0 shadow-xl transition-all duration-200 translate-y-1 hover:opacity-100 focus:opacity-100 group-hover:opacity-100 group-hover:translate-y-0 group-focus-visible:opacity-100">
+                  {/* Desktop hover popover */}
+                  <div className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 hidden w-72 -translate-x-1/2 rounded-xl border border-glow-purple/40 bg-background/95 p-3 text-left opacity-0 shadow-xl transition-all duration-200 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 md:block">
                     <p className="text-xs font-semibold text-glow-purple">
                       {slotSeriesInfo[slot.key]?.title}
                     </p>
@@ -486,6 +486,24 @@ export default function BookingModal({
                       {slotSeriesInfo[slot.key]?.focus}
                     </p>
                   </div>
+
+                  {/* Mobile tap-expand details */}
+                  {selectedDay === slot.key && (
+                    <div className="mt-3 rounded-xl border border-glow-purple/30 bg-glow-purple/10 p-3 text-left md:hidden">
+                      <p className="text-xs font-semibold text-glow-purple">
+                        {slotSeriesInfo[slot.key]?.title}
+                      </p>
+                      <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
+                        {slotSeriesInfo[slot.key]?.subtitle}
+                      </p>
+                      <p className="mt-2 text-[11px] text-muted-foreground leading-relaxed">
+                        <span className="text-foreground font-medium">
+                          {language === 'zh' ? '专注点：' : 'Focus: '}
+                        </span>
+                        {slotSeriesInfo[slot.key]?.focus}
+                      </p>
+                    </div>
+                  )}
                 </button>
               ))}
             </div>
