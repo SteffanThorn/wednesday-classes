@@ -5,28 +5,36 @@ import Header from '@/components/Header';
 import HeroSection from '@/components/HeroSection';
 import ClassCard from '@/components/ClassCard';
 import BookingModal from '@/components/BookingModal';
-import { Zap, Heart, Sun, Users } from 'lucide-react';
+import { Zap, Heart, Users } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useState } from 'react';
 
-const WEDNESDAY_CLASS = {
-  name: 'Beginner Yoga',
+const WED_MORNING_CLASS = {
+  name: 'Functional Integrative Yoga',
+  time: '9:15 AM',
+  location: 'Village Valley Centre, Ashhurst',
+  price: 15
+};
+
+const WED_EVENING_CLASS = {
+  name: 'Functional Integrative Yoga',
   time: '6:00 PM',
   location: 'Village Valley Centre, Ashhurst',
   price: 15
 };
 
-const THURSDAY_CLASS = {
-  name: 'Beginner Yoga',
-  time: '12:00 PM',
+const THU_EVENING_CLASS = {
+  name: 'Functional Integrative Yoga',
+  time: '5:30 PM',
   location: 'Village Valley Centre, Ashhurst',
   price: 15
 };
 
 const ClassesPage = () => {
   const { t, mounted } = useLanguage();
-  const [isWednesdayModalOpen, setIsWednesdayModalOpen] = useState(false);
-  const [isThursdayModalOpen, setIsThursdayModalOpen] = useState(false);
+  const [isWedMorningModalOpen, setIsWedMorningModalOpen] = useState(false);
+  const [isWedEveningModalOpen, setIsWedEveningModalOpen] = useState(false);
+  const [isThuEveningModalOpen, setIsThuEveningModalOpen] = useState(false);
   
   // Motherscope waitlist state
   const [motherScopeLoading, setMotherScopeLoading] = useState(false);
@@ -111,42 +119,62 @@ const ClassesPage = () => {
         <section className="px-6 py-16">
           <div className="max-w-7xl mx-auto">
             <div className="grid md:grid-cols-2 gap-6">
-              {/* Beginner Yoga - Wednesday */}
-              <div className="relative group cursor-pointer" onClick={() => setIsWednesdayModalOpen(true)}>
+              {/* Beginner Yoga - Wednesday 9:15 AM */}
+              <div className="relative group cursor-pointer" onClick={() => setIsWedMorningModalOpen(true)}>
                 <ClassCard
                   icon={Zap}
                   titleEn="Beginner Yoga"
                   titleZh="初级瑜伽"
-                  descriptionEn="6pm Every Wednesday"
-                  descriptionZh="每周三晚上6点"
+                  descriptionEn={'Wednesday 9:15 AM\nFunctional Pain Relief Series'}
+                  descriptionZh={'每周三早上9:15\nFunctional Pain Relief Series'}
                   duration="60 min"
                   level="Beginner"
-                  price="$15/class"
+                  price="$15/class · 5 for $65"
                   additionalInfo="B.Y.O mat"
                   href="#"
                   onClick={(e) => {
                     e.preventDefault();
-                    setIsWednesdayModalOpen(true);
+                    setIsWedMorningModalOpen(true);
                   }}
                 />
               </div>
 
-              {/* Beginner Yoga - Thursday */}
-              <div className="relative group cursor-pointer" onClick={() => setIsThursdayModalOpen(true)}>
+              {/* Beginner Yoga - Wednesday 6 PM */}
+              <div className="relative group cursor-pointer" onClick={() => setIsWedEveningModalOpen(true)}>
                 <ClassCard
-                  icon={Sun}
+                  icon={Zap}
                   titleEn="Beginner Yoga"
                   titleZh="初级瑜伽"
-                  descriptionEn="12pm Every Thursday"
-                  descriptionZh="每周四中午12点"
+                  descriptionEn={'Wednesday 6:00 PM\nNervous System Reset & Breathwork Series'}
+                  descriptionZh={'每周三晚上6点\nNervous System Reset & Breathwork Series'}
                   duration="60 min"
                   level="Beginner"
-                  price="$15/class"
+                  price="$15/class · 5 for $65"
                   additionalInfo="B.Y.O mat"
                   href="#"
                   onClick={(e) => {
                     e.preventDefault();
-                    setIsThursdayModalOpen(true);
+                    setIsWedEveningModalOpen(true);
+                  }}
+                />
+              </div>
+
+              {/* Beginner Yoga - Thursday 5:30 PM */}
+              <div className="relative group cursor-pointer" onClick={() => setIsThuEveningModalOpen(true)}>
+                <ClassCard
+                  icon={Heart}
+                  titleEn="Beginner Yoga"
+                  titleZh="初级瑜伽"
+                  descriptionEn={'Thursday 5:30 PM\nStructural Alignment & Deep Mobility Series'}
+                  descriptionZh={'每周四下午5:30\nStructural Alignment & Deep Mobility Series'}
+                  duration="60 min"
+                  level="Beginner"
+                  price="$15/class · 5 for $65"
+                  additionalInfo="B.Y.O mat"
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setIsThuEveningModalOpen(true);
                   }}
                 />
               </div>
@@ -155,7 +183,7 @@ const ClassesPage = () => {
               <div className="p-6 rounded-3xl border border-glow-purple/30 bg-card/60 backdrop-blur-sm hover:box-glow transition-all duration-300">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-glow-purple/20 to-glow-cyan/20 flex items-center justify-center">
-                    <Heart className="w-6 h-6 text-glow-purple" />
+                    <Users className="w-6 h-6 text-glow-purple" />
                   </div>
                   <h3 className="font-display text-2xl text-glow-subtle">Motherscope</h3>
                 </div>
@@ -207,7 +235,7 @@ const ClassesPage = () => {
               <div className="p-6 rounded-3xl border border-glow-cyan/30 bg-card/60 backdrop-blur-sm hover:box-glow transition-all duration-300">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-glow-cyan/20 to-glow-purple/20 flex items-center justify-center">
-                    <Users className="w-6 h-6 text-glow-cyan" />
+                    <Heart className="w-6 h-6 text-glow-cyan" />
                   </div>
                   <h3 className="font-display text-2xl text-glow-subtle">One-on-One Sessions</h3>
                 </div>
@@ -268,20 +296,28 @@ const ClassesPage = () => {
         </footer>
       </div>
 
-      {/* Wednesday Booking Modal */}
+      {/* Wednesday 9:15 AM Booking Modal */}
       <BookingModal
-        isOpen={isWednesdayModalOpen}
-        onClose={() => setIsWednesdayModalOpen(false)}
-        classDetails={WEDNESDAY_CLASS}
-        dayOfWeek="wednesday"
+        isOpen={isWedMorningModalOpen}
+        onClose={() => setIsWedMorningModalOpen(false)}
+        classDetails={WED_MORNING_CLASS}
+        dayOfWeek="wednesday-morning"
       />
 
-      {/* Thursday Booking Modal */}
+      {/* Wednesday 6 PM Booking Modal */}
       <BookingModal
-        isOpen={isThursdayModalOpen}
-        onClose={() => setIsThursdayModalOpen(false)}
-        classDetails={THURSDAY_CLASS}
-        dayOfWeek="thursday"
+        isOpen={isWedEveningModalOpen}
+        onClose={() => setIsWedEveningModalOpen(false)}
+        classDetails={WED_EVENING_CLASS}
+        dayOfWeek="wednesday-evening"
+      />
+
+      {/* Thursday 5:30 PM Booking Modal */}
+      <BookingModal
+        isOpen={isThuEveningModalOpen}
+        onClose={() => setIsThuEveningModalOpen(false)}
+        classDetails={THU_EVENING_CLASS}
+        dayOfWeek="thursday-evening"
       />
     </div>
   );

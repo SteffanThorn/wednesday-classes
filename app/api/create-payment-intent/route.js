@@ -4,6 +4,8 @@ import { auth } from '@/auth';
 import Stripe from 'stripe';
 import dbConnect from '@/lib/mongodb';
 import Booking from '@/lib/models/Booking';
+import { inferDayFromClassName, isAllowedClassDate } from '@/lib/class-schedule';
+import { calculateClassBookingTotal } from '@/lib/pricing';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -13,6 +15,34 @@ console.log('Stripe configuration:', {
   hasSecretKey: !!process.env.STRIPE_SECRET_KEY,
   nodeEnv: process.env.NODE_ENV,
 });
+
+function validateScheduledClassDates(className, selectedDates, classDate) {
+  const scheduleDay = inferDayFromClassName(className);
+  if (!scheduleDay) {
+    return { valid: true };
+  }
+
+  const datesToValidate = Array.isArray(selectedDates) && selectedDates.length > 0
+    ? selectedDates
+    : (classDate ? [classDate] : []);
+
+  if (datesToValidate.length === 0) {
+    return {
+      valid: false,
+      error: 'No class dates were provided for this booking',
+    };
+  }
+
+  const invalidDates = datesToValidate.filter((d) => !isAllowedClassDate(scheduleDay, d));
+  if (invalidDates.length > 0) {
+    return {
+      valid: false,
+      error: `Selected date(s) not available for ${scheduleDay} classes: ${invalidDates.join(', ')}`,
+    };
+  }
+
+  return { valid: true };
+}
 
 /**
  * Create Payment Intent Endpoint
@@ -367,6 +397,14 @@ async function createAdHocBookingAndPaymentIntent({ session, amount, className, 
   const userEmail = session.user.email;
   const userName = session.user.name || 'Guest';
   const userId = session.user.id;
+
+  const scheduleValidation = validateScheduledClassDates(className, selectedDates, classDate);
+  if (!scheduleValidation.valid) {
+    return NextResponse.json(
+      { error: scheduleValidation.error, code: 'INVALID_CLASS_DATE' },
+      { status: 400 }
+    );
+  }
   
   try {
     // Handle coupon if provided
@@ -381,6 +419,12 @@ async function createAdHocBookingAndPaymentIntent({ session, amount, className, 
       numClasses = 1;
     }
     
+    // Apply package pricing from class count (server-side source of truth)
+    const packageBasedAmount = calculateClassBookingTotal(numClasses);
+    if (packageBasedAmount > 0) {
+      finalAmount = packageBasedAmount;
+    }
+
     // Validate coupon if provided
     if (couponCode) {
       try {

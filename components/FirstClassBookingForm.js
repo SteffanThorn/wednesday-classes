@@ -16,8 +16,12 @@ const FirstClassBookingForm = () => {
     classType: '',
     preferredDate: '',
     preferredTime: '',
+    healthNotes: '',
+    emergencyContactName: '',
+    emergencyContactPhone: '',
     notes: '',
   });
+  const [waiverAccepted, setWaiverAccepted] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
   const classOptions = [
@@ -232,7 +236,57 @@ const FirstClassBookingForm = () => {
         </div>
       </div>
 
-      {/* Notes */}
+      {/* General Health / Injuries / Surgeries */}
+      <div>
+        <label className="block text-sm text-muted-foreground mb-2">
+          General Health / Injuries / Surgeries / etc.
+        </label>
+        <Textarea
+          name="healthNotes"
+          value={formData.healthNotes}
+          onChange={handleChange}
+          placeholder="Please share any current or recent injuries, surgeries, medical conditions, or physical limitations we should know about..."
+          rows={4}
+          className="bg-card/50 border-glow-cyan/20 focus:border-glow-cyan/50 resize-none"
+        />
+      </div>
+
+      {/* Emergency Contact */}
+      <div>
+        <p className="block text-sm text-muted-foreground mb-3">Emergency Contact</p>
+        <div className="grid md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs text-muted-foreground mb-2">
+              <User className="w-3 h-3 inline mr-1" />
+              Contact Name <span className="text-glow-cyan">*</span>
+            </label>
+            <Input
+              name="emergencyContactName"
+              value={formData.emergencyContactName}
+              onChange={handleChange}
+              placeholder="Full name"
+              required
+              className="bg-card/50 border-glow-cyan/20 focus:border-glow-cyan/50"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-muted-foreground mb-2">
+              <Phone className="w-3 h-3 inline mr-1" />
+              Contact Phone <span className="text-glow-cyan">*</span>
+            </label>
+            <Input
+              name="emergencyContactPhone"
+              value={formData.emergencyContactPhone}
+              onChange={handleChange}
+              placeholder="+64 XX XXX XXXX"
+              required
+              className="bg-card/50 border-glow-cyan/20 focus:border-glow-cyan/50"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Additional Notes */}
       <div>
         <label className="block text-sm text-muted-foreground mb-2">
           {mounted ? t('additionalNotes') : 'Additional Notes'}
@@ -241,16 +295,52 @@ const FirstClassBookingForm = () => {
           name="notes"
           value={formData.notes}
           onChange={handleChange}
-          placeholder={mounted ? t('notesPlaceholder') : 'Tell us about any injuries, concerns, or goals...'}
-          rows={4}
+          placeholder={mounted ? t('notesPlaceholder') : 'Anything else you would like us to know...'}
+          rows={3}
           className="bg-card/50 border-glow-cyan/20 focus:border-glow-cyan/50 resize-none"
         />
+      </div>
+
+      {/* Waiver */}
+      <div className="p-4 rounded-2xl border border-glow-cyan/20 bg-card/40 space-y-3">
+        <h4 className="text-sm font-medium text-foreground">Liability Waiver</h4>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          I understand that yoga and movement classes involve physical activity and carry an inherent risk of injury.
+          I voluntarily participate in classes offered by Inner Light and agree to assume full responsibility for any
+          risks, injuries, or damages that may occur. I confirm that I have disclosed any relevant medical conditions,
+          injuries, or physical limitations above. I release Inner Light, its instructors, and staff from any liability
+          for injury, loss, or damage arising from my participation.
+        </p>
+        <label className="flex items-start gap-3 cursor-pointer group">
+          <div className="relative mt-0.5 flex-shrink-0">
+            <input
+              type="checkbox"
+              checked={waiverAccepted}
+              onChange={(e) => setWaiverAccepted(e.target.checked)}
+              className="sr-only"
+            />
+            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+              waiverAccepted
+                ? 'bg-glow-cyan/30 border-glow-cyan'
+                : 'bg-card/50 border-glow-cyan/30 group-hover:border-glow-cyan/60'
+            }`}>
+              {waiverAccepted && (
+                <svg className="w-3 h-3 text-glow-cyan" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </div>
+          </div>
+          <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
+            I have read and agree to the liability waiver above. <span className="text-glow-cyan">*</span>
+          </span>
+        </label>
       </div>
 
       {/* Submit Button */}
       <Button 
         type="submit"
-        disabled={!formData.name || !formData.email || !formData.classType}
+        disabled={!formData.name || !formData.email || !formData.classType || !formData.emergencyContactName || !formData.emergencyContactPhone || !waiverAccepted}
         className="w-full py-4 rounded-xl bg-glow-cyan/10 border border-glow-cyan/30 
                  text-glow-cyan font-medium hover:bg-glow-cyan/20 hover:box-glow
                  transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"

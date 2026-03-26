@@ -3,6 +3,7 @@ import { auth } from '@/auth';
 import dbConnect from '@/lib/mongodb';
 import Booking from '@/lib/models/Booking';
 import { sendBookingConfirmationEmail, sendCancellationEmail } from '@/lib/email';
+import { inferDayFromClassName, isAllowedClassDate } from '@/lib/class-schedule';
 
 // GET - Fetch user's bookings
 export async function GET() {
@@ -59,11 +60,12 @@ export async function POST(request) {
       location,
       amount,
       notes,
-      paymentMethod
+      paymentMethod,
+      bringAFriend
     } = body;
 
     // Validate required fields
-    if (!className || !classDate || !classTime || !location || !amount) {
+    if (!className || !classDate || !classTime || !location || amount === undefined || amount === null) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -75,21 +77,52 @@ export async function POST(request) {
     // Create booking with appropriate status based on payment method
     // For cash: status='confirmed', paymentStatus='pending' (waiting for admin confirmation)
     // For card: status='pending', paymentStatus='pending' (waiting for payment)
+    const normalizedClassDate = new Date(classDate);
+    if (Number.isNaN(normalizedClassDate.getTime())) {
+      return NextResponse.json(
+        { error: 'Invalid class date' },
+        { status: 400 }
+      );
+    }
+
+    const scheduleDay = inferDayFromClassName(className);
+    if (scheduleDay && !isAllowedClassDate(scheduleDay, normalizedClassDate)) {
+      return NextResponse.json(
+        { error: `Selected date is not available for ${scheduleDay} classes` },
+        { status: 400 }
+      );
+    }
+
     const isPaymentMethodCash = paymentMethod === 'cash';
+    const isBringAFriend = Boolean(bringAFriend);
+    const normalizedAmount = isBringAFriend ? 0 : Number(amount);
+    const isAmountValid = Number.isFinite(normalizedAmount) && normalizedAmount >= 0;
+
+    if (!isAmountValid) {
+      return NextResponse.json(
+        { error: 'Invalid amount' },
+        { status: 400 }
+      );
+    }
+
+    const isInstantlyConfirmed = isPaymentMethodCash || isBringAFriend;
     
     const booking = new Booking({
       userId: session.user.id,
       userEmail: session.user.email,
       userName: session.user.name || 'Guest',
       className,
-      classDate: new Date(classDate),
+      classDate: normalizedClassDate,
       classTime,
       location,
-      amount,
+      amount: normalizedAmount,
       notes: notes || '',
-      status: isPaymentMethodCash ? 'confirmed' : 'pending',
-      paymentStatus: 'pending',
-      paymentMethod: paymentMethod || undefined,
+      status: isInstantlyConfirmed ? 'confirmed' : 'pending',
+      paymentStatus: isBringAFriend ? 'completed' : 'pending',
+      paymentMethod: isBringAFriend ? 'bring_a_friend' : (paymentMethod || undefined),
+      paidAt: isBringAFriend ? new Date() : undefined,
+      bringAFriend: isBringAFriend,
+      bringAFriendConfirmed: false,
     });
 
     await booking.save();

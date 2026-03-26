@@ -3,59 +3,32 @@
 import { useState, useEffect } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import { X, Calendar, Clock, MapPin, DollarSign, Loader2, LogIn, Check, ChevronLeft, ChevronRight, Tag, Gift } from 'lucide-react';
+import { getAvailableDatesByDay, getClassNameForDay, getClassTimeForDay } from '@/lib/class-schedule';
+import { calculateClassBookingTotal, SINGLE_CLASS_PRICE } from '@/lib/pricing';
+import HealthIntakeForm from '@/components/HealthIntakeForm';
 
-// Generate available dates based on day of week
-function getAvailableDatesByDay(dayOfWeek, weeksAhead = 12) {
-  const dates = [];
-  const today = new Date();
-  const currentDay = today.getDay();
-  
-  // dayOfWeek: 'wednesday' (3) or 'thursday' (4)
-  const targetDay = dayOfWeek === 'wednesday' ? 3 : 4;
-  const cutoffHour = dayOfWeek === 'wednesday' ? 18 : 12; // 6pm for Wed, 12pm for Thu
-  
-  let daysUntilTarget = (targetDay - currentDay + 7) % 7;
-  
-  // If it's the target day, check if we're before the class time
-  if (currentDay === targetDay && today.getHours() >= cutoffHour) {
-    daysUntilTarget = 7; // Skip to next week
-  }
-  
-  let startDate = new Date(today);
-  startDate.setDate(today.getDate() + daysUntilTarget);
-  
-  for (let i = 0; i < weeksAhead; i++) {
-    const date = new Date(startDate);
-    date.setDate(startDate.getDate() + (i * 7));
-    dates.push({
-      date: date.toISOString().split('T')[0],
-      displayDate: date.toLocaleDateString('en-NZ', { 
-        weekday: 'short', 
-        day: 'numeric', 
-        month: 'short' 
-      }),
-      fullDate: date.toLocaleDateString('en-NZ', { 
-        weekday: 'long', 
-        day: 'numeric', 
-        month: 'long', 
-        year: 'numeric' 
-      })
-    });
-  }
-  
-  return dates;
-}
+// Weekly focus template for specific date + slot (easy to extend later)
+const WEEKLY_FOCUS_SERIES = {
+  'wednesday-morning': {
+    '2026-04-01': {
+      title: 'Functional Pain Relief Series',
+      subtitle: 'Release tension. Reduce pain. Restore natural movement.',
+      weekTitle: 'Week 1 — Lower Back Relief',
+      focus: 'Release tension in the lower back and improve mobility',
+      bestFor: 'Sitting long hours, lower back stiffness, morning tightness',
+    },
+  },
+};
 
-// Generate available Wednesdays starting from the next upcoming Wednesday
-function getAvailableWednesdays(weeksAhead = 12) {
-  return getAvailableDatesByDay('wednesday', weeksAhead);
+function getWeeklyFocusForDate(day, date) {
+  return WEEKLY_FOCUS_SERIES?.[day]?.[date] || null;
 }
 
 export default function BookingModal({ 
   isOpen, 
   onClose, 
   classDetails,
-  dayOfWeek = null, // null means allow user to select, 'wednesday' or 'thursday'
+  dayOfWeek = null, // null means allow user to select: 'wednesday-morning', 'wednesday-evening', or 'thursday-evening'
   language = 'en' 
 }) {
   // ALL hooks must be called unconditionally - no early returns before hooks!
@@ -65,6 +38,7 @@ export default function BookingModal({
   const [formData, setFormData] = useState({
     notes: ''
   });
+  const [bringAFriend, setBringAFriend] = useState(false);
   // Payment method: 'card' (Stripe) or 'cash'
   const [paymentMethod, setPaymentMethod] = useState('card');
   
@@ -80,7 +54,11 @@ export default function BookingModal({
   const DATES_PER_PAGE = 4;
   
   // Day selection state (for homepage)
-  const [selectedDay, setSelectedDay] = useState(dayOfWeek || 'wednesday');
+  const [selectedDay, setSelectedDay] = useState(dayOfWeek || 'wednesday-evening');
+
+  // Health intake gate
+  const [showIntakeForm, setShowIntakeForm] = useState(false);
+  const [pendingSubmitAction, setPendingSubmitAction] = useState(null);
   
   // Get available dates based on day of week
   const effectiveDayOfWeek = dayOfWeek || selectedDay;
@@ -88,8 +66,10 @@ export default function BookingModal({
   const totalPages = Math.ceil(availableDates.length / DATES_PER_PAGE);
   const displayedDates = availableDates.slice(currentPage * DATES_PER_PAGE, (currentPage + 1) * DATES_PER_PAGE);
   
-  // Calculate total price
-  const totalPrice = selectedDates.length * (classDetails?.price || 15);
+  // Calculate total price (supports 5-class package pricing)
+  const totalPrice = calculateClassBookingTotal(selectedDates.length);
+  const regularPrice = selectedDates.length * SINGLE_CLASS_PRICE;
+  const packageSavings = Math.max(0, regularPrice - totalPrice);
 
   // Reset state when modal opens - useEffect must always be called
   useEffect(() => {
@@ -100,6 +80,7 @@ export default function BookingModal({
       setCouponCode('');
       setAppliedCoupon(null);
       setCouponError('');
+      setBringAFriend(false);
     }
   }, [isOpen]);
 
@@ -114,6 +95,8 @@ export default function BookingModal({
 
   const discount = calculateDiscount();
   const finalPrice = Math.max(0, totalPrice - discount);
+  const payableAmount = bringAFriend ? 0 : finalPrice;
+  const displayClassName = language === 'zh' ? '功能性整合瑜伽' : 'Functional Integrative Yoga';
 
   // Handle coupon application
   const handleApplyCoupon = async () => {
@@ -174,34 +157,25 @@ export default function BookingModal({
     });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
+  const proceedWithBooking = async () => {
     if (selectedDates.length === 0) {
       setError(language === 'zh' ? '请至少选择一个日期' : 'Please select at least one date');
       return;
     }
-    
+
     setIsLoading(true);
     setError('');
 
     try {
       // Build query params for checkout page
-      const className = effectiveDayOfWeek === 'wednesday' 
-        ? 'Beginner Yoga - Wednesday'
-        : 'Beginner Yoga - Thursday';
-      const classTime = effectiveDayOfWeek === 'wednesday' 
-        ? '6:00 PM' 
-        : '12:00 PM';
-      
-      const params = new URLSearchParams();
-      params.set('class_name', className);
-      params.set('amount', finalPrice.toString());
-        if (paymentMethod === 'card') {
+      const className = getClassNameForDay(effectiveDayOfWeek);
+      const classTime = getClassTimeForDay(effectiveDayOfWeek);
+
+        if (!bringAFriend && paymentMethod === 'card') {
           // Build query params for checkout page
           const params = new URLSearchParams();
           params.set('class_name', className);
-          params.set('amount', finalPrice.toString());
+          params.set('amount', payableAmount.toString());
           params.set('class_time', classTime);
           params.set('location', classDetails.location);
 
@@ -224,10 +198,12 @@ export default function BookingModal({
           // The checkout page will create the booking and payment intent
           window.location.href = `/checkout?${params.toString()}`;
         } else {
-          // Pay by cash: create bookings directly with paymentMethod 'cash'
+          // Pay by cash or Bring a Friend: create bookings directly
           try {
-            // Distribute finalPrice across selected dates (per-booking amount)
-            const perBooking = parseFloat((finalPrice / selectedDates.length).toFixed(2));
+            // Distribute payable total across selected dates (per-booking amount)
+            const perBooking = bringAFriend
+              ? 0
+              : parseFloat((payableAmount / selectedDates.length).toFixed(2));
 
             const created = [];
             for (const d of selectedDates) {
@@ -238,7 +214,8 @@ export default function BookingModal({
                 location: classDetails.location,
                 amount: perBooking,
                 notes: formData.notes || '',
-                paymentMethod: 'cash'
+                paymentMethod: bringAFriend ? 'bring_a_friend' : 'cash',
+                bringAFriend: bringAFriend
               };
 
               const res = await fetch('/api/bookings', {
@@ -256,21 +233,80 @@ export default function BookingModal({
 
             // Successfully created all bookings - redirect to dashboard with success message
             // Keep loading state until redirect completes
-            window.location.href = '/dashboard?paid=cash&created=' + encodeURIComponent(created.map(b => b._id).join(','));
+            const paidType = bringAFriend ? 'bring-friend' : 'cash';
+            window.location.href = '/dashboard?paid=' + paidType + '&created=' + encodeURIComponent(created.map(b => b._id).join(','));
             return; // Exit early to prevent setIsLoading(false) below
           } catch (err) {
             console.error('Cash booking error:', err);
-            setError(err.message || 'Failed to create cash booking');
+            setError(err.message || (bringAFriend ? 'Failed to create Bring a Friend booking' : 'Failed to create cash booking'));
             setIsLoading(false); // Reset loading on error
           }
         }
     } finally {
       // For card payment flow, ensure loading is reset
-      if (paymentMethod === 'card') {
+      if (!bringAFriend && paymentMethod === 'card') {
         setIsLoading(false);
       }
     }
   };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (selectedDates.length === 0) {
+      setError(language === 'zh' ? '请至少选择一个日期' : 'Please select at least one date');
+      return;
+    }
+    
+    setIsLoading(true);
+    setError('');
+
+    // Check if user has completed health intake form
+    try {
+      const intakeRes = await fetch('/api/health-intake');
+      const intakeData = await intakeRes.json();
+      if (!intakeData.hasIntake) {
+        setIsLoading(false);
+        setShowIntakeForm(true);
+        return;
+      }
+    } catch {
+      // If check fails, still allow booking
+    }
+    setIsLoading(false);
+
+    await proceedWithBooking();
+  };
+
+  const handleSignInFromBooking = async () => {
+    // If user already selected dates, send them directly back to checkout flow after login
+    if (selectedDates.length > 0) {
+      const className = getClassNameForDay(effectiveDayOfWeek);
+      const classTime = getClassTimeForDay(effectiveDayOfWeek);
+
+      const params = new URLSearchParams();
+      params.set('class_name', className);
+      params.set('amount', finalPrice.toString());
+      params.set('class_time', classTime);
+      params.set('location', classDetails.location);
+      params.set('selected_dates', selectedDates.map(d => d.date).join(','));
+
+      if (appliedCoupon) {
+        params.set('coupon_code', appliedCoupon.code);
+      }
+
+      const callbackUrl = `/checkout?${params.toString()}`;
+      await signIn(undefined, { callbackUrl });
+      return;
+    }
+
+    // Fallback: return to current page
+    const fallbackCallback = typeof window !== 'undefined'
+      ? window.location.href
+      : '/dashboard';
+    await signIn(undefined, { callbackUrl: fallbackCallback });
+  };
+
   const formatDate = (dateStr) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('en-NZ', {
@@ -283,6 +319,31 @@ export default function BookingModal({
 
   // Use conditional rendering instead of early return to maintain hook order
   if (!isOpen) return null;
+
+  // If intake form is needed, show it as a fullscreen overlay
+  if (showIntakeForm) {
+    return (
+      <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
+        <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-background/90 backdrop-blur border-b border-glow-cyan/20">
+          <button
+            onClick={() => setShowIntakeForm(false)}
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-glow-cyan transition-colors"
+          >
+            ← Back to booking
+          </button>
+          <p className="text-xs text-muted-foreground">Step 1 of 2 — Health Form</p>
+        </div>
+        <HealthIntakeForm
+          userName={session?.user?.name || ''}
+          userEmail={session?.user?.email || ''}
+          onComplete={() => {
+            setShowIntakeForm(false);
+            proceedWithBooking();
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -313,64 +374,91 @@ export default function BookingModal({
           <div className="flex items-center gap-2 mb-2">
             <Calendar className="w-4 h-4 text-glow-cyan" />
             <span className="font-medium text-foreground">
-              {classDetails.name}
+              {displayClassName}
             </span>
           </div>
           <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-1">
               <Clock className="w-3 h-3" />
-              {effectiveDayOfWeek === 'wednesday' ? '6:00 PM' : '12:00 PM'}
+              {getClassTimeForDay(effectiveDayOfWeek)}
             </div>
             <div className="flex items-center gap-1">
               <MapPin className="w-3 h-3" />
               {classDetails.location}
             </div>
           </div>
-          <div className="mt-3 flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-glow-cyan" />
-            <span className="text-2xl font-display text-glow-cyan">
-              ${classDetails.price}
-            </span>
-            <span className="text-muted-foreground">
-              {language === 'zh' ? '每节课' : 'per class'}
-            </span>
+          <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-display text-glow-cyan">
+                ${classDetails.price}
+              </span>
+              <span className="text-muted-foreground">
+                {language === 'zh' ? '每节课' : 'per class'}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                window.location.href = '/checkout/package';
+              }}
+              className="py-2 px-3 rounded-lg font-medium transition-colors bg-glow-cyan/20 border border-glow-cyan/50 text-glow-cyan hover:bg-glow-cyan/30"
+            >
+              {language === 'zh' ? '购买5节课套餐（$65）' : 'Buy 5-Class Package ($65)'}
+            </button>
           </div>
         </div>
 
         {/* Day Selection Tabs (only if dayOfWeek not pre-specified) */}
         {!dayOfWeek && (
           <div className="px-6 py-4 border-b border-glow-cyan/10">
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedDay('wednesday');
-                  setSelectedDates([]);
-                  setCurrentPage(0);
-                }}
-                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-                  selectedDay === 'wednesday'
-                    ? 'bg-glow-cyan/20 border border-glow-cyan/50 text-glow-cyan'
-                    : 'bg-background/50 border border-glow-cyan/20 text-muted-foreground hover:border-glow-cyan/40'
-                }`}
-              >
-                {language === 'zh' ? '周三 6PM' : 'Wednesday 6PM'}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedDay('thursday');
-                  setSelectedDates([]);
-                  setCurrentPage(0);
-                }}
-                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-                  selectedDay === 'thursday'
-                    ? 'bg-glow-cyan/20 border border-glow-cyan/50 text-glow-cyan'
-                    : 'bg-background/50 border border-glow-cyan/20 text-muted-foreground hover:border-glow-cyan/40'
-                }`}
-              >
-                {language === 'zh' ? '周四 12PM' : 'Thursday 12PM'}
-              </button>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                {
+                  key: 'wednesday-morning',
+                  dayZh: '周三',
+                  timeZh: '9:15AM',
+                  dayEn: 'Wednesday',
+                  timeEn: '9:15 AM',
+                  series: 'Functional Pain Relief Series',
+                },
+                {
+                  key: 'wednesday-evening',
+                  dayZh: '周三',
+                  timeZh: '6PM',
+                  dayEn: 'Wednesday',
+                  timeEn: '6:00 PM',
+                  series: 'Nervous System Reset & Breathwork Series',
+                },
+                {
+                  key: 'thursday-evening',
+                  dayZh: '周四',
+                  timeZh: '5:30PM',
+                  dayEn: 'Thursday',
+                  timeEn: '5:30 PM',
+                  series: 'Structural Alignment & Deep Mobility Series',
+                },
+              ].map((slot) => (
+                <button
+                  key={slot.key}
+                  type="button"
+                  onClick={() => {
+                    setSelectedDay(slot.key);
+                    setSelectedDates([]);
+                    setCurrentPage(0);
+                  }}
+                  className={`py-2 px-3 rounded-lg font-medium transition-colors ${
+                    selectedDay === slot.key
+                      ? 'bg-glow-cyan/20 border border-glow-cyan/50 text-glow-cyan'
+                      : 'bg-background/50 border border-glow-cyan/20 text-muted-foreground hover:border-glow-cyan/40'
+                  }`}
+                >
+                  <div className="text-center">
+                    <div className="text-sm font-semibold">{language === 'zh' ? slot.dayZh : slot.dayEn}</div>
+                    <div className="text-xs">{language === 'zh' ? slot.timeZh : slot.timeEn}</div>
+                    <div className="text-[10px] text-muted-foreground mt-1 leading-tight">{slot.series}</div>
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
         )}
@@ -388,8 +476,14 @@ export default function BookingModal({
           
           {/* Date Grid */}
           <div className="space-y-2">
+            {displayedDates.length === 0 && (
+              <div className="p-3 rounded-xl bg-card/40 border border-glow-cyan/10 text-sm text-muted-foreground">
+                {language === 'zh' ? '当前没有可预约日期，请稍后再查看。' : 'No available dates right now. Please check back soon.'}
+              </div>
+            )}
             {displayedDates.map((date) => {
               const isSelected = selectedDates.some(d => d.date === date.date);
+              const weeklyFocus = getWeeklyFocusForDate(effectiveDayOfWeek, date.date);
               return (
                 <button
                   key={date.date}
@@ -409,7 +503,24 @@ export default function BookingModal({
                     </div>
                     <div className="text-left">
                       <div className="font-medium">{date.displayDate}</div>
-                      <div className="text-xs text-muted-foreground">{classDetails.time}</div>
+                      <div className="text-xs text-muted-foreground">{getClassTimeForDay(effectiveDayOfWeek)}</div>
+                      {weeklyFocus && (
+                        <div className="mt-2 p-2 rounded-lg bg-glow-purple/10 border border-glow-purple/30">
+                          <p className="text-[11px] uppercase tracking-wide text-glow-purple font-semibold">
+                            {weeklyFocus.title}
+                          </p>
+                          <p className="text-xs text-foreground mt-1">{weeklyFocus.weekTitle}</p>
+                          <p className="text-[11px] text-muted-foreground mt-1">{weeklyFocus.subtitle}</p>
+                          <p className="text-[11px] text-muted-foreground mt-2">
+                            <span className="text-foreground font-medium">{language === 'zh' ? '专注点：' : 'Focus: '}</span>
+                            {weeklyFocus.focus}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground mt-1">
+                            <span className="text-foreground font-medium">{language === 'zh' ? '适合人群：' : 'Best for: '}</span>
+                            {weeklyFocus.bestFor}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="text-glow-cyan font-medium">
@@ -419,8 +530,7 @@ export default function BookingModal({
               );
             })}
           </div>
-          
-          {/* Pagination */}
+
           {totalPages > 1 && (
             <div className="flex items-center justify-between mt-4">
               <button
@@ -459,6 +569,15 @@ export default function BookingModal({
                 </span>
               </div>
             </div>
+
+            {packageSavings > 0 && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">
+                  {language === 'zh' ? '套餐优惠' : 'Package savings'}
+                </span>
+                <span className="text-green-400 font-medium">-${packageSavings.toFixed(2)}</span>
+              </div>
+            )}
 
             {/* Coupon Input Section */}
             {!appliedCoupon ? (
@@ -597,8 +716,27 @@ export default function BookingModal({
             {/* Payment Method Selection */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">{language === 'zh' ? '支付方式' : 'Payment Method'}</label>
+              <label className={`w-full p-3 rounded-lg border flex items-start gap-3 transition-colors ${bringAFriend ? 'border-green-500/40 bg-green-500/10' : 'border-border/30 bg-card/60'}`}>
+                <input
+                  type="checkbox"
+                  checked={bringAFriend}
+                  onChange={(e) => setBringAFriend(e.target.checked)}
+                  className="mt-1"
+                />
+                <div>
+                  <div className="font-medium text-foreground">
+                    {language === 'zh' ? '带朋友来（免费课程）' : 'Bring a Friend (Free Class)'}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {language === 'zh'
+                      ? '选择后本次预约免费，管理员将在线下确认你已带朋友。'
+                      : 'This booking is free. Admin will confirm after class that you brought a friend.'}
+                  </p>
+                </div>
+              </label>
+
               <div className="flex gap-3">
-                <label className={`px-3 py-2 rounded-lg border ${paymentMethod === 'card' ? 'border-glow-cyan/40 bg-glow-cyan/10' : 'border-border/30 bg-card/60'} cursor-pointer flex-1 text-center`}> 
+                <label className={`px-3 py-2 rounded-lg border ${paymentMethod === 'card' ? 'border-glow-cyan/40 bg-glow-cyan/10' : 'border-border/30 bg-card/60'} cursor-pointer flex-1 text-center ${bringAFriend ? 'opacity-50 pointer-events-none' : ''}`}> 
                   <input
                     type="radio"
                     name="paymentMethod"
@@ -607,9 +745,9 @@ export default function BookingModal({
                     onChange={() => setPaymentMethod('card')}
                     className="hidden"
                   />
-                  {language === 'zh' ? '卡 (Stripe)' : 'Card (Stripe)'}
+                  {language === 'zh' ? '卡' : 'Card'}
                 </label>
-                <label className={`px-3 py-2 rounded-lg border ${paymentMethod === 'cash' ? 'border-glow-cyan/40 bg-glow-cyan/10' : 'border-border/30 bg-card/60'} cursor-pointer flex-1 text-center`}> 
+                <label className={`px-3 py-2 rounded-lg border ${paymentMethod === 'cash' ? 'border-glow-cyan/40 bg-glow-cyan/10' : 'border-border/30 bg-card/60'} cursor-pointer flex-1 text-center ${bringAFriend ? 'opacity-50 pointer-events-none' : ''}`}> 
                   <input
                     type="radio"
                     name="paymentMethod"
@@ -639,7 +777,9 @@ export default function BookingModal({
               ) : (
                 <>
                   <DollarSign className="w-5 h-5" />
-                  {language === 'zh' ? `支付 $${finalPrice.toFixed(2)}` : `Pay $${finalPrice.toFixed(2)}`}
+                  {bringAFriend
+                    ? (language === 'zh' ? '免费预约（带朋友）' : 'Book Free (Bring a Friend)')
+                    : (language === 'zh' ? `支付 $${payableAmount.toFixed(2)}` : `Pay $${payableAmount.toFixed(2)}`)}
                 </>
               )}
             </button>
@@ -667,7 +807,7 @@ export default function BookingModal({
             
             <div className="flex gap-3">
               <button
-                onClick={() => signIn()}
+                onClick={handleSignInFromBooking}
                 className="flex-1 py-3 rounded-xl bg-glow-cyan/20 border border-glow-cyan/40 
                          text-glow-cyan font-medium hover:bg-glow-cyan/30 
                          hover:box-glow transition-all duration-300"

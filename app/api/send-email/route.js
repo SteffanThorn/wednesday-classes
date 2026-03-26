@@ -14,6 +14,7 @@ const userAllowedEmailTypes = [
   'welcome',
   'first-class-inquiry',
   'first-class-notification',
+  'account-setup',
 ];
 
 // Only admin can send custom emails
@@ -49,6 +50,10 @@ const emailTemplates = {
   },
   'first-class-notification': {
     subject: 'New First Class Inquiry - INNER LIGHT Yoga',
+    isCustomContent: true,
+  },
+  'account-setup': {
+    subject: 'Welcome to INNER LIGHT Yoga — Activate Your Account 🧘‍♀️',
     isCustomContent: true,
   },
   'custom': {
@@ -421,6 +426,66 @@ function getRefundEmail({ userName, className, classDate, classTime, amount, ref
   `.trim();
 }
 
+// Generate HTML for account-setup (admin-created student welcome email)
+function getAccountSetupEmail({ userName, setupUrl }) {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f5f5f5;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 600px; margin: 0 auto; padding: 20px;">
+    <tr>
+      <td style="text-align: center; padding: 30px 20px; background: linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%); border-radius: 12px 12px 0 0;">
+        <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 300;">INNER LIGHT</h1>
+        <p style="margin: 10px 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">Yoga &amp; Meditation</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="background-color: white; padding: 40px 30px; border-radius: 0 0 12px 12px;">
+        <h2 style="margin: 0 0 20px; color: #1f2937; font-size: 24px;">Welcome to INNER LIGHT! 🧘‍♀️</h2>
+        <p style="margin: 0 0 20px; color: #4b5563; font-size: 16px; line-height: 1.6;">
+          Hi ${userName},
+        </p>
+        <p style="margin: 0 0 20px; color: #4b5563; font-size: 16px; line-height: 1.6;">
+          Your instructor has added you to Inner Light Yoga. Click the button below to set your password and activate your account.
+        </p>
+        <p style="margin: 0 0 30px; color: #4b5563; font-size: 16px; line-height: 1.6;">
+          Once your account is active, you'll be asked to complete a short health &amp; waiver form before your first class — it only takes a couple of minutes.
+        </p>
+        <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 30px;">
+          <tr>
+            <td style="border-radius: 12px; background: linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%);">
+              <a href="${setupUrl}" target="_blank"
+                 style="display: inline-block; padding: 16px 32px; color: white; text-decoration: none; font-size: 16px; font-weight: 500; border-radius: 12px;">
+                Activate my account
+              </a>
+            </td>
+          </tr>
+        </table>
+        <p style="margin: 0 0 10px; color: #9ca3af; font-size: 13px; text-align: center;">
+          This link expires in 7 days. If it has expired, please contact your instructor.
+        </p>
+        <p style="margin: 20px 0 0; color: #9ca3af; font-size: 14px;">
+          With warmth,<br>
+          <strong style="color: #1f2937;">Yuki</strong>
+        </p>
+      </td>
+    </tr>
+    <tr>
+      <td style="text-align: center; padding: 30px 20px;">
+        <p style="margin: 0 0 8px; color: #9ca3af; font-size: 14px;">INNER LIGHT · Auckland, New Zealand</p>
+        <p style="margin: 0; color: #6b7280; font-size: 12px;">Breathe deeply. Move gently. Live fully.</p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}
+
 // Get template HTML based on type
 function getTemplateHtml(emailType, data) {
   switch (emailType) {
@@ -434,6 +499,8 @@ function getTemplateHtml(emailType, data) {
       return getPaymentFailedEmail(data);
     case 'refund':
       return getRefundEmail(data);
+    case 'account-setup':
+      return getAccountSetupEmail(data);
     case 'custom':
       return data.html || '';
     default:

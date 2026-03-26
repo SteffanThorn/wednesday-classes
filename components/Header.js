@@ -93,20 +93,12 @@ const Header = () => {
                               border border-glow-cyan/20 shadow-lg animate-fade-in-up z-50"
                 >
                   <Link
-                    href="/admin/bookings"
+                    href="/admin"
                     className="block px-4 py-2 text-sm text-foreground hover:bg-glow-cyan/10 
                              transition-colors"
                     onClick={() => setIsAdminDropdownOpen(false)}
                   >
-                    Bookings
-                  </Link>
-                  <Link
-                    href="/admin/coupons"
-                    className="block px-4 py-2 text-sm text-foreground hover:bg-glow-cyan/10 
-                             transition-colors"
-                    onClick={() => setIsAdminDropdownOpen(false)}
-                  >
-                    Coupons
+                    Admin Dashboard
                   </Link>
                 </div>
               )}
@@ -145,13 +137,23 @@ const Header = () => {
                   <div className="absolute right-0 mt-2 w-48 py-2 rounded-xl bg-card/95 backdrop-blur-sm 
                                 border border-glow-cyan/20 shadow-lg animate-fade-in-up">
                     <Link
-                      href="/dashboard"
+                      href={isAdmin ? '/admin' : '/dashboard'}
                       className="block px-4 py-2 text-sm text-foreground hover:bg-glow-cyan/10 
                                transition-colors"
                       onClick={() => setIsDropdownOpen(false)}
                     >
                       Dashboard
                     </Link>
+                    {isAdmin && (
+                      <Link
+                        href="/admin"
+                        className="block px-4 py-2 text-sm text-foreground hover:bg-glow-cyan/10 
+                                 transition-colors"
+                        onClick={() => setIsDropdownOpen(false)}
+                      >
+                        Admin Dashboard
+                      </Link>
+                    )}
                     <button
                       onClick={() => {
                         setIsDropdownOpen(false);

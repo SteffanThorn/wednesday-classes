@@ -11,6 +11,9 @@ import { LanguageProvider } from "@/hooks/useLanguage";
 // Import Auth Provider for next-auth
 import { AuthProvider } from "@/components/AuthProvider";
 
+// Import Background Music Player
+import BackgroundMusic from "@/components/BackgroundMusic";
+
 // Configure Geist Sans font - used throughout the app
 const geistSans = Geist({
   variable: "--font-geist-sans",  // CSS variable name for the font
@@ -49,6 +52,8 @@ export default function RootLayout({ children }) {
           <LanguageProvider>
             {/* All page content is rendered here */}
             {children}
+            {/* Background Music Player */}
+            <BackgroundMusic />
           </LanguageProvider>
         </AuthProvider>
       </body>

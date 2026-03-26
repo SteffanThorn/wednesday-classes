@@ -23,7 +23,7 @@ function getNextWednesday() {
 
 // Wednesday class details
 const WEDNESDAY_CLASS = {
-  name: 'Beginner Yoga',
+  name: 'Functional Integrative Yoga',
   date: getNextWednesday(), // Dynamically calculated
   time: '6:00 PM',
   location: 'Village Valley Centre, Ashhurst',
@@ -154,7 +154,12 @@ const WednesdayClassesPage = () => {
             <div className="flex flex-wrap justify-center gap-4 md:gap-6 mb-10 animate-fade-in-up animation-delay-300">
               <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card/60 border border-glow-cyan/20">
                 <Calendar className="w-4 h-4 text-glow-cyan" />
-                <span className="text-sm">Wednesdays · 6:00 PM</span>
+                <div className="text-sm leading-tight">
+                  <div>Wed · 9:15 AM · Functional Pain Relief Series</div>
+                  <div>Wed · 6:00 PM · Nervous System Reset &amp; Breathwork Series</div>
+                  <div>Thu · 2:00 PM</div>
+                  <div>Thu · 5:30 PM · Structural Alignment &amp; Deep Mobility Series</div>
+                </div>
               </div>
               <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card/60 border border-glow-cyan/20">
                 <MapPin className="w-4 h-4 text-glow-cyan" />
@@ -166,7 +171,7 @@ const WednesdayClassesPage = () => {
               </div>
               <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card/60 border border-glow-cyan/20">
                 <DollarSign className="w-4 h-4 text-glow-cyan" />
-                <span className="text-sm">$15 per class</span>
+                <span className="text-sm">$15 per class · 5 for $65</span>
               </div>
             </div>
             
@@ -274,7 +279,19 @@ const WednesdayClassesPage = () => {
                     <h4 className="font-medium text-foreground">
                       {mounted ? (language === 'zh' ? '时间：' : 'When:') : 'When:'}
                     </h4>
-                    <p className="text-muted-foreground">Wednesdays · 6:00 PM · 60 minutes</p>
+                    <div className="mb-2">
+                      <p className="text-muted-foreground">Wednesdays · 9:15 AM · 60 minutes</p>
+                      <p className="text-xs text-glow-purple">Functional Pain Relief Series</p>
+                    </div>
+                    <div className="mb-2">
+                      <p className="text-muted-foreground">Wednesdays · 6:00 PM · 60 minutes</p>
+                      <p className="text-xs text-glow-purple">Nervous System Reset &amp; Breathwork Series</p>
+                    </div>
+                    <p className="text-muted-foreground">Thursdays · 2:00 PM · 60 minutes</p>
+                    <div className="mt-2">
+                      <p className="text-muted-foreground">Thursdays · 5:30 PM · 60 minutes</p>
+                      <p className="text-xs text-glow-purple">Structural Alignment &amp; Deep Mobility Series</p>
+                    </div>
                   </div>
                 </div>
                 
@@ -317,6 +334,12 @@ const WednesdayClassesPage = () => {
                       <span className="text-muted-foreground">{mounted ? (language === 'zh' ? '每节课' : 'per class') : 'per class'}</span>
                     </div>
                   </div>
+                  <button
+                    onClick={() => { window.location.href = '/checkout/package'; }}
+                    className="px-5 py-2 rounded-full bg-glow-purple/10 border border-glow-purple/30 text-glow-purple text-sm font-medium hover:bg-glow-purple/20 transition-all duration-300"
+                  >
+                    {mounted ? (language === 'zh' ? '购买5节课套餐' : 'Buy 5-Class Package') : 'Buy 5-Class Package'}
+                  </button>
                 </div>
               </div>
             </div>

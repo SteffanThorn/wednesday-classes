@@ -32,7 +32,7 @@ const ClassCard = ({
         </h3>
       </div>
 
-      <p className="text-muted-foreground leading-relaxed mb-6">
+      <p className="text-muted-foreground leading-relaxed mb-6 whitespace-pre-line">
         {mounted ? (t('language') === 'zh' ? descriptionZh : descriptionEn) : descriptionEn}
       </p>
 

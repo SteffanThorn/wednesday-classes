@@ -21,12 +21,12 @@ const Index = () => {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  // Redirect logged-in users to dashboard
+  // Redirect logged-in users to the correct dashboard
   useEffect(() => {
     if (status === 'authenticated') {
-      router.push('/dashboard');
+      router.push(session?.user?.role === 'admin' ? '/admin' : '/dashboard');
     }
-  }, [status, router]);
+  }, [status, session, router]);
 
   // Show loading while checking session
   if (status === 'loading') {
@@ -103,7 +103,7 @@ const Index = () => {
           isOpen={isBookingModalOpen}
           onClose={() => setIsBookingModalOpen(false)}
           classDetails={{
-            name: 'Beginner Yoga',
+            name: 'Functional Integrative Yoga',
             date: '',
             time: '',
             location: 'Village Valley Centre, Ashhurst',

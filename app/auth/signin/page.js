@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { signIn } from 'next-auth/react';
+import { useEffect, useState } from 'react';
+import { getSession, signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import FloatingParticles from '@/components/FloatingParticle';
@@ -10,12 +10,19 @@ import { Mail, Lock, ArrowRight, AlertCircle, CheckCircle } from 'lucide-react';
 
 const SigninPage = () => {
   const router = useRouter();
+  const [callbackUrl, setCallbackUrl] = useState('/dashboard');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    setCallbackUrl(params.get('callbackUrl') || '/dashboard');
+  }, []);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -32,14 +39,19 @@ const SigninPage = () => {
         email: formData.email,
         password: formData.password,
         redirect: false,
+        callbackUrl,
       });
 
       if (result.error) {
         throw new Error(result.error);
       }
 
-      // Redirect to dashboard on success
-      router.push('/dashboard');
+      const currentSession = await getSession();
+      const fallbackDestination = currentSession?.user?.role === 'admin' ? '/admin' : '/dashboard';
+      const destination = callbackUrl === '/dashboard' ? fallbackDestination : (result?.url || callbackUrl);
+
+      // Redirect back to intended destination (e.g., checkout flow)
+      router.push(destination);
       router.refresh();
     } catch (err) {
       setError(err.message || 'Invalid email or password');
@@ -145,7 +157,7 @@ const SigninPage = () => {
                 <p className="text-muted-foreground text-sm">
                   Don't have an account?{' '}
                   <Link 
-                    href="/auth/signup" 
+                    href={`/auth/signup${callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ''}`} 
                     className="text-glow-cyan hover:text-glow-cyan/80 transition-colors"
                   >
                     Create one
