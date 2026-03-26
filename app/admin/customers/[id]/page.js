@@ -6,7 +6,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import FloatingParticles from '@/components/FloatingParticle';
-import { Loader2, ChevronRight, ChevronDown, ChevronUp, Mail, Phone, Calendar, FileText } from 'lucide-react';
+import { Loader2, ChevronRight, ChevronDown, ChevronUp, Mail, Phone, Calendar, FileText, Edit2 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -155,11 +155,20 @@ export default function CustomerDetailPage() {
             </div>
 
             {/* Header */}
-            <div className="mb-8">
-              <h1 className="font-display text-3xl md:text-4xl font-light text-glow-subtle mb-2">
-                {customer.userName}
-              </h1>
-              <p className="text-muted-foreground">Customer health intake information</p>
+            <div className="mb-8 flex items-start justify-between">
+              <div>
+                <h1 className="font-display text-3xl md:text-4xl font-light text-glow-subtle mb-2">
+                  {customer.userName}
+                </h1>
+                <p className="text-muted-foreground">Customer health intake information</p>
+              </div>
+              <Link
+                href={`/admin/customers/${customer.id}/edit`}
+                className="px-4 py-2 rounded-lg bg-glow-cyan/20 border border-glow-cyan/40 text-glow-cyan hover:bg-glow-cyan/30 transition-colors flex items-center gap-2 whitespace-nowrap"
+              >
+                <Edit2 className="w-4 h-4" />
+                Edit
+              </Link>
             </div>
 
             {/* Contact Info Card */}
