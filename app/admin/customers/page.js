@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import FloatingParticles from '@/components/FloatingParticle';
-import { Loader2, ChevronRight, Eye, Download } from 'lucide-react';
+import { Loader2, ChevronRight, Eye, Download, UserPlus } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -160,6 +160,13 @@ export default function AdminCustomersPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="flex-1 px-4 py-2 rounded-lg bg-card/60 border border-glow-cyan/20 focus:border-glow-cyan/50 focus:outline-none text-sm"
               />
+              <Link
+                href="/admin/students"
+                className="px-4 py-2 rounded-lg bg-glow-cyan/10 border border-glow-cyan/30 text-glow-cyan hover:bg-glow-cyan/20 flex items-center gap-2 justify-center transition-colors text-sm"
+              >
+                <UserPlus className="w-4 h-4" />
+                添加新的客户信息
+              </Link>
               <button
                 onClick={downloadCSV}
                 disabled={filteredCustomers.length === 0}
