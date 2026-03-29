@@ -7,6 +7,8 @@ import Header from '@/components/Header';
 import FloatingParticles from '@/components/FloatingParticle';
 import { Loader2, UserPlus } from 'lucide-react';
 
+const PACKAGE_TOTAL_CLASSES = 5;
+
 export const dynamic = 'force-dynamic';
 
 export default function AdminStudentsPage() {
@@ -16,7 +18,7 @@ export default function AdminStudentsPage() {
   const [newStudentName, setNewStudentName] = useState('');
   const [newStudentEmail, setNewStudentEmail] = useState('');
   const [newStudentPhone, setNewStudentPhone] = useState('');
-  const [newStudentClassCredits, setNewStudentClassCredits] = useState('');
+  const [newStudentClassCredits, setNewStudentClassCredits] = useState(String(PACKAGE_TOTAL_CLASSES));
   const [newStudentHealthNotes, setNewStudentHealthNotes] = useState('');
   const [newStudentEmergencyName, setNewStudentEmergencyName] = useState('');
   const [newStudentEmergencyPhone, setNewStudentEmergencyPhone] = useState('');
@@ -44,7 +46,7 @@ export default function AdminStudentsPage() {
     e.preventDefault();
 
     if (!newStudentName.trim() || !newStudentEmail.trim()) {
-      setError('Name and email are required.');
+      setError('姓名和邮箱为必填。/ Name and email are required.');
       return;
     }
 
@@ -57,7 +59,7 @@ export default function AdminStudentsPage() {
         name: newStudentName.trim(),
         email: newStudentEmail.trim(),
         phone: newStudentPhone.trim(),
-        classCredits: newStudentClassCredits === '' ? undefined : Number(newStudentClassCredits),
+        classCredits: newStudentClassCredits === '' ? PACKAGE_TOTAL_CLASSES : Number(newStudentClassCredits),
         healthNotes: newStudentHealthNotes.trim(),
         emergencyContactName: newStudentEmergencyName.trim(),
         emergencyContactPhone: newStudentEmergencyPhone.trim(),
@@ -78,11 +80,11 @@ export default function AdminStudentsPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to save student');
 
-      setMessage(data.message || 'Student saved successfully.');
+      setMessage(data.message || '学员信息已保存。/ Student saved successfully.');
       setNewStudentName('');
       setNewStudentEmail('');
       setNewStudentPhone('');
-      setNewStudentClassCredits('');
+      setNewStudentClassCredits(String(PACKAGE_TOTAL_CLASSES));
       setNewStudentHealthNotes('');
       setNewStudentEmergencyName('');
       setNewStudentEmergencyPhone('');
@@ -91,7 +93,7 @@ export default function AdminStudentsPage() {
       setNewStudentSignatureName('');
       setNewStudentSignedAt(new Date().toISOString().split('T')[0]);
     } catch (err) {
-      setError(err.message || 'Failed to save student');
+      setError(err.message || '保存学员失败。/ Failed to save student');
     } finally {
       setCreatingStudent(false);
     }
@@ -125,17 +127,17 @@ export default function AdminStudentsPage() {
           <div className="max-w-3xl mx-auto">
             <div className="mb-6">
               <h1 className="font-display text-3xl md:text-4xl font-light text-glow-subtle">
-                Add a Student
+                录入学员 / Add a Student
               </h1>
               <p className="text-muted-foreground mt-1">
-                Add or update student records (same database as Attendance & Credits).
+                新增或更新学员资料（与出勤和课次共用同一数据库）。/ Add or update student records (same database as Attendance & Credits).
               </p>
             </div>
 
             <div className="p-6 rounded-xl bg-card/60 border border-glow-cyan/20">
               <h2 className="text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
                 <UserPlus className="w-5 h-5 text-glow-cyan" />
-                Add Student
+                学员信息录入 / Add Student
               </h2>
 
               {error && (
@@ -155,7 +157,7 @@ export default function AdminStudentsPage() {
                   type="text"
                   value={newStudentName}
                   onChange={(e) => setNewStudentName(e.target.value)}
-                  placeholder="Student name *"
+                  placeholder="学员姓名 * / Student name *"
                   className="w-full px-3 py-2 rounded-lg bg-card/60 border border-glow-cyan/20 focus:border-glow-cyan/50 focus:outline-none"
                   required
                 />
@@ -163,7 +165,7 @@ export default function AdminStudentsPage() {
                   type="email"
                   value={newStudentEmail}
                   onChange={(e) => setNewStudentEmail(e.target.value)}
-                  placeholder="Student email *"
+                  placeholder="学员邮箱 * / Student email *"
                   className="w-full px-3 py-2 rounded-lg bg-card/60 border border-glow-cyan/20 focus:border-glow-cyan/50 focus:outline-none"
                   required
                 />
@@ -171,23 +173,27 @@ export default function AdminStudentsPage() {
                   type="text"
                   value={newStudentPhone}
                   onChange={(e) => setNewStudentPhone(e.target.value)}
-                  placeholder="Phone (optional)"
+                  placeholder="电话（可选）/ Phone (optional)"
                   className="w-full px-3 py-2 rounded-lg bg-card/60 border border-glow-cyan/20 focus:border-glow-cyan/50 focus:outline-none"
                 />
                 <input
                   type="number"
                   min="0"
+                  max="5"
                   step="1"
                   value={newStudentClassCredits}
                   onChange={(e) => setNewStudentClassCredits(e.target.value)}
-                  placeholder="Transferred class credits (optional)"
+                  placeholder="剩余课次（0-5）/ Remaining classes (0-5)"
                   className="w-full px-3 py-2 rounded-lg bg-card/60 border border-glow-cyan/20 focus:border-glow-cyan/50 focus:outline-none"
                 />
+                <p className="text-xs text-muted-foreground">
+                  默认 5 节课；老客户请录入实际剩余课次。/ Default is 5 classes. For old customers, enter their actual remaining classes.
+                </p>
 
                 <textarea
                   value={newStudentHealthNotes}
                   onChange={(e) => setNewStudentHealthNotes(e.target.value)}
-                  placeholder="General Health / Injuries / Surgeries / safety notes (optional)"
+                  placeholder="健康说明/受伤/手术/安全备注（可选）/ General Health / Injuries / Surgeries / safety notes (optional)"
                   rows={3}
                   className="w-full px-3 py-2 rounded-lg bg-card/60 border border-glow-cyan/20 focus:border-glow-cyan/50 focus:outline-none resize-none"
                 />
@@ -197,14 +203,14 @@ export default function AdminStudentsPage() {
                     type="text"
                     value={newStudentEmergencyName}
                     onChange={(e) => setNewStudentEmergencyName(e.target.value)}
-                    placeholder="Emergency contact name (optional)"
+                    placeholder="紧急联系人姓名（可选）/ Emergency contact name (optional)"
                     className="w-full px-3 py-2 rounded-lg bg-card/60 border border-glow-cyan/20 focus:border-glow-cyan/50 focus:outline-none"
                   />
                   <input
                     type="text"
                     value={newStudentEmergencyPhone}
                     onChange={(e) => setNewStudentEmergencyPhone(e.target.value)}
-                    placeholder="Emergency contact phone (optional)"
+                    placeholder="紧急联系人电话（可选）/ Emergency contact phone (optional)"
                     className="w-full px-3 py-2 rounded-lg bg-card/60 border border-glow-cyan/20 focus:border-glow-cyan/50 focus:outline-none"
                   />
                 </div>
@@ -215,9 +221,9 @@ export default function AdminStudentsPage() {
                     onChange={(e) => setNewStudentWaiverAccepted(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg bg-card/60 border border-glow-cyan/20 focus:border-glow-cyan/50 focus:outline-none"
                   >
-                    <option value="">Waiver status (optional)</option>
-                    <option value="yes">Waiver accepted: Yes</option>
-                    <option value="no">Waiver accepted: No</option>
+                    <option value="">免责协议状态（可选）/ Waiver status (optional)</option>
+                    <option value="yes">已同意 / Waiver accepted: Yes</option>
+                    <option value="no">未同意 / Waiver accepted: No</option>
                   </select>
                   <input
                     type="date"
@@ -231,14 +237,14 @@ export default function AdminStudentsPage() {
                   type="text"
                   value={newStudentSignatureName}
                   onChange={(e) => setNewStudentSignatureName(e.target.value)}
-                  placeholder="Signature name (as recorded, optional)"
+                  placeholder="签名姓名（记录值，可选）/ Signature name (as recorded, optional)"
                   className="w-full px-3 py-2 rounded-lg bg-card/60 border border-glow-cyan/20 focus:border-glow-cyan/50 focus:outline-none"
                 />
 
                 <textarea
                   value={newStudentComments}
                   onChange={(e) => setNewStudentComments(e.target.value)}
-                  placeholder="Comments (optional)"
+                  placeholder="备注（可选）/ Comments (optional)"
                   rows={2}
                   className="w-full px-3 py-2 rounded-lg bg-card/60 border border-glow-cyan/20 focus:border-glow-cyan/50 focus:outline-none resize-none"
                 />
@@ -248,7 +254,7 @@ export default function AdminStudentsPage() {
                   disabled={creatingStudent}
                   className="w-full px-3 py-2 rounded-lg bg-glow-cyan/20 border border-glow-cyan/40 text-glow-cyan hover:bg-glow-cyan/30 disabled:opacity-50"
                 >
-                  {creatingStudent ? 'Saving...' : 'Save Student'}
+                  {creatingStudent ? '保存中... / Saving...' : '保存学员 / Save Student'}
                 </button>
               </form>
             </div>

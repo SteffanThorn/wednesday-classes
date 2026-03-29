@@ -1,4 +1,5 @@
 import { Resend } from 'resend';
+import { appendBrandLogo } from '@/lib/email-branding';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -27,7 +28,7 @@ export async function POST(req) {
       from: 'Yuki <onboarding@resend.dev>',
       to: email,
       subject: 'One-on-One Personal Yoga Sessions - Let\'s Work Together',
-      html: `
+      html: appendBrandLogo(`
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
             <h1 style="color: #0369a1; margin: 0; font-size: 28px;">One-on-One Personal Sessions</h1>
@@ -85,7 +86,7 @@ export async function POST(req) {
             </div>
           </div>
         </div>
-      `,
+      `),
       reply_to: 'innerlightyuki@gmail.com'
     });
 

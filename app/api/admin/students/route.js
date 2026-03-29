@@ -4,6 +4,8 @@ import { auth } from '@/auth';
 import dbConnect from '@/lib/mongodb';
 import User from '@/lib/models/User';
 import HealthIntake from '@/lib/models/HealthIntake';
+
+const PACKAGE_TOTAL_CLASSES = 5;
 async function ensureAdmin() {
   const session = await auth();
 
@@ -98,8 +100,9 @@ export async function POST(request) {
 
     const normalizedEmail = email.toLowerCase().trim();
     const parsedClassCredits = Number.isFinite(Number(classCredits))
-      ? Math.max(0, Number(classCredits))
+      ? Math.min(PACKAGE_TOTAL_CLASSES, Math.max(0, Number(classCredits)))
       : null;
+    const effectiveClassCredits = parsedClassCredits ?? PACKAGE_TOTAL_CLASSES;
 
     await dbConnect();
 
@@ -118,7 +121,7 @@ export async function POST(request) {
       if (parsedClassCredits !== null) {
         existing.classCredits = parsedClassCredits;
       } else if (typeof existing.classCredits !== 'number') {
-        existing.classCredits = 0;
+        existing.classCredits = PACKAGE_TOTAL_CLASSES;
       }
       if (!Array.isArray(existing.classCreditHistory)) {
         existing.classCreditHistory = [];
@@ -148,6 +151,8 @@ export async function POST(request) {
             waiverAccepted: typeof waiverAccepted === 'boolean' ? waiverAccepted : false,
             comments: comments?.trim() || '',
             signatureName: signatureName?.trim() || '',
+            totalPackageClasses: PACKAGE_TOTAL_CLASSES,
+            remainingClassCredits: existing.classCredits,
             signedAt: signedAt ? new Date(signedAt) : new Date(),
             signatureDataUrl: '',
           },
@@ -176,7 +181,7 @@ export async function POST(request) {
       phone: phone?.trim() || '',
       role: 'student',
       password: temporaryPassword,
-      classCredits: parsedClassCredits ?? 0,
+      classCredits: effectiveClassCredits,
       classCreditHistory: parsedClassCredits !== null ? [{
         change: parsedClassCredits,
         type: 'adjustment',
@@ -199,6 +204,8 @@ export async function POST(request) {
         waiverAccepted: typeof waiverAccepted === 'boolean' ? waiverAccepted : false,
         comments: comments?.trim() || '',
         signatureName: signatureName?.trim() || '',
+        totalPackageClasses: PACKAGE_TOTAL_CLASSES,
+        remainingClassCredits: effectiveClassCredits,
         signedAt: signedAt ? new Date(signedAt) : new Date(),
         signatureDataUrl: '',
       });

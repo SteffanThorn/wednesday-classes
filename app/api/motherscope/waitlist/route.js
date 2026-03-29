@@ -1,4 +1,5 @@
 import { Resend } from 'resend';
+import { appendBrandLogo } from '@/lib/email-branding';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -27,7 +28,7 @@ export async function POST(req) {
       from: 'Motherscope <onboarding@resend.dev>',
       to: email,
       subject: 'Welcome to Motherscope Waitlist - Choose Your Preferred Time',
-      html: `
+      html: appendBrandLogo(`
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%); padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
             <h1 style="color: #be185d; margin: 0; font-size: 28px;">Welcome to Motherscope</h1>
@@ -80,7 +81,7 @@ export async function POST(req) {
             </div>
           </div>
         </div>
-      `,
+      `),
       reply_to: 'innerlightyuki@gmail.com'
     });
 

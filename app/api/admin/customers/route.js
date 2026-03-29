@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import dbConnect from '@/lib/mongodb';
 import HealthIntake from '@/lib/models/HealthIntake';
-import User from '@/lib/models/User';
+
+const PACKAGE_TOTAL_CLASSES = 5;
 
 export async function GET(request) {
   const session = await auth();
@@ -13,32 +14,43 @@ export async function GET(request) {
   await dbConnect();
 
   try {
-    // Get all health intakes with user information
     const intakes = await HealthIntake.find({})
       .populate({
         path: 'userId',
-        select: 'name email role'
+        select: 'name email role classCredits',
       })
       .sort({ createdAt: -1 })
       .lean();
 
-    // Transform data for the admin dashboard
-    const customers = intakes.map((intake) => ({
-      id: intake._id.toString(),
-      userId: intake.userId?._id?.toString() || '',
-      userName: intake.userName,
-      userEmail: intake.userEmail,
-      phone: intake.phone || '',
-      healthNotes: intake.healthNotes || '',
-      emergencyContactName: intake.emergencyContactName || '',
-      emergencyContactPhone: intake.emergencyContactPhone || '',
-      waiverAccepted: intake.waiverAccepted || false,
-      comments: intake.comments || '',
-      signatureName: intake.signatureName || '',
-      signedAt: intake.signedAt || null,
-      createdAt: intake.createdAt,
-      updatedAt: intake.updatedAt,
-    }));
+    const customers = intakes.map((intake) => {
+      const fallbackRemaining = Number.isFinite(Number(intake.remainingClassCredits))
+        ? Number(intake.remainingClassCredits)
+        : PACKAGE_TOTAL_CLASSES;
+      const remainingClassCredits = Math.min(
+        PACKAGE_TOTAL_CLASSES,
+        Math.max(0, intake.userId?.classCredits ?? fallbackRemaining)
+      );
+
+      return {
+        id: intake._id.toString(),
+        userId: intake.userId?._id?.toString() || '',
+        userName: intake.userName,
+        userEmail: intake.userEmail,
+        phone: intake.phone || '',
+        healthNotes: intake.healthNotes || '',
+        emergencyContactName: intake.emergencyContactName || '',
+        emergencyContactPhone: intake.emergencyContactPhone || '',
+        waiverAccepted: intake.waiverAccepted || false,
+        comments: intake.comments || '',
+        signatureName: intake.signatureName || '',
+        signedAt: intake.signedAt || null,
+        totalPackageClasses: PACKAGE_TOTAL_CLASSES,
+        remainingClassCredits,
+        usedPackageClasses: Math.max(0, PACKAGE_TOTAL_CLASSES - remainingClassCredits),
+        createdAt: intake.createdAt,
+        updatedAt: intake.updatedAt,
+      };
+    });
 
     return NextResponse.json({
       success: true,

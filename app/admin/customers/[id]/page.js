@@ -14,7 +14,7 @@ export default function CustomerDetailPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const params = useParams();
-  const customerId = params.id;
+  const customerId = Array.isArray(params.id) ? params.id[0] : params.id;
 
   const [customer, setCustomer] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -115,16 +115,16 @@ export default function CustomerDetailPage() {
             <div className="max-w-3xl mx-auto">
               <div className="mb-6 flex items-center gap-2">
                 <Link href="/admin/customers" className="text-muted-foreground hover:text-glow-cyan transition-colors text-sm">
-                  Customer Data
+                  客户资料 / Customer Data
                 </Link>
                 <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                <span className="text-red-400 text-sm">Error</span>
+                <span className="text-red-400 text-sm">错误 / Error</span>
               </div>
               <div className="p-6 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400">
-                {error || 'Customer not found'}
+                {error || '未找到客户资料。/ Customer not found'}
               </div>
               <Link href="/admin/customers" className="mt-4 inline-block px-4 py-2 rounded-lg bg-glow-cyan/20 border border-glow-cyan/40 text-glow-cyan hover:bg-glow-cyan/30">
-                Back to Customers
+                返回客户列表 / Back to Customers
               </Link>
             </div>
           </section>
@@ -144,11 +144,11 @@ export default function CustomerDetailPage() {
             {/* Breadcrumb */}
             <div className="mb-6 flex items-center gap-2">
               <Link href="/admin" className="text-muted-foreground hover:text-glow-cyan transition-colors text-sm">
-                Admin Dashboard
+                管理后台 / Admin Dashboard
               </Link>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
               <Link href="/admin/customers" className="text-muted-foreground hover:text-glow-cyan transition-colors text-sm">
-                Customer Data
+                客户资料 / Customer Data
               </Link>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
               <span className="text-glow-cyan text-sm">{customer.userName}</span>
@@ -160,14 +160,14 @@ export default function CustomerDetailPage() {
                 <h1 className="font-display text-3xl md:text-4xl font-light text-glow-subtle mb-2">
                   {customer.userName}
                 </h1>
-                <p className="text-muted-foreground">Customer health intake information</p>
+                <p className="text-muted-foreground">客户健康问卷信息 / Customer health intake information</p>
               </div>
               <Link
                 href={`/admin/customers/${customer.id}/edit`}
                 className="px-4 py-2 rounded-lg bg-glow-cyan/20 border border-glow-cyan/40 text-glow-cyan hover:bg-glow-cyan/30 transition-colors flex items-center gap-2 whitespace-nowrap"
               >
                 <Edit2 className="w-4 h-4" />
-                Edit
+                编辑 / Edit
               </Link>
             </div>
 
@@ -176,7 +176,7 @@ export default function CustomerDetailPage() {
               <div className="flex items-center gap-3">
                 <Mail className="w-5 h-5 text-glow-cyan" />
                 <div className="flex-1">
-                  <p className="text-xs text-muted-foreground mb-1">Email</p>
+                  <p className="text-xs text-muted-foreground mb-1">邮箱 / Email</p>
                   <p className="text-foreground break-all">{customer.userEmail}</p>
                 </div>
               </div>
@@ -184,7 +184,7 @@ export default function CustomerDetailPage() {
                 <div className="flex items-center gap-3">
                   <Phone className="w-5 h-5 text-glow-cyan" />
                   <div>
-                    <p className="text-xs text-muted-foreground mb-1">Phone</p>
+                    <p className="text-xs text-muted-foreground mb-1">电话 / Phone</p>
                     <p className="text-foreground">{customer.phone}</p>
                   </div>
                 </div>
@@ -192,10 +192,29 @@ export default function CustomerDetailPage() {
               <div className="flex items-center gap-3">
                 <Calendar className="w-5 h-5 text-glow-cyan" />
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Submitted</p>
+                  <p className="text-xs text-muted-foreground mb-1">提交时间 / Submitted</p>
                   <p className="text-foreground">{new Date(customer.createdAt).toLocaleDateString()} at {new Date(customer.createdAt).toLocaleTimeString()}</p>
                 </div>
               </div>
+            </div>
+
+            <div className="p-6 rounded-lg border border-glow-cyan/20 bg-card/60 mb-6">
+              <h2 className="font-semibold text-foreground mb-4">课程包 / Course Package</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="rounded-lg border border-glow-cyan/20 bg-glow-cyan/5 p-4">
+                  <p className="text-xs text-muted-foreground mb-1">总课次 / Total Classes</p>
+                  <p className="text-2xl font-light text-foreground">{customer.totalPackageClasses ?? 5}</p>
+                </div>
+                <div className="rounded-lg border border-glow-cyan/20 bg-glow-cyan/5 p-4">
+                  <p className="text-xs text-muted-foreground mb-1">剩余课次 / Remaining Classes</p>
+                  <p className="text-2xl font-light text-glow-cyan">{customer.remainingClassCredits ?? 0}</p>
+                </div>
+                <div className="rounded-lg border border-glow-cyan/20 bg-glow-cyan/5 p-4">
+                  <p className="text-xs text-muted-foreground mb-1">已用课次 / Used Classes</p>
+                  <p className="text-2xl font-light text-foreground">{customer.usedPackageClasses ?? Math.max(0, (customer.totalPackageClasses ?? 5) - (customer.remainingClassCredits ?? 0))}</p>
+                </div>
+              </div>
+              <p className="mt-4 text-xs text-muted-foreground">每完成 1 节课会自动扣除 1 节剩余课次。/ Each completed class automatically deducts 1 remaining class.</p>
             </div>
 
             {/* Health Notes Section */}
@@ -206,7 +225,7 @@ export default function CustomerDetailPage() {
               >
                 <div className="flex items-center gap-3">
                   <FileText className="w-5 h-5 text-glow-cyan" />
-                  <h2 className="font-semibold text-foreground">Health & Medical Notes</h2>
+                  <h2 className="font-semibold text-foreground">健康与医疗备注 / Health & Medical Notes</h2>
                 </div>
                 {expandedSections.health ? (
                   <ChevronUp className="w-5 h-5 text-muted-foreground" />
@@ -222,7 +241,7 @@ export default function CustomerDetailPage() {
                         {customer.healthNotes}
                       </div>
                     ) : (
-                      <p className="text-muted-foreground text-sm">No health notes provided</p>
+                      <p className="text-muted-foreground text-sm">未提供健康备注。/ No health notes provided</p>
                     )}
                   </div>
                 </div>
@@ -237,7 +256,7 @@ export default function CustomerDetailPage() {
               >
                 <div className="flex items-center gap-3">
                   <Phone className="w-5 h-5 text-glow-cyan" />
-                  <h2 className="font-semibold text-foreground">Emergency Contact</h2>
+                  <h2 className="font-semibold text-foreground">紧急联系人 / Emergency Contact</h2>
                 </div>
                 {expandedSections.emergency ? (
                   <ChevronUp className="w-5 h-5 text-muted-foreground" />
@@ -251,18 +270,18 @@ export default function CustomerDetailPage() {
                     {customer.emergencyContactName ? (
                       <>
                         <div>
-                          <p className="text-xs text-muted-foreground mb-1">Name</p>
+                          <p className="text-xs text-muted-foreground mb-1">姓名 / Name</p>
                           <p className="text-foreground">{customer.emergencyContactName}</p>
                         </div>
                         {customer.emergencyContactPhone && (
                           <div>
-                            <p className="text-xs text-muted-foreground mb-1">Phone</p>
+                            <p className="text-xs text-muted-foreground mb-1">电话 / Phone</p>
                             <p className="text-foreground">{customer.emergencyContactPhone}</p>
                           </div>
                         )}
                       </>
                     ) : (
-                      <p className="text-muted-foreground text-sm">No emergency contact provided</p>
+                      <p className="text-muted-foreground text-sm">未提供紧急联系人信息。/ No emergency contact provided</p>
                     )}
                   </div>
                 </div>
@@ -277,7 +296,7 @@ export default function CustomerDetailPage() {
               >
                 <div className="flex items-center gap-3">
                   <FileText className="w-5 h-5 text-glow-cyan" />
-                  <h2 className="font-semibold text-foreground">Waiver & Signature</h2>
+                  <h2 className="font-semibold text-foreground">免责协议与签名 / Waiver & Signature</h2>
                 </div>
                 {expandedSections.waiver ? (
                   <ChevronUp className="w-5 h-5 text-muted-foreground" />
@@ -289,27 +308,27 @@ export default function CustomerDetailPage() {
                 <div className="px-6 py-4 border-t border-glow-cyan/20 bg-glow-cyan/2">
                   <div className="space-y-3">
                     <div>
-                      <p className="text-xs text-muted-foreground mb-1">Waiver Status</p>
+                      <p className="text-xs text-muted-foreground mb-1">免责协议状态 / Waiver Status</p>
                       <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${customer.waiverAccepted ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
-                        {customer.waiverAccepted ? 'Accepted' : 'Not Accepted'}
+                        {customer.waiverAccepted ? '已同意 / Accepted' : '未同意 / Not Accepted'}
                       </span>
                     </div>
                     {customer.signedAt && (
                       <div>
-                        <p className="text-xs text-muted-foreground mb-1">Signed Date</p>
+                        <p className="text-xs text-muted-foreground mb-1">签署日期 / Signed Date</p>
                         <p className="text-foreground">{new Date(customer.signedAt).toLocaleDateString()}</p>
                       </div>
                     )}
                     {customer.signatureName && (
                       <div>
-                        <p className="text-xs text-muted-foreground mb-1">Signature Name</p>
+                        <p className="text-xs text-muted-foreground mb-1">签名姓名 / Signature Name</p>
                         <p className="text-foreground">{customer.signatureName}</p>
                       </div>
                     )}
                     {customer.signatureDataUrl && (
                       <div>
-                        <p className="text-xs text-muted-foreground mb-2">Signature Image</p>
-                        <img src={customer.signatureDataUrl} alt="Signature" className="max-w-xs border border-glow-cyan/20 rounded" />
+                        <p className="text-xs text-muted-foreground mb-2">签名图片 / Signature Image</p>
+                        <img src={customer.signatureDataUrl} alt="签名 / Signature" className="max-w-xs border border-glow-cyan/20 rounded" />
                       </div>
                     )}
                   </div>
@@ -326,7 +345,7 @@ export default function CustomerDetailPage() {
                 >
                   <div className="flex items-center gap-3">
                     <FileText className="w-5 h-5 text-glow-cyan" />
-                    <h2 className="font-semibold text-foreground">Additional Comments</h2>
+                    <h2 className="font-semibold text-foreground">补充备注 / Additional Comments</h2>
                   </div>
                   {expandedSections.other ? (
                     <ChevronUp className="w-5 h-5 text-muted-foreground" />
@@ -349,7 +368,7 @@ export default function CustomerDetailPage() {
               href="/admin/customers"
               className="inline-block mt-8 px-6 py-2 rounded-lg bg-glow-cyan/20 border border-glow-cyan/40 text-glow-cyan hover:bg-glow-cyan/30 transition-colors"
             >
-              Back to Customers
+              返回客户列表 / Back to Customers
             </Link>
           </div>
         </section>

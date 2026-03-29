@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { Resend } from 'resend';
 import { getBookingConfirmationEmail, getBookingConfirmationText, getCancellationEmail } from '@/lib/email-templates';
+import { appendBrandLogo } from '@/lib/email-branding';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -74,7 +75,7 @@ function getWelcomeEmail({ userName }) {
 <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f5f5f5;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 600px; margin: 0 auto; padding: 20px;">
     <tr>
-      <td style="text-align: center; padding: 30px 20px; background: linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%); border-radius: 12px 12px 0 0;">
+      <td style="text-align: center; padding: 30px 20px; background: linear-gradient(135deg, #ff8a80 0%, #ffcc80 16.66%, #fff9c4 33.33%, #a5d6a7 50%, #81d4fa 66.66%, #9fa8da 83.33%, #ce93d8 100%); border-radius: 12px 12px 0 0;">
         <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 300;">INNER LIGHT</h1>
         <p style="margin: 10px 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">Yoga & Meditation</p>
       </td>
@@ -126,7 +127,7 @@ function getFirstClassInquiryEmail({ userName, classType, preferredDate, preferr
 <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f5f5f5;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 600px; margin: 0 auto; padding: 20px;">
     <tr>
-      <td style="text-align: center; padding: 30px 20px; background: linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%); border-radius: 12px 12px 0 0;">
+      <td style="text-align: center; padding: 30px 20px; background: linear-gradient(135deg, #ff8a80 0%, #ffcc80 16.66%, #fff9c4 33.33%, #a5d6a7 50%, #81d4fa 66.66%, #9fa8da 83.33%, #ce93d8 100%); border-radius: 12px 12px 0 0;">
         <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 300;">INNER LIGHT</h1>
         <p style="margin: 10px 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">Yoga & Meditation</p>
       </td>
@@ -193,7 +194,7 @@ function getFirstClassAdminNotification({ userName, userEmail, userPhone, classT
 <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f5f5f5;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 600px; margin: 0 auto; padding: 20px;">
     <tr>
-      <td style="text-align: center; padding: 30px 20px; background: linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%); border-radius: 12px 12px 0 0;">
+      <td style="text-align: center; padding: 30px 20px; background: linear-gradient(135deg, #ff8a80 0%, #ffcc80 16.66%, #fff9c4 33.33%, #a5d6a7 50%, #81d4fa 66.66%, #9fa8da 83.33%, #ce93d8 100%); border-radius: 12px 12px 0 0;">
         <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 300;">INNER LIGHT</h1>
         <p style="margin: 10px 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">Yoga & Meditation</p>
       </td>
@@ -273,7 +274,7 @@ function getPaymentFailedEmail({ userName, className, classDate, classTime, amou
 <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f5f5f5;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 600px; margin: 0 auto; padding: 20px;">
     <tr>
-      <td style="text-align: center; padding: 30px 20px; background: linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%); border-radius: 12px 12px 0 0;">
+      <td style="text-align: center; padding: 30px 20px; background: linear-gradient(135deg, #ff8a80 0%, #ffcc80 16.66%, #fff9c4 33.33%, #a5d6a7 50%, #81d4fa 66.66%, #9fa8da 83.33%, #ce93d8 100%); border-radius: 12px 12px 0 0;">
         <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 300;">INNER LIGHT</h1>
         <p style="margin: 10px 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">Yoga & Meditation</p>
       </td>
@@ -356,7 +357,7 @@ function getRefundEmail({ userName, className, classDate, classTime, amount, ref
 <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f5f5f5;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 600px; margin: 0 auto; padding: 20px;">
     <tr>
-      <td style="text-align: center; padding: 30px 20px; background: linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%); border-radius: 12px 12px 0 0;">
+      <td style="text-align: center; padding: 30px 20px; background: linear-gradient(135deg, #ff8a80 0%, #ffcc80 16.66%, #fff9c4 33.33%, #a5d6a7 50%, #81d4fa 66.66%, #9fa8da 83.33%, #ce93d8 100%); border-radius: 12px 12px 0 0;">
         <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 300;">INNER LIGHT</h1>
         <p style="margin: 10px 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">Yoga & Meditation</p>
       </td>
@@ -438,7 +439,7 @@ function getAccountSetupEmail({ userName, setupUrl }) {
 <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f5f5f5;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 600px; margin: 0 auto; padding: 20px;">
     <tr>
-      <td style="text-align: center; padding: 30px 20px; background: linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%); border-radius: 12px 12px 0 0;">
+      <td style="text-align: center; padding: 30px 20px; background: linear-gradient(135deg, #ff8a80 0%, #ffcc80 16.66%, #fff9c4 33.33%, #a5d6a7 50%, #81d4fa 66.66%, #9fa8da 83.33%, #ce93d8 100%); border-radius: 12px 12px 0 0;">
         <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 300;">INNER LIGHT</h1>
         <p style="margin: 10px 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">Yoga &amp; Meditation</p>
       </td>
@@ -595,6 +596,7 @@ export async function POST(request) {
     }
 
     const template = emailTemplates[emailType];
+    const companyEmail = process.env.COMPANY_EMAIL || 'innerlightyuki@gmail.com';
     
     // Generate email content
     let html, subject, text;
@@ -609,9 +611,13 @@ export async function POST(request) {
       subject = template.subject;
     }
 
+    html = appendBrandLogo(html);
+
     // Use Resend's test domain for local development
     const isLocal = process.env.NODE_ENV === 'development';
-    const senderEmail = isLocal ? 'onboarding@resend.dev' : 'contact@innerlightyoga.co.nz';
+    const senderEmail = isLocal
+      ? process.env.EMAIL_FROM_LOCAL || 'onboarding@resend.dev'
+      : process.env.EMAIL_FROM_PRODUCTION || 'contact@innerlightyoga.co.nz';
     const senderName = isLocal ? 'INNER LIGHT Yoga (Test)' : 'INNER LIGHT Yoga';
 
     // Send email via Resend
@@ -621,13 +627,17 @@ export async function POST(request) {
       subject,
       html,
       text,
-      replyTo: replyTo || 'contact@innerlightyoga.co.nz',
+      replyTo: replyTo || companyEmail,
     });
 
     if (error) {
+      const resendMessage = error?.message || error?.name || 'Unknown Resend error';
+      const withGuidance = String(resendMessage).toLowerCase().includes('verify a domain at resend.com/domains')
+        ? `${resendMessage}. Verify your sender domain in Resend and configure EMAIL_FROM_PRODUCTION.`
+        : resendMessage;
       console.error('Resend error:', error);
       return NextResponse.json(
-        { error: 'Failed to send email', details: error },
+        { error: 'Failed to send email', details: withGuidance },
         { status: 500 }
       );
     }

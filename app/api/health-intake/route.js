@@ -3,6 +3,8 @@ import { auth } from '@/auth';
 import dbConnect from '@/lib/mongodb';
 import HealthIntake from '@/lib/models/HealthIntake';
 
+const PACKAGE_TOTAL_CLASSES = 5;
+
 export async function GET() {
   const session = await auth();
   if (!session?.user) {
@@ -28,6 +30,11 @@ export async function GET() {
           emergencyContactPhone: intake.emergencyContactPhone,
           waiverAccepted: intake.waiverAccepted,
           comments: intake.comments,
+          totalPackageClasses: intake.totalPackageClasses || PACKAGE_TOTAL_CLASSES,
+          remainingClassCredits:
+            typeof intake.remainingClassCredits === 'number'
+              ? intake.remainingClassCredits
+              : PACKAGE_TOTAL_CLASSES,
           signedAt: intake.signedAt,
         }
       : null,
@@ -74,6 +81,8 @@ export async function POST(request) {
     waiverAccepted: true,
     comments: comments?.trim() || '',
     signatureDataUrl,
+    totalPackageClasses: PACKAGE_TOTAL_CLASSES,
+    remainingClassCredits: PACKAGE_TOTAL_CLASSES,
     signedAt: new Date(),
   });
 

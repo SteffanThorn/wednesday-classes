@@ -10,11 +10,13 @@ import { Loader2, ChevronRight, ArrowLeft } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
+const OBJECT_ID_REGEX = /^[a-f\d]{24}$/i;
+
 export default function EditCustomerPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const params = useParams();
-  const customerId = params.id;
+  const customerId = Array.isArray(params.id) ? params.id[0] : params.id;
 
   const [customer, setCustomer] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -32,6 +34,7 @@ export default function EditCustomerPage() {
     waiverAccepted: false,
     comments: '',
     signatureName: '',
+    remainingClassCredits: 0,
   });
 
   useEffect(() => {
@@ -74,6 +77,7 @@ export default function EditCustomerPage() {
           waiverAccepted: customerData.waiverAccepted || false,
           comments: customerData.comments || '',
           signatureName: customerData.signatureName || '',
+          remainingClassCredits: customerData.remainingClassCredits ?? 0,
         });
       } else {
         throw new Error('No intake data found for this customer');
@@ -101,7 +105,13 @@ export default function EditCustomerPage() {
 
     try {
       if (!formData.userName.trim() || !formData.userEmail.trim()) {
-        setError('Name and email are required');
+        setError('姓名和邮箱为必填。/ Name and email are required');
+        setSaving(false);
+        return;
+      }
+
+      if (!customerId || typeof customerId !== 'string' || !OBJECT_ID_REGEX.test(customerId)) {
+        setError('客户记录 ID 无效，请从客户列表重新进入编辑页。/ Invalid customer record ID, please reopen this page from Customer Data.');
         setSaving(false);
         return;
       }
@@ -113,14 +123,19 @@ export default function EditCustomerPage() {
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to update customer');
+      if (!response.ok) {
+        if (data?.code === 'INVALID_INTAKE_ID') {
+          throw new Error('客户记录 ID 无效，请从客户列表重新进入编辑页。/ Invalid intake ID, please reopen from Customer Data.');
+        }
+        throw new Error(data.error || 'Failed to update customer');
+      }
 
-      setSuccess('Customer information updated successfully!');
+      setSuccess('客户信息更新成功！/ Customer information updated successfully!');
       setTimeout(() => {
         router.push(`/admin/customers/${customerId}`);
       }, 1500);
     } catch (err) {
-      setError(err.message || 'Failed to update customer');
+      setError(err.message || '更新客户失败。/ Failed to update customer');
     } finally {
       setSaving(false);
     }
@@ -168,16 +183,16 @@ export default function EditCustomerPage() {
             <div className="max-w-3xl mx-auto">
               <div className="mb-6 flex items-center gap-2">
                 <Link href="/admin/customers" className="text-muted-foreground hover:text-glow-cyan transition-colors text-sm">
-                  Customer Data
+                  客户资料 / Customer Data
                 </Link>
                 <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                <span className="text-red-400 text-sm">Error</span>
+                <span className="text-red-400 text-sm">错误 / Error</span>
               </div>
               <div className="p-6 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400">
                 {error}
               </div>
               <Link href="/admin/customers" className="mt-4 inline-block px-4 py-2 rounded-lg bg-glow-cyan/20 border border-glow-cyan/40 text-glow-cyan hover:bg-glow-cyan/30">
-                Back to Customers
+                返回客户列表 / Back to Customers
               </Link>
             </div>
           </section>
@@ -197,26 +212,26 @@ export default function EditCustomerPage() {
             {/* Breadcrumb */}
             <div className="mb-6 flex items-center gap-2">
               <Link href="/admin" className="text-muted-foreground hover:text-glow-cyan transition-colors text-sm">
-                Admin Dashboard
+                管理后台 / Admin Dashboard
               </Link>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
               <Link href="/admin/customers" className="text-muted-foreground hover:text-glow-cyan transition-colors text-sm">
-                Customer Data
+                客户资料 / Customer Data
               </Link>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
               <Link href={`/admin/customers/${customerId}`} className="text-muted-foreground hover:text-glow-cyan transition-colors text-sm">
                 {customer.userName}
               </Link>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
-              <span className="text-glow-cyan text-sm">Edit</span>
+              <span className="text-glow-cyan text-sm">编辑 / Edit</span>
             </div>
 
             {/* Header */}
             <div className="mb-8">
               <h1 className="font-display text-3xl md:text-4xl font-light text-glow-subtle mb-2">
-                Edit Customer Information
+                编辑客户信息 / Edit Customer Information
               </h1>
-              <p className="text-muted-foreground">Update {customer.userName}'s health intake information</p>
+              <p className="text-muted-foreground">更新 {customer.userName} 的健康问卷信息 / Update {customer.userName}'s health intake information</p>
             </div>
 
             {/* Alerts */}
@@ -236,12 +251,12 @@ export default function EditCustomerPage() {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Basic Information */}
               <div className="p-6 rounded-lg border border-glow-cyan/20 bg-card/60 space-y-4">
-                <h2 className="font-semibold text-foreground mb-4">Basic Information</h2>
+                <h2 className="font-semibold text-foreground mb-4">基础信息 / Basic Information</h2>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-2">
-                      Name *
+                      姓名 * / Name *
                     </label>
                     <input
                       type="text"
@@ -255,7 +270,7 @@ export default function EditCustomerPage() {
 
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-2">
-                      Email *
+                      邮箱 * / Email *
                     </label>
                     <input
                       type="email"
@@ -269,7 +284,7 @@ export default function EditCustomerPage() {
 
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-2">
-                      Phone
+                      电话 / Phone
                     </label>
                     <input
                       type="tel"
@@ -282,7 +297,7 @@ export default function EditCustomerPage() {
 
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-2">
-                      Signature Name
+                      签名姓名 / Signature Name
                     </label>
                     <input
                       type="text"
@@ -295,19 +310,58 @@ export default function EditCustomerPage() {
                 </div>
               </div>
 
+              {/* Course Package */}
+              <div className="p-6 rounded-lg border border-glow-cyan/20 bg-card/60 space-y-4">
+                <h2 className="font-semibold text-foreground mb-4">课程包 / Course Package</h2>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-2">
+                      课程包规格 / Package Size
+                    </label>
+                    <input
+                      type="text"
+                      value="5 节 / 5 classes"
+                      readOnly
+                      className="w-full px-3 py-2 rounded-lg bg-card/40 border border-glow-cyan/10 text-muted-foreground cursor-not-allowed"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-2">
+                      剩余课次 / Remaining Classes
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="5"
+                      step="1"
+                      name="remainingClassCredits"
+                      value={formData.remainingClassCredits}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 rounded-lg bg-card/60 border border-glow-cyan/20 focus:border-glow-cyan/50 focus:outline-none text-foreground"
+                    />
+                  </div>
+                </div>
+
+                <p className="text-xs text-muted-foreground">
+                  该客户课程包总数固定为 5 节；每次上课出勤会自动扣 1 节。/ This customer package always starts with 5 classes. Each attended class automatically deducts 1 remaining class.
+                </p>
+              </div>
+
               {/* Health Information */}
               <div className="p-6 rounded-lg border border-glow-cyan/20 bg-card/60 space-y-4">
-                <h2 className="font-semibold text-foreground mb-4">Health Information</h2>
+                <h2 className="font-semibold text-foreground mb-4">健康信息 / Health Information</h2>
 
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-2">
-                    Health Notes
+                    健康备注 / Health Notes
                   </label>
                   <textarea
                     name="healthNotes"
                     value={formData.healthNotes}
                     onChange={handleChange}
-                    placeholder="General health, injuries, surgeries, safety notes..."
+                    placeholder="总体健康、受伤、手术、安全备注... / General health, injuries, surgeries, safety notes..."
                     rows={4}
                     className="w-full px-3 py-2 rounded-lg bg-card/60 border border-glow-cyan/20 focus:border-glow-cyan/50 focus:outline-none text-foreground resize-none"
                   />
@@ -315,7 +369,7 @@ export default function EditCustomerPage() {
 
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-2">
-                    Waiver Accepted
+                    免责协议已同意 / Waiver Accepted
                   </label>
                   <div className="flex items-center gap-3">
                     <input
@@ -325,19 +379,19 @@ export default function EditCustomerPage() {
                       onChange={handleChange}
                       className="w-4 h-4 rounded border-glow-cyan/20 text-glow-cyan cursor-pointer"
                     />
-                    <span className="text-sm text-muted-foreground">Health waiver has been accepted</span>
+                    <span className="text-sm text-muted-foreground">已确认同意健康免责协议 / Health waiver has been accepted</span>
                   </div>
                 </div>
               </div>
 
               {/* Emergency Contact */}
               <div className="p-6 rounded-lg border border-glow-cyan/20 bg-card/60 space-y-4">
-                <h2 className="font-semibold text-foreground mb-4">Emergency Contact</h2>
+                <h2 className="font-semibold text-foreground mb-4">紧急联系人 / Emergency Contact</h2>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-2">
-                      Emergency Contact Name
+                      紧急联系人姓名 / Emergency Contact Name
                     </label>
                     <input
                       type="text"
@@ -350,7 +404,7 @@ export default function EditCustomerPage() {
 
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-2">
-                      Emergency Contact Phone
+                      紧急联系人电话 / Emergency Contact Phone
                     </label>
                     <input
                       type="tel"
@@ -365,17 +419,17 @@ export default function EditCustomerPage() {
 
               {/* Additional Comments */}
               <div className="p-6 rounded-lg border border-glow-cyan/20 bg-card/60 space-y-4">
-                <h2 className="font-semibold text-foreground mb-4">Additional Information</h2>
+                <h2 className="font-semibold text-foreground mb-4">补充信息 / Additional Information</h2>
 
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-2">
-                    Comments
+                    备注 / Comments
                   </label>
                   <textarea
                     name="comments"
                     value={formData.comments}
                     onChange={handleChange}
-                    placeholder="Any additional notes or comments..."
+                    placeholder="其他补充备注... / Any additional notes or comments..."
                     rows={3}
                     className="w-full px-3 py-2 rounded-lg bg-card/60 border border-glow-cyan/20 focus:border-glow-cyan/50 focus:outline-none text-foreground resize-none"
                   />
@@ -392,10 +446,10 @@ export default function EditCustomerPage() {
                   {saving ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
-                      Saving...
+                      保存中... / Saving...
                     </>
                   ) : (
-                    'Save Changes'
+                    '保存修改 / Save Changes'
                   )}
                 </button>
 
@@ -404,7 +458,7 @@ export default function EditCustomerPage() {
                   className="flex-1 px-6 py-2 rounded-lg bg-card/60 border border-glow-cyan/20 text-foreground hover:bg-card transition-colors font-medium text-center flex items-center justify-center gap-2"
                 >
                   <ArrowLeft className="w-4 h-4" />
-                  Cancel
+                  取消 / Cancel
                 </Link>
               </div>
             </form>
