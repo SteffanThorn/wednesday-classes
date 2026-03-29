@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -12,7 +12,21 @@ const PACKAGE_TOTAL_CLASSES = 5;
 
 export const dynamic = 'force-dynamic';
 
-export default function AdminCustomersPage() {
+function AdminCustomersPageFallback() {
+  return (
+    <div className="min-h-screen relative overflow-hidden">
+      <FloatingParticles />
+      <div className="relative z-10">
+        <Header />
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Loader2 className="w-8 h-8 text-glow-cyan animate-spin" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AdminCustomersPageContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -355,5 +369,13 @@ export default function AdminCustomersPage() {
         </section>
       </div>
     </div>
+  );
+}
+
+export default function AdminCustomersPage() {
+  return (
+    <Suspense fallback={<AdminCustomersPageFallback />}>
+      <AdminCustomersPageContent />
+    </Suspense>
   );
 }
