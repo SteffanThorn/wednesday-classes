@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
 import FloatingParticles from '@/components/FloatingParticle';
 import { Loader2, UserPlus } from 'lucide-react';
@@ -14,6 +14,9 @@ export const dynamic = 'force-dynamic';
 export default function AdminStudentsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const profileType = searchParams.get('profileType') === 'potential' ? 'potential' : 'customer';
+  const isPotentialLeadMode = profileType === 'potential';
 
   const [newStudentName, setNewStudentName] = useState('');
   const [newStudentEmail, setNewStudentEmail] = useState('');
@@ -66,7 +69,47 @@ export default function AdminStudentsPage() {
         comments: newStudentComments.trim(),
         signatureName: newStudentSignatureName.trim(),
         signedAt: newStudentSignedAt,
+        profileType,
       };
+
+      const duplicateCheckParams = new URLSearchParams({
+        mode: 'duplicates',
+        name: payload.name,
+        email: payload.email,
+      });
+
+      if (payload.phone) {
+        duplicateCheckParams.set('phone', payload.phone);
+      }
+
+      const duplicateCheckRes = await fetch(`/api/admin/students?${duplicateCheckParams.toString()}`);
+      const duplicateCheckData = await duplicateCheckRes.json();
+
+      if (!duplicateCheckRes.ok) {
+        throw new Error(duplicateCheckData.error || 'Failed to check duplicates');
+      }
+
+      const duplicates = duplicateCheckData?.duplicates;
+      const hasDuplicates = !!duplicates?.hasDuplicates;
+
+      if (hasDuplicates) {
+        const duplicateMessage = [
+          '检测到可能重复的会员信息：',
+          `邮箱重复 / Email matches: ${duplicates.emailMatches?.length || 0}`,
+          `电话重复 / Phone matches: ${duplicates.phoneMatches?.length || 0}`,
+          `姓名重复 / Name matches: ${duplicates.nameMatches?.length || 0}`,
+          '',
+          '是否继续添加 / 更新？',
+        ].join('\n');
+
+        const confirmDuplicate = window.confirm(duplicateMessage);
+        if (!confirmDuplicate) {
+          setCreatingStudent(false);
+          return;
+        }
+
+        payload.confirmDuplicate = true;
+      }
 
       if (newStudentWaiverAccepted === 'yes') payload.waiverAccepted = true;
       if (newStudentWaiverAccepted === 'no') payload.waiverAccepted = false;
@@ -78,7 +121,49 @@ export default function AdminStudentsPage() {
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to save student');
+      if (!response.ok) {
+        if (response.status === 409 && data?.code === 'DUPLICATE_POTENTIAL') {
+          const duplicateMessage = [
+            '检测到可能重复的会员信息：',
+            `邮箱重复 / Email matches: ${data?.duplicates?.emailMatches?.length || 0}`,
+            `电话重复 / Phone matches: ${data?.duplicates?.phoneMatches?.length || 0}`,
+            `姓名重复 / Name matches: ${data?.duplicates?.nameMatches?.length || 0}`,
+            '',
+            '是否确认继续添加 / 更新？',
+          ].join('\n');
+
+          const confirmDuplicate = window.confirm(duplicateMessage);
+          if (!confirmDuplicate) {
+            setCreatingStudent(false);
+            return;
+          }
+
+          const retryResponse = await fetch('/api/admin/students', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...payload, confirmDuplicate: true }),
+          });
+
+          const retryData = await retryResponse.json();
+          if (!retryResponse.ok) throw new Error(retryData.error || 'Failed to save student');
+
+          setMessage(retryData.message || '学员信息已保存。/ Student saved successfully.');
+          setNewStudentName('');
+          setNewStudentEmail('');
+          setNewStudentPhone('');
+          setNewStudentClassCredits(String(PACKAGE_TOTAL_CLASSES));
+          setNewStudentHealthNotes('');
+          setNewStudentEmergencyName('');
+          setNewStudentEmergencyPhone('');
+          setNewStudentWaiverAccepted('');
+          setNewStudentComments('');
+          setNewStudentSignatureName('');
+          setNewStudentSignedAt(new Date().toISOString().split('T')[0]);
+          return;
+        }
+
+        throw new Error(data.error || 'Failed to save student');
+      }
 
       setMessage(data.message || '学员信息已保存。/ Student saved successfully.');
       setNewStudentName('');
@@ -127,17 +212,19 @@ export default function AdminStudentsPage() {
           <div className="max-w-3xl mx-auto">
             <div className="mb-6">
               <h1 className="font-display text-3xl md:text-4xl font-light text-glow-subtle">
-                录入学员 / Add a Student
+                {isPotentialLeadMode ? '添加潜在客户 / Add Potential Lead' : '录入学员 / Add a Student'}
               </h1>
               <p className="text-muted-foreground mt-1">
-                新增或更新学员资料（与出勤和课次共用同一数据库）。/ Add or update student records (same database as Attendance & Credits).
+                {isPotentialLeadMode
+                  ? '新增潜在客户资料，并直接保存到潜在客户名单。/ Add a potential lead and save it directly into the potential leads list.'
+                  : '新增或更新学员资料（与出勤和课次共用同一数据库）。/ Add or update student records (same database as Attendance & Credits).'}
               </p>
             </div>
 
             <div className="p-6 rounded-xl bg-card/60 border border-glow-cyan/20">
               <h2 className="text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
                 <UserPlus className="w-5 h-5 text-glow-cyan" />
-                学员信息录入 / Add Student
+                {isPotentialLeadMode ? '潜在客户信息录入 / Add Potential Lead' : '学员信息录入 / Add Student'}
               </h2>
 
               {error && (
@@ -187,7 +274,9 @@ export default function AdminStudentsPage() {
                   className="w-full px-3 py-2 rounded-lg bg-card/60 border border-glow-cyan/20 focus:border-glow-cyan/50 focus:outline-none"
                 />
                 <p className="text-xs text-muted-foreground">
-                  默认 5 节课；老客户请录入实际剩余课次。/ Default is 5 classes. For old customers, enter their actual remaining classes.
+                  {isPotentialLeadMode
+                    ? '如尚未购买课程，可填 0；若已沟通过课程安排，也可填写预留课次。/ For unconverted leads you can set 0, or enter planned credits if needed.'
+                    : '默认 5 节课；老客户请录入实际剩余课次。/ Default is 5 classes. For old customers, enter their actual remaining classes.'}
                 </p>
 
                 <textarea

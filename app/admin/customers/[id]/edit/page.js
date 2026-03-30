@@ -6,7 +6,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import FloatingParticles from '@/components/FloatingParticle';
-import { Loader2, ChevronRight, ArrowLeft } from 'lucide-react';
+import { Loader2, ChevronRight, ArrowLeft, UserSearch } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +21,7 @@ export default function EditCustomerPage() {
   const [customer, setCustomer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [moving, setMoving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -95,6 +96,36 @@ export default function EditCustomerPage() {
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
     }));
+  };
+
+  const handleMoveToLeads = async () => {
+    const confirmed = window.confirm(
+      `将此客户移至潜在客户列表？\n\n${customer?.userName} (${customer?.userEmail})\n\n该操作可在潜在客户页面撤销。`
+    );
+    if (!confirmed) return;
+
+    setMoving(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const response = await fetch(`/api/admin/customers/${customerId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profileType: 'potential' }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to move customer');
+
+      setSuccess('已成功移至潜在客户列表，正在跳转... / Moved to potential leads. Redirecting...');
+      setTimeout(() => {
+        router.push('/admin/customers');
+      }, 1500);
+    } catch (err) {
+      setError(err.message || '操作失败，请重试。/ Failed to move customer');
+    } finally {
+      setMoving(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -434,6 +465,36 @@ export default function EditCustomerPage() {
                     className="w-full px-3 py-2 rounded-lg bg-card/60 border border-glow-cyan/20 focus:border-glow-cyan/50 focus:outline-none text-foreground resize-none"
                   />
                 </div>
+              </div>
+
+              {/* Move to Potential Leads */}
+              <div className="p-6 rounded-lg border border-yellow-500/30 bg-yellow-500/5 space-y-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <UserSearch className="w-4 h-4 text-yellow-400" />
+                  <h2 className="font-semibold text-yellow-300">移至潜在客户 / Move to Potential Leads</h2>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  将该客户从正式客户列表移至潜在客户档案。可在管理后台"潜在客户"页面查看与撤销。<br />
+                  Move this customer to the potential leads archive. You can reverse this from the Potential Leads page in admin.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleMoveToLeads}
+                  disabled={moving || saving}
+                  className="px-5 py-2 rounded-lg bg-yellow-500/15 border border-yellow-500/40 text-yellow-300 hover:bg-yellow-500/25 transition-colors text-sm font-medium flex items-center gap-2 disabled:opacity-50"
+                >
+                  {moving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      移动中... / Moving...
+                    </>
+                  ) : (
+                    <>
+                      <UserSearch className="w-4 h-4" />
+                      移至潜在客户列表 / Move to Potential Leads
+                    </>
+                  )}
+                </button>
               </div>
 
               {/* Buttons */}
