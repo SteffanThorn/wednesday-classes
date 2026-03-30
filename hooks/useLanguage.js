@@ -548,14 +548,23 @@ export function LanguageProvider({ children }) {
   const [language, setLanguage] = useState('en');
   const [mounted, setMounted] = useState(false);
 
+  const normalizeLanguage = (lang) => {
+    const value = String(lang || '').toLowerCase().trim();
+    if (!value) return 'en';
+    if (value === 'zh' || value === 'cn' || value.startsWith('zh-') || value.startsWith('zh_')) {
+      return 'zh';
+    }
+    return 'en';
+  };
+
   useEffect(() => {
     // Check for saved preference
     const savedLanguage = localStorage.getItem('language');
-    if (savedLanguage && (savedLanguage === 'en' || savedLanguage === 'zh')) {
-      setLanguage(savedLanguage);
+    if (savedLanguage) {
+      setLanguage(normalizeLanguage(savedLanguage));
     } else {
       // Check browser language
-      const browserLang = navigator.language.split('-')[0];
+      const browserLang = normalizeLanguage(navigator.language);
       if (browserLang === 'zh') {
         setLanguage('zh');
       }
@@ -575,9 +584,10 @@ export function LanguageProvider({ children }) {
   };
 
   const setLanguageTo = (lang) => {
-    if (lang === 'en' || lang === 'zh') {
-      setLanguage(lang);
-      localStorage.setItem('language', lang);
+    const normalized = normalizeLanguage(lang);
+    if (normalized === 'en' || normalized === 'zh') {
+      setLanguage(normalized);
+      localStorage.setItem('language', normalized);
     }
   };
 

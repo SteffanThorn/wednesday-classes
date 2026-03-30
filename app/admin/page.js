@@ -15,7 +15,7 @@ export default function AdminDashboardPage() {
   const { language, mounted } = useLanguage();
   const { data: session, status } = useSession();
   const router = useRouter();
-  const isZh = mounted && language === 'zh';
+  const isZh = language === 'zh';
   const txt = (zh, en) => (isZh ? zh : en);
   const [creditSummary, setCreditSummary] = useState({
     total: 0,
