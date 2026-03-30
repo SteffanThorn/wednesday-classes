@@ -1,6 +1,4 @@
 import { NextResponse } from 'next/server';
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
 import { auth } from '@/auth';
 import { Resend } from 'resend';
 import dbConnect from '@/lib/mongodb';
@@ -23,7 +21,6 @@ const SENDER_EMAIL =
 
 const SENDER_NAME = 'Yuki · INNER LIGHT Yoga';
 const COMPANY_EMAIL = process.env.COMPANY_EMAIL || 'innerlightyuki@gmail.com';
-const COMPANY_LOGO_CID = 'innerlight-logo-footer';
 const BATCH_SIZE = 100;
 const MAX_ATTACHMENTS = 5;
 const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024; // 5MB
@@ -80,21 +77,6 @@ function isInlineImage(file) {
   if (!file?.type) return false;
   const normalized = String(file.type).toLowerCase();
   return ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'].includes(normalized);
-}
-
-async function loadCompanyLogoAttachment() {
-  try {
-    const logoPath = path.join(process.cwd(), 'public', 'innerlight-logo.png');
-    const logoBuffer = await readFile(logoPath);
-    return {
-      filename: 'innerlight-logo.png',
-      content: logoBuffer.toString('base64'),
-      contentId: COMPANY_LOGO_CID,
-    };
-  } catch (error) {
-    console.warn('Custom newsletter logo attachment not loaded, fallback to URL logo:', error?.message || error);
-    return null;
-  }
 }
 
 function normalizeTestRecipients(testEmail, fallbackName) {
@@ -261,8 +243,6 @@ export async function POST(request) {
       return NextResponse.json({ error: 'No recipients found' }, { status: 400 });
     }
 
-    const logoAttachment = await loadCompanyLogoAttachment();
-
     // Separate images from file attachments and add CID to images
     const inlineImages = attachments.filter(isInlineImage).map((file, idx) => ({
       ...file,
@@ -277,7 +257,6 @@ export async function POST(request) {
 
       // Combine inline images and file attachments for Resend
       const allAttachments = [
-        ...(logoAttachment ? [logoAttachment] : []),
         ...inlineImages.map((img) => ({
           filename: img.filename,
           content: img.content,
@@ -298,9 +277,9 @@ export async function POST(request) {
             content: personalizedContent,
             inlineImages,
             fileAttachments,
-            logoSrc: logoAttachment ? `cid:${COMPANY_LOGO_CID}` : getCompanyLogoUrl(),
+            logoSrc: getCompanyLogoUrl(),
           }),
-          logoAttachment ? { logoSrc: `cid:${COMPANY_LOGO_CID}` } : undefined
+          undefined
         ),
         replyTo: COMPANY_EMAIL,
         attachments: allAttachments.length > 0 ? allAttachments : undefined,

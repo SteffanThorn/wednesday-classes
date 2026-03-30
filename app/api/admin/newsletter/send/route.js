@@ -1,6 +1,4 @@
 import { NextResponse } from 'next/server';
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
 import { auth } from '@/auth';
 import { Resend } from 'resend';
 import dbConnect from '@/lib/mongodb';
@@ -25,7 +23,6 @@ const SENDER_EMAIL =
 
 const SENDER_NAME = 'Yuki · INNER LIGHT Yoga';
 const COMPANY_EMAIL = process.env.COMPANY_EMAIL || 'innerlightyuki@gmail.com';
-const COMPANY_LOGO_CID = 'innerlight-logo-footer';
 
 // Resend batch limit
 const BATCH_SIZE = 100;
@@ -51,21 +48,6 @@ function withResendGuidance(message) {
     return `${message} Please verify your sending domain in Resend and set EMAIL_FROM_PRODUCTION to that verified domain sender.`;
   }
   return message;
-}
-
-async function loadCompanyLogoAttachment() {
-  try {
-    const logoPath = path.join(process.cwd(), 'public', 'innerlight-logo.png');
-    const logoBuffer = await readFile(logoPath);
-    return {
-      filename: 'innerlight-logo.png',
-      content: logoBuffer.toString('base64'),
-      contentId: COMPANY_LOGO_CID,
-    };
-  } catch (error) {
-    console.warn('Newsletter logo attachment not loaded, fallback to URL logo:', error?.message || error);
-    return null;
-  }
 }
 
 function normalizeTestRecipients(testEmail, fallbackName) {
@@ -154,8 +136,6 @@ export async function POST(request) {
       return NextResponse.json({ error: 'No recipients found' }, { status: 400 });
     }
 
-    const logoAttachment = await loadCompanyLogoAttachment();
-
     // ── Build email batch ────────────────────────────────────────────────────
     const emailBatch = recipients.map((recipient) => {
       const personalizedSubject = personalizeTextForRecipient(campaign.subject, recipient.name);
@@ -172,7 +152,7 @@ export async function POST(request) {
         mainContent: personalizedMainContent,
         practiceHighlights: campaign.practiceHighlights,
         instructorNote: personalizedInstructorNote,
-        logoSrc: logoAttachment ? `cid:${COMPANY_LOGO_CID}` : getCompanyLogoUrl(),
+        logoSrc: getCompanyLogoUrl(),
       });
 
       return {
@@ -180,11 +160,9 @@ export async function POST(request) {
         to: recipient.email,
         subject: personalizedSubject,
         html: appendBrandLogo(
-          newsletterHtml,
-          logoAttachment ? { logoSrc: `cid:${COMPANY_LOGO_CID}` } : undefined
+          newsletterHtml
         ),
         replyTo: COMPANY_EMAIL,
-        attachments: logoAttachment ? [logoAttachment] : undefined,
       };
     });
 
