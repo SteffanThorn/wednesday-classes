@@ -671,6 +671,33 @@ export default function NewsletterAdminPage() {
                     </div>
                   </div>
 
+                  {customConfirmSend && (
+                    <div className="mx-5 mt-4 p-4 rounded-xl border border-red-500/25 bg-red-950/15 shrink-0">
+                      <p className="text-sm text-red-300 mb-3 flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                        确认发送这封自定义邮件给已选中的 {selectedCustomRecipientEmails.length} 位客户吗？
+                      </p>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={handleCustomSendAll}
+                          disabled={customSendingAll}
+                          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium
+                            bg-red-600 hover:bg-red-500 text-white disabled:opacity-50"
+                        >
+                          {customSendingAll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                          {customSendingAll ? '发送中...' : '确认发送'}
+                        </button>
+                        <button
+                          onClick={() => setCustomConfirmSend(false)}
+                          className="px-4 py-2 rounded-xl text-sm text-muted-foreground
+                            border border-white/10 hover:border-white/20"
+                        >
+                          取消
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="p-5 space-y-4 overflow-y-auto min-h-0">
                     <div>
                       <label className="block text-sm font-medium text-foreground/80 mb-2">
@@ -821,32 +848,6 @@ export default function NewsletterAdminPage() {
                       </div>
                     </div>
 
-                    {customConfirmSend && (
-                      <div className="p-4 rounded-xl border border-red-500/25 bg-red-950/15">
-                        <p className="text-sm text-red-300 mb-3 flex items-center gap-2">
-                          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                          确认发送这封自定义邮件给已选中的 {selectedCustomRecipientEmails.length} 位客户吗？
-                        </p>
-                        <div className="flex items-center gap-3">
-                          <button
-                            onClick={handleCustomSendAll}
-                            disabled={customSendingAll}
-                            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium
-                              bg-red-600 hover:bg-red-500 text-white disabled:opacity-50"
-                          >
-                            {customSendingAll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                            {customSendingAll ? '发送中...' : '确认发送'}
-                          </button>
-                          <button
-                            onClick={() => setCustomConfirmSend(false)}
-                            className="px-4 py-2 rounded-xl text-sm text-muted-foreground
-                              border border-white/10 hover:border-white/20"
-                          >
-                            取消
-                          </button>
-                        </div>
-                      </div>
-                    )}
                   </div>
 
                 </div>
