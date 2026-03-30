@@ -42,7 +42,7 @@ export default function AdminBookingsPage() {
   const [customerLookupLoading, setCustomerLookupLoading] = useState(false);
   const [bookingCustomerId, setBookingCustomerId] = useState('');
   const [assistedBookingLoading, setAssistedBookingLoading] = useState(false);
-  const isZh = language === 'zh';
+  const isZh = language !== 'en';
   const txt = (zh, en) => (isZh ? zh : en);
 
   useEffect(() => {

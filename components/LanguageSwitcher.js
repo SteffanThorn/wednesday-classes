@@ -10,7 +10,7 @@ const languages = [
 ];
 
 const LanguageSwitcher = ({ showLabel = true }) => {
-  const { language, t, toggleLanguage, mounted } = useLanguage();
+  const { language, setLanguageTo, mounted } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
 
   if (!mounted) {
@@ -53,7 +53,7 @@ const LanguageSwitcher = ({ showLabel = true }) => {
                   key={lang.code}
                   onClick={() => {
                     if (lang.code !== language) {
-                      toggleLanguage();
+                      setLanguageTo(lang.code);
                     }
                     setIsOpen(false);
                   }}
