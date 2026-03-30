@@ -89,7 +89,7 @@ async function loadCompanyLogoAttachment() {
     return {
       filename: 'innerlight-logo.png',
       content: logoBuffer.toString('base64'),
-      cid: COMPANY_LOGO_CID,
+      contentId: COMPANY_LOGO_CID,
     };
   } catch (error) {
     console.warn('Custom newsletter logo attachment not loaded, fallback to URL logo:', error?.message || error);
@@ -149,7 +149,7 @@ function buildCustomEmailHtml({ content, inlineImages = [], fileAttachments = []
       ? `<div style="margin:24px 0 0 0;padding-top:20px;border-top:2px solid #e5e7eb;text-align:left;">
 ${inlineImages
   .map(
-    (file, idx) => `<div style="margin:0;"><img src="cid:${file.cid}" alt="${escapeHtml(file.filename)}" style="max-width:140px;width:auto;height:auto;max-height:140px;border-radius:8px;display:block;" /></div>`
+    (file, idx) => `<div style="margin:0;"><img src="cid:${file.contentId}" alt="${escapeHtml(file.filename)}" style="max-width:140px;width:auto;height:auto;max-height:140px;border-radius:8px;display:block;" /></div>`
   )
   .join('')}
 </div>`
@@ -266,7 +266,7 @@ export async function POST(request) {
     // Separate images from file attachments and add CID to images
     const inlineImages = attachments.filter(isInlineImage).map((file, idx) => ({
       ...file,
-      cid: `image-${idx}@innerlight`,
+      contentId: `image-${idx}@innerlight`,
     }));
     
     const fileAttachments = attachments.filter((f) => !isInlineImage(f));
@@ -281,7 +281,7 @@ export async function POST(request) {
         ...inlineImages.map((img) => ({
           filename: img.filename,
           content: img.content,
-          cid: img.cid,
+          contentId: img.contentId,
         })),
         ...fileAttachments.map((file) => ({
           filename: file.filename,

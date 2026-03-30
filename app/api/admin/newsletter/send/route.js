@@ -60,7 +60,7 @@ async function loadCompanyLogoAttachment() {
     return {
       filename: 'innerlight-logo.png',
       content: logoBuffer.toString('base64'),
-      cid: COMPANY_LOGO_CID,
+      contentId: COMPANY_LOGO_CID,
     };
   } catch (error) {
     console.warn('Newsletter logo attachment not loaded, fallback to URL logo:', error?.message || error);
