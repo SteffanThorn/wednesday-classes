@@ -15,7 +15,23 @@ export default function AdminDashboardPage() {
   const { language, mounted } = useLanguage();
   const { data: session, status } = useSession();
   const router = useRouter();
-  const isZh = language !== 'en';
+  const [forceZhMode, setForceZhMode] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const savedLanguage = String(window.localStorage.getItem('language') || '').toLowerCase();
+    const browserLanguage = String(window.navigator?.language || '').toLowerCase();
+    const shouldUseZh =
+      savedLanguage === 'zh' ||
+      savedLanguage === 'cn' ||
+      savedLanguage.startsWith('zh-') ||
+      savedLanguage.startsWith('zh_') ||
+      browserLanguage.startsWith('zh');
+
+    setForceZhMode(shouldUseZh);
+  }, [language, mounted]);
+
+  const isZh = language !== 'en' || forceZhMode;
   const txt = (zh, en) => (isZh ? zh : en);
   const [creditSummary, setCreditSummary] = useState({
     total: 0,

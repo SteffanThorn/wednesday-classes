@@ -15,6 +15,7 @@ export default function AdminBookingsPage() {
   const { language, mounted } = useLanguage();
   const { data: session, status } = useSession();
   const router = useRouter();
+  const [forceZhMode, setForceZhMode] = useState(false);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,7 +43,21 @@ export default function AdminBookingsPage() {
   const [customerLookupLoading, setCustomerLookupLoading] = useState(false);
   const [bookingCustomerId, setBookingCustomerId] = useState('');
   const [assistedBookingLoading, setAssistedBookingLoading] = useState(false);
-  const isZh = language !== 'en';
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const savedLanguage = String(window.localStorage.getItem('language') || '').toLowerCase();
+    const browserLanguage = String(window.navigator?.language || '').toLowerCase();
+    const shouldUseZh =
+      savedLanguage === 'zh' ||
+      savedLanguage === 'cn' ||
+      savedLanguage.startsWith('zh-') ||
+      savedLanguage.startsWith('zh_') ||
+      browserLanguage.startsWith('zh');
+
+    setForceZhMode(shouldUseZh);
+  }, [language, mounted]);
+
+  const isZh = language !== 'en' || forceZhMode;
   const txt = (zh, en) => (isZh ? zh : en);
 
   useEffect(() => {
