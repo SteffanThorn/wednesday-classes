@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import FloatingParticles from '@/components/FloatingParticle';
-import { Loader2, ChevronRight, Eye, Download, UserPlus } from 'lucide-react';
+import { Loader2, ChevronRight, Eye, Download, UserPlus, Trash2 } from 'lucide-react';
 
 const PACKAGE_TOTAL_CLASSES = 5;
 
@@ -37,6 +37,7 @@ function AdminCustomersPageContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [courseFilter, setCourseFilter] = useState('all');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [deletingCustomerId, setDeletingCustomerId] = useState('');
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -145,6 +146,35 @@ function AdminCustomersPageContent() {
     a.href = url;
     a.download = `customers-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
+  };
+
+  const handleDeleteCustomer = async (customer) => {
+    const confirmed = window.confirm(
+      `确定删除客户档案吗？\n\n${customer.userName} (${customer.userEmail})\n\n此操作不可撤销。`
+    );
+
+    if (!confirmed) return;
+
+    setDeletingCustomerId(customer.id);
+    setError('');
+
+    try {
+      const response = await fetch(`/api/admin/customers/${customer.id}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to delete customer');
+
+      setCustomers((prev) => prev.filter((item) => item.id !== customer.id));
+      if (selectedCustomer?.id === customer.id) {
+        setSelectedCustomer(null);
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to delete customer');
+    } finally {
+      setDeletingCustomerId('');
+    }
   };
 
   if (status === 'loading') {
@@ -335,13 +365,27 @@ function AdminCustomersPageContent() {
                               {new Date(customer.createdAt).toLocaleDateString()}
                             </td>
                             <td className="px-4 py-3 text-center">
-                              <Link
-                                href={`/admin/customers/${customer.id}`}
-                                className="inline-flex items-center gap-1 px-3 py-1 rounded bg-glow-cyan/10 border border-glow-cyan/30 text-glow-cyan hover:bg-glow-cyan/20 transition-colors text-xs"
-                              >
-                                <Eye className="w-3 h-3" />
-                                查看 / View
-                              </Link>
+                              <div className="inline-flex items-center gap-2">
+                                <Link
+                                  href={`/admin/customers/${customer.id}`}
+                                  className="inline-flex items-center gap-1 px-3 py-1 rounded bg-glow-cyan/10 border border-glow-cyan/30 text-glow-cyan hover:bg-glow-cyan/20 transition-colors text-xs"
+                                >
+                                  <Eye className="w-3 h-3" />
+                                  查看 / View
+                                </Link>
+                                <button
+                                  onClick={() => handleDeleteCustomer(customer)}
+                                  disabled={deletingCustomerId === customer.id}
+                                  className="inline-flex items-center gap-1 px-3 py-1 rounded bg-red-500/10 border border-red-500/30 text-red-300 hover:bg-red-500/20 transition-colors text-xs disabled:opacity-50"
+                                >
+                                  {deletingCustomerId === customer.id ? (
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-3 h-3" />
+                                  )}
+                                  删除 / Delete
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );

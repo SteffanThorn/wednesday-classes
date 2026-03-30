@@ -155,3 +155,47 @@ export async function PUT(request, context) {
     );
   }
 }
+
+export async function DELETE(request, context) {
+  const session = await auth();
+  if (!session?.user || session.user.role !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  await dbConnect();
+
+  try {
+    const resolvedParams = await context?.params;
+    const rawId = resolvedParams?.id;
+    const id = Array.isArray(rawId) ? rawId[0] : rawId;
+
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return NextResponse.json(
+        {
+          error: '无效的客户档案ID（Intake ID）。/ Invalid intake ID.',
+          code: 'INVALID_INTAKE_ID',
+        },
+        { status: 400 }
+      );
+    }
+
+    const intake = await HealthIntake.findById(id);
+    if (!intake) {
+      return NextResponse.json({ error: 'Intake not found' }, { status: 404 });
+    }
+
+    await HealthIntake.findByIdAndDelete(id);
+
+    return NextResponse.json({
+      success: true,
+      deletedId: id,
+      message: 'Customer profile deleted',
+    });
+  } catch (error) {
+    console.error('Error deleting intake:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete customer profile' },
+      { status: 500 }
+    );
+  }
+}
