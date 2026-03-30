@@ -538,11 +538,11 @@ export default function AdminBookingsPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div className="p-4 rounded-xl bg-card/60 border border-glow-cyan/20">
                 <div className="text-2xl font-bold text-glow-cyan">{confirmedBookings}</div>
-                <div className="text-sm text-muted-foreground">{txt('已预约', 'bookings')}</div>
+                <div className="text-sm text-muted-foreground">{txt('已预约人数', 'bookings')}</div>
               </div>
               <div className="p-4 rounded-xl bg-card/60 border border-yellow-500/20">
                 <div className="text-2xl font-bold text-yellow-400">{pendingBookings}</div>
-                <div className="text-sm text-muted-foreground">{txt('待处理', 'pending')}</div>
+                <div className="text-sm text-muted-foreground">{txt('待处理人数', 'pending')}</div>
               </div>
             </div>
 
@@ -691,7 +691,7 @@ export default function AdminBookingsPage() {
               <div className="space-y-4 mb-8">
                 <h2 className="text-xl font-semibold text-foreground">{txt('每周课程容量', 'Weekly Class Capacity')}</h2>
                 <p className="text-sm text-muted-foreground mb-4">
-                  {txt(`每周三 6pm 课程 • 每节最多 ${maxStudentsPerClass} 人`, `Wednesday Classes at 6pm • Max ${maxStudentsPerClass} students per class`)}
+                  {txt(`每周课程场次 • 每节最多 ${maxStudentsPerClass} 人`, `Weekly class sessions • Max ${maxStudentsPerClass} students per class`)}
                 </p>
                 
                 {weeklyCapacity.length === 0 ? (
@@ -707,7 +707,7 @@ export default function AdminBookingsPage() {
                     const isAlmostFull = percentage >= 70;
                     
                     // Format single date instead of week range
-                    const singleDate = new Date(week.weekStart).toLocaleDateString('en-NZ', { 
+                    const singleDate = new Date(week.weekStart).toLocaleDateString(isZh ? 'zh-CN' : 'en-NZ', { 
                       day: 'numeric', 
                       month: 'short' 
                     });
@@ -729,7 +729,10 @@ export default function AdminBookingsPage() {
                             </span>
                             <span className="text-muted-foreground"> / {week.maxStudents}</span>
                             <p className="text-xs text-muted-foreground">
-                              {week.bookedCount} booked, {week.pendingCount} pending
+                              {txt(
+                                `${week.bookedCount} 已预约，${week.pendingCount} 待处理`,
+                                `${week.bookedCount} booked, ${week.pendingCount} pending`
+                              )}
                             </p>
                           </div>
                         </div>
@@ -1162,7 +1165,7 @@ export default function AdminBookingsPage() {
                         <td className="p-4">
                           <div className="flex items-center gap-1 text-foreground">
                             <Calendar className="w-4 h-4 text-muted-foreground" />
-                            {new Date(booking.classDate).toLocaleDateString('en-NZ')}
+                            {new Date(booking.classDate).toLocaleDateString(isZh ? 'zh-CN' : 'en-NZ')}
                           </div>
                           <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
                             <Clock className="w-3 h-3" />
