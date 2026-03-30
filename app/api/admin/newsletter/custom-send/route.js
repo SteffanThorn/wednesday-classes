@@ -6,7 +6,7 @@ import { Resend } from 'resend';
 import dbConnect from '@/lib/mongodb';
 import User from '@/lib/models/User';
 import HealthIntake from '@/lib/models/HealthIntake';
-import { appendBrandLogo } from '@/lib/email-branding';
+import { appendBrandLogo, getCompanyLogoUrl } from '@/lib/email-branding';
 import { personalizeTextForRecipient } from '@/lib/email-personalization';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -132,7 +132,7 @@ async function loadRecipientPool() {
   return Array.from(emailMap.values()).sort((a, b) => a.email.localeCompare(b.email));
 }
 
-function buildCustomEmailHtml({ content, inlineImages = [], fileAttachments = [] }) {
+function buildCustomEmailHtml({ content, inlineImages = [], fileAttachments = [], logoSrc }) {
   const paragraphs = content
     .split('\n\n')
     .map((p) => p.trim())
@@ -194,7 +194,7 @@ ${inlineImages
               ${attachmentSection}
               <div style="margin:24px 0 0; text-align:left;">
                 <img
-                  src="cid:innerlight-logo-footer"
+                  src="${logoSrc}"
                   alt="INNER LIGHT Yoga"
                   width="140"
                   style="display:inline-block; height:auto; max-width:140px; opacity:0.95;"
@@ -298,6 +298,7 @@ export async function POST(request) {
             content: personalizedContent,
             inlineImages,
             fileAttachments,
+            logoSrc: logoAttachment ? `cid:${COMPANY_LOGO_CID}` : getCompanyLogoUrl(),
           }),
           logoAttachment ? { logoSrc: `cid:${COMPANY_LOGO_CID}` } : undefined
         ),

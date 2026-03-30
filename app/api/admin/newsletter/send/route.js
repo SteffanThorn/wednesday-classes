@@ -8,7 +8,7 @@ import NewsletterCampaign from '@/lib/models/NewsletterCampaign';
 import User from '@/lib/models/User';
 import HealthIntake from '@/lib/models/HealthIntake';
 import { getWeekSchedule } from '@/lib/newsletter-schedule';
-import { appendBrandLogo } from '@/lib/email-branding';
+import { appendBrandLogo, getCompanyLogoUrl } from '@/lib/email-branding';
 import { personalizeTextForRecipient } from '@/lib/email-personalization';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -172,6 +172,7 @@ export async function POST(request) {
         mainContent: personalizedMainContent,
         practiceHighlights: campaign.practiceHighlights,
         instructorNote: personalizedInstructorNote,
+        logoSrc: logoAttachment ? `cid:${COMPANY_LOGO_CID}` : getCompanyLogoUrl(),
       });
 
       return {
@@ -281,6 +282,7 @@ function buildNewsletterHtml({
   mainContent,
   practiceHighlights,
   instructorNote,
+  logoSrc,
 }) {
   // Convert line breaks in mainContent to <br> tags
   const contentHtml = mainContent
@@ -425,7 +427,7 @@ function buildNewsletterHtml({
                 <tr>
                   <td style="text-align: left;">
                     <img
-                      src="cid:innerlight-logo-footer"
+                      src="${logoSrc}"
                       alt="INNER LIGHT Yoga"
                       width="140"
                       style="display:inline-block; height:auto; max-width:140px; opacity:0.95;"
