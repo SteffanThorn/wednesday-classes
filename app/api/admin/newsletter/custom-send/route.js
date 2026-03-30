@@ -109,8 +109,7 @@ function normalizeTestRecipients(testEmail, fallbackName) {
   }));
 }
 
-function buildCustomEmailHtml({ userName, content, inlineImages = [], fileAttachments = [] }) {
-  const firstName = userName?.split(' ')[0] || 'Friend';
+function buildCustomEmailHtml({ content, inlineImages = [], fileAttachments = [] }) {
   const paragraphs = content
     .split('\n\n')
     .map((p) => p.trim())
@@ -167,7 +166,6 @@ ${inlineImages
           </tr>
           <tr>
             <td style="padding:30px 26px 16px;">
-              <p style="margin:0 0 20px;color:#4b5563;font-size:16px;line-height:1.7;">Hi ${firstName},</p>
               ${paragraphs}
               ${imagesSection}
               ${attachmentSection}
@@ -281,7 +279,6 @@ export async function POST(request) {
         subject: personalizedSubject,
         html: appendBrandLogo(
           buildCustomEmailHtml({
-            userName: recipient.name,
             content: personalizedContent,
             inlineImages,
             fileAttachments,

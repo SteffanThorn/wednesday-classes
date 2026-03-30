@@ -163,7 +163,6 @@ export async function POST(request) {
       const personalizedInstructorNote = personalizeTextForRecipient(campaign.instructorNote, recipient.name);
 
       const newsletterHtml = buildNewsletterHtml({
-        userName: recipient.name,
         weekNumber: campaign.weekNumber,
         title: schedule.title,
         titleZh: schedule.titleZh,
@@ -273,7 +272,6 @@ export async function POST(request) {
 // ─── Email HTML Template ─────────────────────────────────────────────────────
 
 function buildNewsletterHtml({
-  userName,
   weekNumber,
   title,
   titleZh,
@@ -284,8 +282,6 @@ function buildNewsletterHtml({
   practiceHighlights,
   instructorNote,
 }) {
-  const firstName = userName?.split(' ')[0] || 'Friend';
-
   // Convert line breaks in mainContent to <br> tags
   const contentHtml = mainContent
     .split('\n')
@@ -417,10 +413,6 @@ function buildNewsletterHtml({
               </h2>
               <p style="margin: 0 0 28px; color: #a78bfa; font-size: 14px; font-weight: 400;">
                 ${titleZh}
-              </p>
-
-              <p style="margin: 0 0 28px; color: #4b5563; font-size: 16px; line-height: 1.7;">
-                Hi ${firstName},
               </p>
 
               ${contentHtml}
