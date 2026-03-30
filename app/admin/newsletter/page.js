@@ -849,39 +849,6 @@ export default function NewsletterAdminPage() {
                     )}
                   </div>
 
-                  <div className="px-5 py-4 border-t border-white/10 bg-card/95 backdrop-blur-sm shrink-0 sticky bottom-0 flex flex-wrap items-center gap-3 justify-end">
-                    <button
-                      onClick={handleCustomSendTest}
-                      disabled={customSendingTest || customSendingAll}
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium
-                        border border-violet-400/30 text-violet-400 hover:bg-violet-400/10
-                        disabled:opacity-50"
-                    >
-                      {customSendingTest ? <Loader2 className="w-4 h-4 animate-spin" /> : <FlaskConical className="w-4 h-4" />}
-                      {customSendingTest ? '发送中...' : '发测试邮件（给已选客户）'}
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        if (!customForm.subject.trim() || !customForm.content.trim()) {
-                          showToast('error', '请先填写主题和正文');
-                          return;
-                        }
-                        if (selectedCustomRecipientEmails.length === 0) {
-                          showToast('error', '请先选择至少一位客户');
-                          return;
-                        }
-                        setCustomConfirmSend(true);
-                      }}
-                      disabled={customSendingAll || customSendingTest}
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium
-                        bg-gradient-to-r from-sky-600 to-violet-600 hover:from-sky-500 hover:to-violet-500
-                        text-white disabled:opacity-50"
-                    >
-                      <Send className="w-4 h-4" />
-                      发送给已选客户
-                    </button>
-                  </div>
                 </div>
               </div>
             )}
