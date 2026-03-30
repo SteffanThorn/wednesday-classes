@@ -8,7 +8,8 @@ import Header from '@/components/Header';
 import BookingModal from '@/components/BookingModal';
 import { useLanguage } from '@/hooks/useLanguage';
 import { Calendar, MapPin, Users, DollarSign, Clock, CheckCircle, ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 // Calculate the next upcoming Wednesday for display
 function getNextWednesday() {
@@ -80,8 +81,39 @@ export function getAvailableWednesdays(weeksAhead = 12) {
 
 const WednesdayClassesPage = () => {
   const { t, mounted, language } = useLanguage();
+  const searchParams = useSearchParams();
   const [openFaq, setOpenFaq] = useState(null);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+
+  const fromAdmin = searchParams.get('fromAdmin') === '1';
+  const adminClassDate = searchParams.get('classDate') || '';
+  const adminClassTime = searchParams.get('classTime') || '';
+
+  const adminPreferredDayOfWeek = (() => {
+    if (!adminClassDate) return null;
+
+    const parsedDate = new Date(adminClassDate);
+    if (Number.isNaN(parsedDate.getTime())) return null;
+
+    const day = parsedDate.getDay();
+
+    if (day === 3) {
+      if (adminClassTime.includes('9:15')) return 'wednesday-morning';
+      return 'wednesday-evening';
+    }
+
+    if (day === 4) {
+      return 'thursday-evening';
+    }
+
+    return null;
+  })();
+
+  useEffect(() => {
+    if (fromAdmin) {
+      setIsBookingModalOpen(true);
+    }
+  }, [fromAdmin]);
 
   const toggleFaq = (index) => {
     setOpenFaq(openFaq === index ? null : index);
@@ -422,6 +454,8 @@ const WednesdayClassesPage = () => {
           isOpen={isBookingModalOpen}
           onClose={() => setIsBookingModalOpen(false)}
           classDetails={WEDNESDAY_CLASS}
+          dayOfWeek={adminPreferredDayOfWeek}
+          preselectedDate={adminClassDate || ''}
           language={mounted ? language : 'en'}
         />
       </div>

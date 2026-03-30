@@ -1,26 +1,24 @@
 import { NextResponse } from 'next/server';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import { auth } from '@/auth';
 import { Resend } from 'resend';
 import dbConnect from '@/lib/mongodb';
 import User from '@/lib/models/User';
 import HealthIntake from '@/lib/models/HealthIntake';
-import { appendBrandLogo, getCompanyLogoUrl } from '@/lib/email-branding';
+import { appendBrandLogo } from '@/lib/email-branding';
 import { personalizeTextForRecipient } from '@/lib/email-personalization';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-function normalizeSenderEmail(email) {
-  const value = String(email || '').trim();
-  return value.replace(/@innerlightyoga\.co\.nz$/i, '@innerlight.co.nz');
-}
-
 const SENDER_EMAIL =
   process.env.NODE_ENV === 'development'
-    ? normalizeSenderEmail(process.env.EMAIL_FROM_LOCAL || 'onboarding@resend.dev')
-    : normalizeSenderEmail(process.env.EMAIL_FROM_PRODUCTION || 'contact@innerlight.co.nz');
+    ? process.env.EMAIL_FROM_LOCAL || 'onboarding@resend.dev'
+    : process.env.EMAIL_FROM_PRODUCTION || 'contact@innerlightyoga.co.nz';
 
 const SENDER_NAME = 'Yuki · INNER LIGHT Yoga';
 const COMPANY_EMAIL = process.env.COMPANY_EMAIL || 'innerlightyuki@gmail.com';
+const COMPANY_LOGO_CID = 'innerlight-logo-footer';
 const BATCH_SIZE = 100;
 const MAX_ATTACHMENTS = 5;
 const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024; // 5MB
@@ -79,6 +77,21 @@ function isInlineImage(file) {
   return ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'].includes(normalized);
 }
 
+async function loadCompanyLogoAttachment() {
+  try {
+    const logoPath = path.join(process.cwd(), 'public', 'innerlight-logo.png');
+    const logoBuffer = await readFile(logoPath);
+    return {
+      filename: 'innerlight-logo.png',
+      content: logoBuffer,
+      contentId: COMPANY_LOGO_CID,
+    };
+  } catch (error) {
+    console.warn('Custom newsletter logo attachment not loaded, fallback to URL logo:', error?.message || error);
+    return null;
+  }
+}
+
 function normalizeTestRecipients(testEmail, fallbackName) {
   if (!testEmail) return [];
 
@@ -91,30 +104,8 @@ function normalizeTestRecipients(testEmail, fallbackName) {
   }));
 }
 
-async function loadRecipientPool() {
-  const users = await User.find({ role: 'student' }).select('email name').lean();
-  const intakes = await HealthIntake.find({}).select('userEmail userName').lean();
-
-  const emailMap = new Map();
-  users.forEach((u) => {
-    if (u.email) {
-      emailMap.set(u.email.toLowerCase(), { email: u.email, name: u.name || 'Student' });
-    }
-  });
-
-  intakes.forEach((i) => {
-    if (i.userEmail) {
-      const key = i.userEmail.toLowerCase();
-      if (!emailMap.has(key)) {
-        emailMap.set(key, { email: i.userEmail, name: i.userName || 'Student' });
-      }
-    }
-  });
-
-  return Array.from(emailMap.values()).sort((a, b) => a.email.localeCompare(b.email));
-}
-
-function buildCustomEmailHtml({ content, inlineImages = [], fileAttachments = [], logoSrc }) {
+function buildCustomEmailHtml({ userName, content, inlineImages = [], fileAttachments = [] }) {
+  const firstName = userName?.split(' ')[0] || 'Friend';
   const paragraphs = content
     .split('\n\n')
     .map((p) => p.trim())
@@ -131,7 +122,7 @@ function buildCustomEmailHtml({ content, inlineImages = [], fileAttachments = []
       ? `<div style="margin:24px 0 0 0;padding-top:20px;border-top:2px solid #e5e7eb;text-align:left;">
 ${inlineImages
   .map(
-    (file, idx) => `<div style="margin:0;"><img src="cid:${file.contentId}" alt="${escapeHtml(file.filename)}" style="max-width:140px;width:auto;height:auto;max-height:140px;border-radius:8px;display:block;" /></div>`
+    (file, idx) => `<div style="margin:0;"><img src="cid:${file.cid}" alt="${escapeHtml(file.filename)}" style="max-width:140px;width:auto;height:auto;max-height:140px;border-radius:8px;display:block;" /></div>`
   )
   .join('')}
 </div>`
@@ -171,12 +162,13 @@ ${inlineImages
           </tr>
           <tr>
             <td style="padding:30px 26px 16px;">
+              <p style="margin:0 0 20px;color:#4b5563;font-size:16px;line-height:1.7;">Hi ${firstName},</p>
               ${paragraphs}
               ${imagesSection}
               ${attachmentSection}
               <div style="margin:24px 0 0; text-align:left;">
                 <img
-                  src="${logoSrc}"
+                  src="cid:innerlight-logo-footer"
                   alt="INNER LIGHT Yoga"
                   width="140"
                   style="display:inline-block; height:auto; max-width:140px; opacity:0.95;"
@@ -208,7 +200,7 @@ export async function POST(request) {
 
   try {
     const body = await request.json();
-    const { subject, content, testEmail, recipientEmails } = body;
+    const { subject, content, testEmail } = body;
     const attachments = normalizeAttachments(body?.attachments);
 
     if (!subject?.trim()) {
@@ -224,29 +216,38 @@ export async function POST(request) {
     if (testEmail) {
       recipients = normalizeTestRecipients(testEmail, session.user.name || 'Test User');
     } else {
-      const allRecipients = await loadRecipientPool();
+      const users = await User.find({ role: 'student' }).select('email name').lean();
+      const intakes = await HealthIntake.find({}).select('userEmail userName').lean();
 
-      if (Array.isArray(recipientEmails) && recipientEmails.length > 0) {
-        const selectedSet = new Set(
-          recipientEmails
-            .map((email) => String(email || '').trim().toLowerCase())
-            .filter(Boolean)
-        );
+      const emailMap = new Map();
+      users.forEach((u) => {
+        if (u.email) {
+          emailMap.set(u.email.toLowerCase(), { email: u.email, name: u.name || 'Student' });
+        }
+      });
 
-        recipients = allRecipients.filter((recipient) => selectedSet.has(recipient.email.toLowerCase()));
-      } else {
-        recipients = allRecipients;
-      }
+      intakes.forEach((i) => {
+        if (i.userEmail) {
+          const key = i.userEmail.toLowerCase();
+          if (!emailMap.has(key)) {
+            emailMap.set(key, { email: i.userEmail, name: i.userName || 'Student' });
+          }
+        }
+      });
+
+      recipients = Array.from(emailMap.values());
     }
 
     if (recipients.length === 0) {
       return NextResponse.json({ error: 'No recipients found' }, { status: 400 });
     }
 
+    const logoAttachment = await loadCompanyLogoAttachment();
+
     // Separate images from file attachments and add CID to images
     const inlineImages = attachments.filter(isInlineImage).map((file, idx) => ({
       ...file,
-      contentId: `image-${idx}@innerlight`,
+      cid: `image-${idx}@innerlight`,
     }));
     
     const fileAttachments = attachments.filter((f) => !isInlineImage(f));
@@ -257,14 +258,15 @@ export async function POST(request) {
 
       // Combine inline images and file attachments for Resend
       const allAttachments = [
+        ...(logoAttachment ? [logoAttachment] : []),
         ...inlineImages.map((img) => ({
           filename: img.filename,
-          content: img.content,
-          contentId: img.contentId,
+          content: Buffer.from(img.content, 'base64'),
+          contentId: img.cid,
         })),
         ...fileAttachments.map((file) => ({
           filename: file.filename,
-          content: file.content,
+          content: Buffer.from(file.content, 'base64'),
         })),
       ];
 
@@ -274,12 +276,12 @@ export async function POST(request) {
         subject: personalizedSubject,
         html: appendBrandLogo(
           buildCustomEmailHtml({
+            userName: recipient.name,
             content: personalizedContent,
             inlineImages,
             fileAttachments,
-            logoSrc: getCompanyLogoUrl(),
           }),
-          undefined
+          logoAttachment ? { logoSrc: `cid:${COMPANY_LOGO_CID}` } : undefined
         ),
         replyTo: COMPANY_EMAIL,
         attachments: allAttachments.length > 0 ? allAttachments : undefined,
@@ -342,25 +344,6 @@ export async function POST(request) {
   } catch (error) {
     return NextResponse.json(
       { error: 'Failed to send custom email', detail: error.message },
-      { status: 500 }
-    );
-  }
-}
-
-export async function GET() {
-  const session = await auth();
-  if (!session?.user || session.user.role !== 'admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
-  await dbConnect();
-
-  try {
-    const recipients = await loadRecipientPool();
-    return NextResponse.json({ success: true, recipients, total: recipients.length });
-  } catch (error) {
-    return NextResponse.json(
-      { error: 'Failed to load recipients', detail: error.message },
       { status: 500 }
     );
   }

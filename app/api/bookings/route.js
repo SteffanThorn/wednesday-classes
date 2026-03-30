@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import dbConnect from '@/lib/mongodb';
 import Booking from '@/lib/models/Booking';
+import User from '@/lib/models/User';
 import { sendBookingConfirmationEmail, sendCancellationEmail } from '@/lib/email';
 import { inferDayFromClassName, isAllowedClassDate } from '@/lib/class-schedule';
 
@@ -94,8 +95,9 @@ export async function POST(request) {
     }
 
     const isPaymentMethodCash = paymentMethod === 'cash';
+    const isPaymentMethodMemberCard = paymentMethod === 'member_card';
     const isBringAFriend = Boolean(bringAFriend);
-    const normalizedAmount = isBringAFriend ? 0 : Number(amount);
+    const normalizedAmount = (isBringAFriend || isPaymentMethodMemberCard) ? 0 : Number(amount);
     const isAmountValid = Number.isFinite(normalizedAmount) && normalizedAmount >= 0;
 
     if (!isAmountValid) {
@@ -105,7 +107,25 @@ export async function POST(request) {
       );
     }
 
-    const isInstantlyConfirmed = isPaymentMethodCash || isBringAFriend;
+    let userForCredits = null;
+    if (isPaymentMethodMemberCard) {
+      userForCredits = await User.findOne({ email: session.user.email.toLowerCase().trim() });
+      if (!userForCredits) {
+        return NextResponse.json(
+          { error: 'User account not found for member credit payment' },
+          { status: 404 }
+        );
+      }
+
+      if ((userForCredits.classCredits || 0) <= 0) {
+        return NextResponse.json(
+          { error: 'No member credits remaining' },
+          { status: 400 }
+        );
+      }
+    }
+
+    const isInstantlyConfirmed = isPaymentMethodCash || isBringAFriend || isPaymentMethodMemberCard;
     
     const booking = new Booking({
       userId: session.user.id,
@@ -118,9 +138,9 @@ export async function POST(request) {
       amount: normalizedAmount,
       notes: notes || '',
       status: isInstantlyConfirmed ? 'confirmed' : 'pending',
-      paymentStatus: isBringAFriend ? 'completed' : 'pending',
+      paymentStatus: (isBringAFriend || isPaymentMethodMemberCard) ? 'completed' : 'pending',
       paymentMethod: isBringAFriend ? 'bring_a_friend' : (paymentMethod || undefined),
-      paidAt: isBringAFriend ? new Date() : undefined,
+      paidAt: (isBringAFriend || isPaymentMethodMemberCard) ? new Date() : undefined,
       bringAFriend: isBringAFriend,
       bringAFriendConfirmed: false,
     });

@@ -4,6 +4,7 @@ import dbConnect from '@/lib/mongodb';
 import Booking from '@/lib/models/Booking';
 import User from '@/lib/models/User';
 import ClassAttendance from '@/lib/models/ClassAttendance';
+import { inferDayFromClassName } from '@/lib/class-schedule';
 
 function toDateKey(date) {
   return new Date(date).toISOString().split('T')[0];
@@ -17,6 +18,65 @@ function getDayRange(classDate) {
   dayEnd.setHours(23, 59, 59, 999);
 
   return { dayStart, dayEnd };
+}
+
+function getScheduleKey(booking) {
+  const inferred = inferDayFromClassName(booking.className || '');
+  if (inferred) return inferred;
+
+  const classTime = String(booking.classTime || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  const weekday = new Date(booking.classDate).getDay();
+
+  if (weekday === 3 && (classTime.includes('9:15') || classTime.includes('09:15'))) {
+    return 'wednesday-morning';
+  }
+
+  if (weekday === 3 && (classTime.includes('6:00') || classTime.includes('18:00') || classTime.includes('6pm'))) {
+    return 'wednesday-evening';
+  }
+
+  if (weekday === 4 && (classTime.includes('5:30') || classTime.includes('17:30') || classTime.includes('5.30'))) {
+    return 'thursday-evening';
+  }
+
+  return null;
+}
+
+function getSlotLabels(scheduleKey, classDate, fallbackTime) {
+  const date = new Date(classDate);
+  const formattedDateZh = date.toLocaleDateString('zh-CN', {
+    month: 'numeric',
+    day: 'numeric',
+  });
+  const formattedDateEn = date.toLocaleDateString('en-NZ', {
+    day: 'numeric',
+    month: 'short',
+  });
+
+  const slotMap = {
+    'wednesday-morning': {
+      zh: '周三上午 9:15',
+      en: 'Wednesday 9:15 AM',
+    },
+    'wednesday-evening': {
+      zh: '周三下午 18:00',
+      en: 'Wednesday 6:00 PM',
+    },
+    'thursday-evening': {
+      zh: '周四下午 17:30',
+      en: 'Thursday 5:30 PM',
+    },
+  };
+
+  const slot = slotMap[scheduleKey] || {
+    zh: fallbackTime || '未分类场次',
+    en: fallbackTime || 'Unclassified slot',
+  };
+
+  return {
+    labelZh: `${formattedDateZh} · ${slot.zh}`,
+    labelEn: `${formattedDateEn} · ${slot.en}`,
+  };
 }
 
 async function ensureAdmin() {
@@ -64,6 +124,8 @@ export async function GET(request) {
     bookings.forEach((booking) => {
       const classDateKey = toDateKey(booking.classDate);
       const key = `${classDateKey}|${booking.classTime}`;
+      const scheduleKey = getScheduleKey(booking);
+      const { labelZh, labelEn } = getSlotLabels(scheduleKey, booking.classDate, booking.classTime);
 
       if (!sessionMap.has(key)) {
         sessionMap.set(key, {
@@ -71,8 +133,11 @@ export async function GET(request) {
           classDate: classDateKey,
           classTime: booking.classTime,
           className: booking.className,
+          scheduleKey,
           location: booking.location,
           label: `${classDateKey} · ${booking.classTime}`,
+          labelZh,
+          labelEn,
           bookings: [],
         });
       }

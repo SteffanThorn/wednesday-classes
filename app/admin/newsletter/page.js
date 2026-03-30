@@ -94,10 +94,6 @@ export default function NewsletterAdminPage() {
   const [customSendingTest, setCustomSendingTest] = useState(false);
   const [customSendingAll, setCustomSendingAll] = useState(false);
   const [customConfirmSend, setCustomConfirmSend] = useState(false);
-  const [customRecipientsLoading, setCustomRecipientsLoading] = useState(false);
-  const [customRecipients, setCustomRecipients] = useState([]);
-  const [customRecipientQuery, setCustomRecipientQuery] = useState('');
-  const [selectedCustomRecipientEmails, setSelectedCustomRecipientEmails] = useState([]);
   const [customForm, setCustomForm] = useState({
     subject: '',
     content: '',
@@ -196,67 +192,13 @@ export default function NewsletterAdminPage() {
       content: '',
       attachments: [],
     });
-    setCustomRecipientQuery('');
     setCustomConfirmSend(false);
     setCustomModalOpen(true);
-    loadCustomRecipients();
   }
 
   function closeCustomComposer() {
     setCustomModalOpen(false);
     setCustomConfirmSend(false);
-  }
-
-  async function loadCustomRecipients() {
-    setCustomRecipientsLoading(true);
-    try {
-      const res = await fetch('/api/admin/newsletter/custom-send');
-      const data = await res.json();
-      if (res.ok && data.success) {
-        const recipients = Array.isArray(data.recipients) ? data.recipients : [];
-        setCustomRecipients(recipients);
-        setSelectedCustomRecipientEmails(recipients.map((r) => r.email));
-      } else {
-        showToast('error', data.error || '加载客户列表失败');
-      }
-    } catch (err) {
-      showToast('error', '加载客户列表失败');
-    } finally {
-      setCustomRecipientsLoading(false);
-    }
-  }
-
-  const filteredCustomRecipients = customRecipients.filter((recipient) => {
-    const q = customRecipientQuery.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      String(recipient?.email || '').toLowerCase().includes(q) ||
-      String(recipient?.name || '').toLowerCase().includes(q)
-    );
-  });
-
-  const allFilteredSelected =
-    filteredCustomRecipients.length > 0 &&
-    filteredCustomRecipients.every((recipient) => selectedCustomRecipientEmails.includes(recipient.email));
-
-  function toggleCustomRecipient(email) {
-    setSelectedCustomRecipientEmails((prev) =>
-      prev.includes(email) ? prev.filter((item) => item !== email) : [...prev, email]
-    );
-  }
-
-  function toggleSelectAllFilteredRecipients() {
-    setSelectedCustomRecipientEmails((prev) => {
-      const filteredEmails = filteredCustomRecipients.map((recipient) => recipient.email);
-      if (filteredEmails.length === 0) return prev;
-
-      const shouldSelectAll = filteredEmails.some((email) => !prev.includes(email));
-      if (shouldSelectAll) {
-        return [...new Set([...prev, ...filteredEmails])];
-      }
-
-      return prev.filter((email) => !filteredEmails.includes(email));
-    });
   }
 
   function formatBytes(bytes) {
@@ -340,9 +282,6 @@ export default function NewsletterAdminPage() {
       return;
     }
 
-    const testRecipients =
-      selectedCustomRecipientEmails.length > 0 ? selectedCustomRecipientEmails : COMPANY_TEST_EMAILS;
-
     setCustomSendingTest(true);
     try {
       const res = await fetch('/api/admin/newsletter/custom-send', {
@@ -351,14 +290,14 @@ export default function NewsletterAdminPage() {
         body: JSON.stringify({
           subject: customForm.subject,
           content: customForm.content,
-          testEmail: testRecipients,
+          testEmail: COMPANY_TEST_EMAILS,
           attachments: customForm.attachments,
         }),
       });
 
       const data = await res.json();
       if (res.ok && data.success) {
-        showToast('success', `测试邮件已发送到 ${testRecipients.join('、')} ✓`);
+        showToast('success', `测试邮件已发送到 ${COMPANY_TEST_EMAILS.join('、')} ✓`);
       } else {
         showToast('error', data.error || '测试发送失败');
       }
@@ -375,11 +314,6 @@ export default function NewsletterAdminPage() {
       return;
     }
 
-    if (selectedCustomRecipientEmails.length === 0) {
-      showToast('error', '请先选择至少一位客户');
-      return;
-    }
-
     setCustomSendingAll(true);
     setCustomConfirmSend(false);
 
@@ -391,7 +325,6 @@ export default function NewsletterAdminPage() {
           subject: customForm.subject,
           content: customForm.content,
           attachments: customForm.attachments,
-          recipientEmails: selectedCustomRecipientEmails,
         }),
       });
 
@@ -616,12 +549,12 @@ export default function NewsletterAdminPage() {
 
             {customModalOpen && (
               <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                <div className="w-full max-w-2xl max-h-[90vh] rounded-2xl border border-white/10 bg-card/95 shadow-2xl flex flex-col overflow-hidden">
+                <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-card/95 shadow-2xl">
                   <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
                     <div>
                       <h2 className="text-lg font-medium text-foreground">自定义邮件</h2>
                       <p className="text-xs text-muted-foreground mt-1">
-                        节假日通知 / 放假提醒 / 庆祝邮件（可选择客户）
+                        节假日通知 / 放假提醒 / 庆祝邮件（发送给全部客户）
                       </p>
                     </div>
                     <button
@@ -632,73 +565,7 @@ export default function NewsletterAdminPage() {
                     </button>
                   </div>
 
-                  <div className="px-5 py-3 border-b border-white/10 bg-card/95 backdrop-blur-sm shrink-0 flex flex-wrap items-center gap-3 justify-between">
-                    <p className="text-xs text-muted-foreground">
-                      已选客户：{selectedCustomRecipientEmails.length}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-3 justify-end">
-                      <button
-                        onClick={handleCustomSendTest}
-                        disabled={customSendingTest || customSendingAll}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium
-                          border border-violet-400/30 text-violet-400 hover:bg-violet-400/10
-                          disabled:opacity-50"
-                      >
-                        {customSendingTest ? <Loader2 className="w-4 h-4 animate-spin" /> : <FlaskConical className="w-4 h-4" />}
-                        {customSendingTest ? '发送中...' : '发测试邮件（给已选客户）'}
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          if (!customForm.subject.trim() || !customForm.content.trim()) {
-                            showToast('error', '请先填写主题和正文');
-                            return;
-                          }
-                          if (selectedCustomRecipientEmails.length === 0) {
-                            showToast('error', '请先选择至少一位客户');
-                            return;
-                          }
-                          setCustomConfirmSend(true);
-                        }}
-                        disabled={customSendingAll || customSendingTest}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium
-                          bg-gradient-to-r from-sky-600 to-violet-600 hover:from-sky-500 hover:to-violet-500
-                          text-white disabled:opacity-50"
-                      >
-                        <Send className="w-4 h-4" />
-                        发送给已选客户
-                      </button>
-                    </div>
-                  </div>
-
-                  {customConfirmSend && (
-                    <div className="mx-5 mt-4 p-4 rounded-xl border border-red-500/25 bg-red-950/15 shrink-0">
-                      <p className="text-sm text-red-300 mb-3 flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                        确认发送这封自定义邮件给已选中的 {selectedCustomRecipientEmails.length} 位客户吗？
-                      </p>
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={handleCustomSendAll}
-                          disabled={customSendingAll}
-                          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium
-                            bg-red-600 hover:bg-red-500 text-white disabled:opacity-50"
-                        >
-                          {customSendingAll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                          {customSendingAll ? '发送中...' : '确认发送'}
-                        </button>
-                        <button
-                          onClick={() => setCustomConfirmSend(false)}
-                          className="px-4 py-2 rounded-xl text-sm text-muted-foreground
-                            border border-white/10 hover:border-white/20"
-                        >
-                          取消
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="p-5 space-y-4 overflow-y-auto min-h-0">
+                  <div className="p-5 space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-foreground/80 mb-2">
                         邮件主题 <span className="text-red-400">*</span>
@@ -784,72 +651,63 @@ export default function NewsletterAdminPage() {
                       )}
                     </div>
 
-                    <div>
-                      <div className="flex items-center justify-between gap-3 mb-2">
-                        <label className="block text-sm font-medium text-foreground/80">
-                          选择客户 <span className="text-red-400">*</span>
-                        </label>
-                        <p className="text-xs text-muted-foreground">
-                          已选 {selectedCustomRecipientEmails.length} / {customRecipients.length}
+                    {customConfirmSend && (
+                      <div className="p-4 rounded-xl border border-red-500/25 bg-red-950/15">
+                        <p className="text-sm text-red-300 mb-3 flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                          确认发送这封自定义邮件给所有客户吗？
                         </p>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={handleCustomSendAll}
+                            disabled={customSendingAll}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium
+                              bg-red-600 hover:bg-red-500 text-white disabled:opacity-50"
+                          >
+                            {customSendingAll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                            {customSendingAll ? '发送中...' : '确认发送'}
+                          </button>
+                          <button
+                            onClick={() => setCustomConfirmSend(false)}
+                            className="px-4 py-2 rounded-xl text-sm text-muted-foreground
+                              border border-white/10 hover:border-white/20"
+                          >
+                            取消
+                          </button>
+                        </div>
                       </div>
-
-                      <div className="flex items-center gap-2 mb-2">
-                        <input
-                          type="text"
-                          value={customRecipientQuery}
-                          onChange={(e) => setCustomRecipientQuery(e.target.value)}
-                          placeholder="搜索客户姓名或邮箱"
-                          className="flex-1 px-3 py-2 rounded-lg border border-white/10 bg-card/50
-                            text-foreground placeholder:text-muted-foreground/50 text-sm
-                            focus:outline-none focus:border-glow-cyan/40"
-                        />
-                        <button
-                          type="button"
-                          onClick={toggleSelectAllFilteredRecipients}
-                          disabled={customRecipientsLoading || filteredCustomRecipients.length === 0}
-                          className="px-3 py-2 rounded-lg border border-white/15 text-xs text-foreground
-                            hover:border-glow-cyan/40 disabled:opacity-50"
-                        >
-                          {allFilteredSelected ? '取消筛选项' : '全选筛选项'}
-                        </button>
-                      </div>
-
-                      <div className="max-h-48 overflow-y-auto rounded-xl border border-white/10 bg-black/15 p-2 space-y-1">
-                        {customRecipientsLoading ? (
-                          <div className="flex items-center justify-center py-6 text-muted-foreground text-sm gap-2">
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            加载客户中...
-                          </div>
-                        ) : filteredCustomRecipients.length === 0 ? (
-                          <p className="text-sm text-muted-foreground py-6 text-center">没有匹配的客户</p>
-                        ) : (
-                          filteredCustomRecipients.map((recipient) => {
-                            const checked = selectedCustomRecipientEmails.includes(recipient.email);
-                            return (
-                              <label
-                                key={recipient.email}
-                                className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-white/5 cursor-pointer"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  onChange={() => toggleCustomRecipient(recipient.email)}
-                                  className="accent-cyan-400"
-                                />
-                                <div className="min-w-0">
-                                  <p className="text-sm text-foreground truncate">{recipient.name || 'Student'}</p>
-                                  <p className="text-xs text-muted-foreground truncate">{recipient.email}</p>
-                                </div>
-                              </label>
-                            );
-                          })
-                        )}
-                      </div>
-                    </div>
-
+                    )}
                   </div>
 
+                  <div className="px-5 py-4 border-t border-white/10 flex flex-wrap items-center gap-3 justify-end">
+                    <button
+                      onClick={handleCustomSendTest}
+                      disabled={customSendingTest || customSendingAll}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium
+                        border border-violet-400/30 text-violet-400 hover:bg-violet-400/10
+                        disabled:opacity-50"
+                    >
+                      {customSendingTest ? <Loader2 className="w-4 h-4 animate-spin" /> : <FlaskConical className="w-4 h-4" />}
+                      {customSendingTest ? '发送中...' : '发测试邮件给我'}
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        if (!customForm.subject.trim() || !customForm.content.trim()) {
+                          showToast('error', '请先填写主题和正文');
+                          return;
+                        }
+                        setCustomConfirmSend(true);
+                      }}
+                      disabled={customSendingAll || customSendingTest}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium
+                        bg-gradient-to-r from-sky-600 to-violet-600 hover:from-sky-500 hover:to-violet-500
+                        text-white disabled:opacity-50"
+                    >
+                      <Send className="w-4 h-4" />
+                      发送给所有客户
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

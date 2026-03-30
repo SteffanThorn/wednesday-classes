@@ -14,11 +14,20 @@ export async function GET() {
   await dbConnect();
 
   const intake = await HealthIntake.findOne({ userEmail: session.user.email.toLowerCase() })
+    .populate({ path: 'userId', select: 'classCredits' })
     .sort({ createdAt: -1 })
     .lean();
 
+  const fallbackCredits = intake
+    ? (typeof intake.remainingClassCredits === 'number' ? intake.remainingClassCredits : PACKAGE_TOTAL_CLASSES)
+    : 0;
+  const currentClassCredits = intake
+    ? Math.max(0, Number(intake.userId?.classCredits ?? fallbackCredits))
+    : 0;
+
   return NextResponse.json({
     hasIntake: !!intake,
+    currentClassCredits,
     intake: intake
       ? {
           id: intake._id.toString(),

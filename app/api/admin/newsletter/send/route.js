@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import { auth } from '@/auth';
 import { Resend } from 'resend';
 import dbConnect from '@/lib/mongodb';
@@ -6,23 +8,19 @@ import NewsletterCampaign from '@/lib/models/NewsletterCampaign';
 import User from '@/lib/models/User';
 import HealthIntake from '@/lib/models/HealthIntake';
 import { getWeekSchedule } from '@/lib/newsletter-schedule';
-import { appendBrandLogo, getCompanyLogoUrl } from '@/lib/email-branding';
+import { appendBrandLogo } from '@/lib/email-branding';
 import { personalizeTextForRecipient } from '@/lib/email-personalization';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-function normalizeSenderEmail(email) {
-  const value = String(email || '').trim();
-  return value.replace(/@innerlightyoga\.co\.nz$/i, '@innerlight.co.nz');
-}
-
 const SENDER_EMAIL =
   process.env.NODE_ENV === 'development'
-    ? normalizeSenderEmail(process.env.EMAIL_FROM_LOCAL || 'onboarding@resend.dev')
-    : normalizeSenderEmail(process.env.EMAIL_FROM_PRODUCTION || 'contact@innerlight.co.nz');
+    ? process.env.EMAIL_FROM_LOCAL || 'onboarding@resend.dev'
+    : process.env.EMAIL_FROM_PRODUCTION || 'contact@innerlightyoga.co.nz';
 
 const SENDER_NAME = 'Yuki · INNER LIGHT Yoga';
 const COMPANY_EMAIL = process.env.COMPANY_EMAIL || 'innerlightyuki@gmail.com';
+const COMPANY_LOGO_CID = 'innerlight-logo-footer';
 
 // Resend batch limit
 const BATCH_SIZE = 100;
@@ -48,6 +46,21 @@ function withResendGuidance(message) {
     return `${message} Please verify your sending domain in Resend and set EMAIL_FROM_PRODUCTION to that verified domain sender.`;
   }
   return message;
+}
+
+async function loadCompanyLogoAttachment() {
+  try {
+    const logoPath = path.join(process.cwd(), 'public', 'innerlight-logo.png');
+    const logoBuffer = await readFile(logoPath);
+    return {
+      filename: 'innerlight-logo.png',
+      content: logoBuffer,
+      contentId: COMPANY_LOGO_CID,
+    };
+  } catch (error) {
+    console.warn('Newsletter logo attachment not loaded, fallback to URL logo:', error?.message || error);
+    return null;
+  }
 }
 
 function normalizeTestRecipients(testEmail, fallbackName) {
@@ -136,6 +149,8 @@ export async function POST(request) {
       return NextResponse.json({ error: 'No recipients found' }, { status: 400 });
     }
 
+    const logoAttachment = await loadCompanyLogoAttachment();
+
     // ── Build email batch ────────────────────────────────────────────────────
     const emailBatch = recipients.map((recipient) => {
       const personalizedSubject = personalizeTextForRecipient(campaign.subject, recipient.name);
@@ -143,6 +158,7 @@ export async function POST(request) {
       const personalizedInstructorNote = personalizeTextForRecipient(campaign.instructorNote, recipient.name);
 
       const newsletterHtml = buildNewsletterHtml({
+        userName: recipient.name,
         weekNumber: campaign.weekNumber,
         title: schedule.title,
         titleZh: schedule.titleZh,
@@ -152,7 +168,6 @@ export async function POST(request) {
         mainContent: personalizedMainContent,
         practiceHighlights: campaign.practiceHighlights,
         instructorNote: personalizedInstructorNote,
-        logoSrc: getCompanyLogoUrl(),
       });
 
       return {
@@ -160,9 +175,11 @@ export async function POST(request) {
         to: recipient.email,
         subject: personalizedSubject,
         html: appendBrandLogo(
-          newsletterHtml
+          newsletterHtml,
+          logoAttachment ? { logoSrc: `cid:${COMPANY_LOGO_CID}` } : undefined
         ),
         replyTo: COMPANY_EMAIL,
+        attachments: logoAttachment ? [logoAttachment] : undefined,
       };
     });
 
@@ -251,6 +268,7 @@ export async function POST(request) {
 // ─── Email HTML Template ─────────────────────────────────────────────────────
 
 function buildNewsletterHtml({
+  userName,
   weekNumber,
   title,
   titleZh,
@@ -260,8 +278,9 @@ function buildNewsletterHtml({
   mainContent,
   practiceHighlights,
   instructorNote,
-  logoSrc,
 }) {
+  const firstName = userName?.split(' ')[0] || 'Friend';
+
   // Convert line breaks in mainContent to <br> tags
   const contentHtml = mainContent
     .split('\n')
@@ -395,6 +414,10 @@ function buildNewsletterHtml({
                 ${titleZh}
               </p>
 
+              <p style="margin: 0 0 28px; color: #4b5563; font-size: 16px; line-height: 1.7;">
+                Hi ${firstName},
+              </p>
+
               ${contentHtml}
               ${highlightsHtml}
               ${instructorNoteHtml}
@@ -405,7 +428,7 @@ function buildNewsletterHtml({
                 <tr>
                   <td style="text-align: left;">
                     <img
-                      src="${logoSrc}"
+                      src="cid:innerlight-logo-footer"
                       alt="INNER LIGHT Yoga"
                       width="140"
                       style="display:inline-block; height:auto; max-width:140px; opacity:0.95;"

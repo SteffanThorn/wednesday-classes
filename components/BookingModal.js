@@ -278,6 +278,7 @@ export default function BookingModal({
   onClose, 
   classDetails,
   dayOfWeek = null, // null means allow user to select: 'wednesday-morning', 'wednesday-evening', or 'thursday-evening'
+  preselectedDate = '',
   language = 'en' 
 }) {
   // ALL hooks must be called unconditionally - no early returns before hooks!
@@ -288,8 +289,9 @@ export default function BookingModal({
     notes: ''
   });
   const [bringAFriend, setBringAFriend] = useState(false);
-  // Payment method: 'card' (Stripe) or 'cash'
+  // Payment method: 'card' (Stripe) or 'cash' or 'member_card'
   const [paymentMethod, setPaymentMethod] = useState('card');
+  const [memberCredits, setMemberCredits] = useState(0);
   
   // Coupon state
   const [couponCode, setCouponCode] = useState('');
@@ -332,6 +334,42 @@ export default function BookingModal({
       setBringAFriend(false);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !session?.user?.email) return;
+
+    let cancelled = false;
+
+    const loadCredits = async () => {
+      try {
+        const res = await fetch('/api/health-intake');
+        const data = await res.json();
+        if (!res.ok) return;
+        if (!cancelled) {
+          setMemberCredits(Math.max(0, Number(data.currentClassCredits ?? data.intake?.remainingClassCredits ?? 0)));
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    loadCredits();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, session?.user?.email]);
+
+  useEffect(() => {
+    if (!isOpen || !preselectedDate) return;
+    const target = availableDates.find((d) => d.date === preselectedDate);
+    if (!target) return;
+
+    setSelectedDates((prev) => {
+      if (prev.some((d) => d.date === target.date)) return prev;
+      return [target];
+    });
+  }, [isOpen, preselectedDate, effectiveDayOfWeek]);
 
   // Calculate discount
   const calculateDiscount = () => {
@@ -464,11 +502,25 @@ export default function BookingModal({
           // The checkout page will create the booking and payment intent
           window.location.href = `/checkout?${params.toString()}`;
         } else {
-          // Pay by cash or Bring a Friend: create bookings directly
+          // Pay by cash / member card / Bring a Friend: create bookings directly
           try {
+            if (!bringAFriend && paymentMethod === 'member_card' && selectedDates.length > 1) {
+              throw new Error(language === 'zh'
+                ? '会员卡支付每次仅支持预约一个课程日期，请只选择一个日期'
+                : 'Member-credit payment currently supports one class date per booking. Please select only one date.');
+            }
+
+            if (!bringAFriend && paymentMethod === 'member_card' && memberCredits < selectedDates.length) {
+              throw new Error(language === 'zh'
+                ? `会员卡剩余次数不足（当前 ${memberCredits}，需要 ${selectedDates.length}）`
+                : `Not enough member credits (have ${memberCredits}, need ${selectedDates.length})`);
+            }
+
             // Distribute payable total across selected dates (per-booking amount)
             const perBooking = bringAFriend
               ? 0
+              : paymentMethod === 'member_card'
+                ? 0
               : parseFloat((payableAmount / selectedDates.length).toFixed(2));
 
             const created = [];
@@ -480,7 +532,7 @@ export default function BookingModal({
                 location: classDetails.location,
                 amount: perBooking,
                 notes: formData.notes || '',
-                paymentMethod: bringAFriend ? 'bring_a_friend' : 'cash',
+                paymentMethod: bringAFriend ? 'bring_a_friend' : (paymentMethod === 'member_card' ? 'member_card' : 'cash'),
                 bringAFriend: bringAFriend
               };
 
@@ -499,7 +551,7 @@ export default function BookingModal({
 
             // Successfully created all bookings - redirect to dashboard with success message
             // Keep loading state until redirect completes
-            const paidType = bringAFriend ? 'bring-friend' : 'cash';
+            const paidType = bringAFriend ? 'bring-friend' : (paymentMethod === 'member_card' ? 'member-card' : 'cash');
             window.location.href = '/dashboard?paid=' + paidType + '&created=' + encodeURIComponent(created.map(b => b._id).join(','));
             return; // Exit early to prevent setIsLoading(false) below
           } catch (err) {
@@ -1054,7 +1106,25 @@ export default function BookingModal({
                   />
                   {language === 'zh' ? '现金支付' : 'Pay Cash'}
                 </label>
+                <label className={`px-3 py-2 rounded-lg border ${paymentMethod === 'member_card' ? 'border-glow-cyan/40 bg-glow-cyan/10' : 'border-border/30 bg-card/60'} cursor-pointer flex-1 text-center ${bringAFriend ? 'opacity-50 pointer-events-none' : ''}`}> 
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="member_card"
+                    checked={paymentMethod === 'member_card'}
+                    onChange={() => setPaymentMethod('member_card')}
+                    className="hidden"
+                  />
+                  {language === 'zh' ? '会员卡次数' : 'Member Credits'}
+                </label>
               </div>
+              {!bringAFriend && (
+                <p className="text-xs text-muted-foreground">
+                  {language === 'zh'
+                    ? `当前会员卡剩余次数：${memberCredits}`
+                    : `Current member credits: ${memberCredits}`}
+                </p>
+              )}
             </div>
 
             <button
@@ -1075,6 +1145,8 @@ export default function BookingModal({
                   <DollarSign className="w-5 h-5" />
                   {bringAFriend
                     ? (language === 'zh' ? '免费预约（带朋友）' : 'Book Free (Bring a Friend)')
+                    : paymentMethod === 'member_card'
+                      ? (language === 'zh' ? `使用会员卡次数预约（需 ${selectedDates.length} 次）` : `Book with Member Credits (needs ${selectedDates.length})`)
                     : (language === 'zh' ? `支付 $${payableAmount.toFixed(2)}` : `Pay $${payableAmount.toFixed(2)}`)}
                 </>
               )}

@@ -14,13 +14,7 @@ export async function GET(request) {
   await dbConnect();
 
   try {
-    const { searchParams } = new URL(request.url);
-    const profileTypeParam = searchParams.get('profileType');
-    const filter = profileTypeParam === 'potential'
-      ? { profileType: 'potential' }
-      : { $or: [{ profileType: 'customer' }, { profileType: { $exists: false } }] };
-
-    const intakes = await HealthIntake.find(filter)
+    const intakes = await HealthIntake.find({})
       .populate({
         path: 'userId',
         select: 'name email role classCredits',
@@ -55,7 +49,6 @@ export async function GET(request) {
         usedPackageClasses: Math.max(0, PACKAGE_TOTAL_CLASSES - remainingClassCredits),
         createdAt: intake.createdAt,
         updatedAt: intake.updatedAt,
-        profileType: intake.profileType || 'customer',
       };
     });
 

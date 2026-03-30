@@ -6,45 +6,6 @@ import User from '@/lib/models/User';
 import HealthIntake from '@/lib/models/HealthIntake';
 
 const PACKAGE_TOTAL_CLASSES = 5;
-
-function escapeRegex(input = '') {
-  return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-async function findPotentialDuplicates({ name, email, phone }) {
-  const normalizedName = (name || '').trim();
-  const normalizedEmail = (email || '').toLowerCase().trim();
-  const normalizedPhone = (phone || '').trim();
-
-  const [emailMatches, phoneMatches, nameMatches] = await Promise.all([
-    normalizedEmail
-      ? User.find({ email: normalizedEmail })
-          .select('name email phone role')
-          .limit(5)
-          .lean()
-      : [],
-    normalizedPhone
-      ? User.find({ phone: normalizedPhone })
-          .select('name email phone role')
-          .limit(5)
-          .lean()
-      : [],
-    normalizedName
-      ? User.find({ name: { $regex: `^${escapeRegex(normalizedName)}$`, $options: 'i' } })
-          .select('name email phone role')
-          .limit(5)
-          .lean()
-      : [],
-  ]);
-
-  return {
-    emailMatches,
-    phoneMatches,
-    nameMatches,
-    hasDuplicates: emailMatches.length > 0 || phoneMatches.length > 0 || nameMatches.length > 0,
-  };
-}
-
 async function ensureAdmin() {
   const session = await auth();
 
@@ -67,44 +28,6 @@ export async function GET(request) {
     await dbConnect();
 
     const { searchParams } = new URL(request.url);
-    const mode = (searchParams.get('mode') || '').trim();
-
-    if (mode === 'duplicates') {
-      const name = (searchParams.get('name') || '').trim();
-      const email = (searchParams.get('email') || '').trim();
-      const phone = (searchParams.get('phone') || '').trim();
-
-      const duplicates = await findPotentialDuplicates({ name, email, phone });
-
-      return NextResponse.json({
-        success: true,
-        duplicates: {
-          ...duplicates,
-          emailMatches: duplicates.emailMatches.map((u) => ({
-            id: u._id.toString(),
-            name: u.name,
-            email: u.email,
-            phone: u.phone || '',
-            role: u.role,
-          })),
-          phoneMatches: duplicates.phoneMatches.map((u) => ({
-            id: u._id.toString(),
-            name: u.name,
-            email: u.email,
-            phone: u.phone || '',
-            role: u.role,
-          })),
-          nameMatches: duplicates.nameMatches.map((u) => ({
-            id: u._id.toString(),
-            name: u.name,
-            email: u.email,
-            phone: u.phone || '',
-            role: u.role,
-          })),
-        },
-      });
-    }
-
     const q = (searchParams.get('q') || '').trim();
 
     const query = { role: 'student' };
@@ -154,11 +77,7 @@ export async function POST(request) {
       comments,
       signatureName,
       signedAt,
-      profileType,
-      confirmDuplicate,
     } = body;
-
-    const normalizedProfileType = profileType === 'potential' ? 'potential' : 'customer';
 
     if (
       !name ||
@@ -171,7 +90,6 @@ export async function POST(request) {
     }
 
     const shouldSaveIntake =
-      normalizedProfileType === 'potential' ||
       !!healthNotes?.trim() ||
       !!emergencyContactName?.trim() ||
       !!emergencyContactPhone?.trim() ||
@@ -181,53 +99,12 @@ export async function POST(request) {
       !!signedAt;
 
     const normalizedEmail = email.toLowerCase().trim();
-    const normalizedName = name.trim();
-    const normalizedPhone = phone?.trim() || '';
     const parsedClassCredits = Number.isFinite(Number(classCredits))
       ? Math.min(PACKAGE_TOTAL_CLASSES, Math.max(0, Number(classCredits)))
       : null;
     const effectiveClassCredits = parsedClassCredits ?? PACKAGE_TOTAL_CLASSES;
 
     await dbConnect();
-
-    const duplicates = await findPotentialDuplicates({
-      name: normalizedName,
-      email: normalizedEmail,
-      phone: normalizedPhone,
-    });
-
-    if (duplicates.hasDuplicates && confirmDuplicate !== true) {
-      return NextResponse.json(
-        {
-          error: 'Potential duplicate member found. Please confirm to continue.',
-          code: 'DUPLICATE_POTENTIAL',
-          duplicates: {
-            emailMatches: duplicates.emailMatches.map((u) => ({
-              id: u._id.toString(),
-              name: u.name,
-              email: u.email,
-              phone: u.phone || '',
-              role: u.role,
-            })),
-            phoneMatches: duplicates.phoneMatches.map((u) => ({
-              id: u._id.toString(),
-              name: u.name,
-              email: u.email,
-              phone: u.phone || '',
-              role: u.role,
-            })),
-            nameMatches: duplicates.nameMatches.map((u) => ({
-              id: u._id.toString(),
-              name: u.name,
-              email: u.email,
-              phone: u.phone || '',
-              role: u.role,
-            })),
-          },
-        },
-        { status: 409 }
-      );
-    }
 
     const existing = await User.findOne({ email: normalizedEmail });
     if (existing) {
@@ -238,8 +115,8 @@ export async function POST(request) {
         );
       }
 
-      existing.name = normalizedName;
-      existing.phone = normalizedPhone;
+      existing.name = name.trim();
+      existing.phone = phone?.trim() || '';
       existing.role = 'student';
       if (parsedClassCredits !== null) {
         existing.classCredits = parsedClassCredits;
@@ -267,7 +144,7 @@ export async function POST(request) {
             userId: existing._id,
             userEmail: normalizedEmail,
             userName: existing.name,
-            phone: normalizedPhone,
+            phone: phone?.trim() || '',
             healthNotes: healthNotes?.trim() || '',
             emergencyContactName: emergencyContactName?.trim() || '',
             emergencyContactPhone: emergencyContactPhone?.trim() || '',
@@ -278,7 +155,6 @@ export async function POST(request) {
             remainingClassCredits: existing.classCredits,
             signedAt: signedAt ? new Date(signedAt) : new Date(),
             signatureDataUrl: '',
-            profileType: normalizedProfileType,
           },
           { upsert: true, new: true, setDefaultsOnInsert: true }
         );
@@ -300,9 +176,9 @@ export async function POST(request) {
     const temporaryPassword = `${crypto.randomBytes(8).toString('hex')}Aa1!`;
 
     const student = new User({
-      name: normalizedName,
+      name: name.trim(),
       email: normalizedEmail,
-      phone: normalizedPhone,
+      phone: phone?.trim() || '',
       role: 'student',
       password: temporaryPassword,
       classCredits: effectiveClassCredits,
@@ -321,7 +197,7 @@ export async function POST(request) {
         userId: student._id,
         userEmail: normalizedEmail,
         userName: student.name,
-        phone: normalizedPhone,
+        phone: phone?.trim() || '',
         healthNotes: healthNotes?.trim() || '',
         emergencyContactName: emergencyContactName?.trim() || '',
         emergencyContactPhone: emergencyContactPhone?.trim() || '',
@@ -332,7 +208,6 @@ export async function POST(request) {
         remainingClassCredits: effectiveClassCredits,
         signedAt: signedAt ? new Date(signedAt) : new Date(),
         signatureDataUrl: '',
-        profileType: normalizedProfileType,
       });
     }
 

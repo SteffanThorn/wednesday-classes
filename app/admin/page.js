@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Header from '@/components/Header';
 import FloatingParticles from '@/components/FloatingParticle';
-import { Loader2, CalendarCheck2, TicketPercent, UserPlus, ChevronRight, Users, Mail, UserRoundSearch } from 'lucide-react';
+import { Loader2, CalendarCheck2, TicketPercent, UserPlus, ChevronRight, Users, Mail } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -107,7 +107,7 @@ export default function AdminDashboardPage() {
               </p>
             </div>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid md:grid-cols-4 gap-4">
               <Link
                 href="/admin/bookings"
                 className="p-6 rounded-3xl border border-glow-cyan/20 bg-card/60 backdrop-blur-sm 
@@ -169,19 +169,6 @@ export default function AdminDashboardPage() {
                 <div className="flex items-center gap-3">
                   <Mail className="w-5 h-5 text-glow-cyan" />
                   <span className="font-medium">邮件通讯 / Newsletter</span>
-                </div>
-                <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-glow-cyan transition-colors" />
-              </Link>
-
-              <Link
-                href="/admin/leads"
-                className="p-6 rounded-3xl border border-glow-cyan/20 bg-card/60 backdrop-blur-sm 
-                         hover:border-glow-cyan/40 hover:box-glow transition-all duration-500
-                         flex items-center justify-between group"
-              >
-                <div className="flex items-center gap-3">
-                  <UserRoundSearch className="w-5 h-5 text-glow-cyan" />
-                  <span className="font-medium">潜在客户名单 / Potential Leads</span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-glow-cyan transition-colors" />
               </Link>

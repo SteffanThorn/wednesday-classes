@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import dbConnect from '@/lib/mongodb';
 import Booking from '@/lib/models/Booking';
+import User from '@/lib/models/User';
+import HealthIntake from '@/lib/models/HealthIntake';
+import { sendBookingConfirmationEmail } from '@/lib/email';
 
 const MAX_STUDENTS_PER_CLASS = 10;
 
@@ -132,6 +135,144 @@ export async function GET() {
       { error: 'Failed to fetch bookings' },
       { status: 500 }
     );
+  }
+}
+
+// POST - Admin create booking for a customer (assisted booking)
+export async function POST(request) {
+  try {
+    const session = await auth();
+
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (session.user.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
+    }
+
+    await dbConnect();
+
+    const body = await request.json();
+    const {
+      intakeId,
+      userEmail,
+      className,
+      classDate,
+      classTime,
+      location,
+      sendEmail = true,
+    } = body;
+
+    if (!className || !classDate || !classTime || !location || (!intakeId && !userEmail)) {
+      return NextResponse.json(
+        { error: 'Missing required fields: className, classDate, classTime, location and intakeId/userEmail' },
+        { status: 400 }
+      );
+    }
+
+    let intake = null;
+    if (intakeId) {
+      intake = await HealthIntake.findById(intakeId).lean();
+    }
+
+    const normalizedEmail = (userEmail || intake?.userEmail || '').toLowerCase().trim();
+    if (!normalizedEmail) {
+      return NextResponse.json({ error: 'Customer email is required' }, { status: 400 });
+    }
+
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Student not found. Please add customer/student profile first.' },
+        { status: 404 }
+      );
+    }
+
+    const normalizedClassDate = new Date(classDate);
+    if (Number.isNaN(normalizedClassDate.getTime())) {
+      return NextResponse.json({ error: 'Invalid class date' }, { status: 400 });
+    }
+
+    const dayStart = new Date(normalizedClassDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(normalizedClassDate);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    const existingBooking = await Booking.findOne({
+      userEmail: normalizedEmail,
+      classDate: { $gte: dayStart, $lte: dayEnd },
+      classTime,
+      status: { $ne: 'cancelled' },
+    }).lean();
+
+    if (existingBooking) {
+      return NextResponse.json(
+        { error: 'This customer already has a booking for this class session.' },
+        { status: 409 }
+      );
+    }
+
+    const booking = new Booking({
+      userId: user._id,
+      userEmail: normalizedEmail,
+      userName: intake?.userName || user.name || 'Student',
+      className,
+      classDate: normalizedClassDate,
+      classTime,
+      location,
+      amount: 0,
+      notes: 'Admin assisted booking from Booking Management',
+      status: 'confirmed',
+      paymentStatus: 'completed',
+      paymentMethod: 'admin_assisted',
+      paidAt: new Date(),
+    });
+
+    await booking.save();
+
+    const formattedDate = new Date(booking.classDate).toLocaleDateString('en-NZ', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+
+    if (sendEmail) {
+      sendBookingConfirmationEmail({
+        userEmail: booking.userEmail,
+        userName: booking.userName,
+        className: booking.className,
+        classDate: formattedDate,
+        classTime: booking.classTime,
+        location: booking.location,
+        amount: booking.amount,
+        bookingId: booking._id.toString(),
+      }).catch((err) => console.error('Failed to send booking confirmation email:', err));
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: sendEmail
+        ? 'Booking created and confirmation email sent.'
+        : 'Booking created without sending confirmation email.',
+      booking: {
+        id: booking._id.toString(),
+        userEmail: booking.userEmail,
+        userName: booking.userName,
+        className: booking.className,
+        classDate: booking.classDate,
+        classTime: booking.classTime,
+        location: booking.location,
+        status: booking.status,
+        paymentStatus: booking.paymentStatus,
+      },
+      remainingClassCredits: Math.max(0, Number(user.classCredits || 0)),
+      note: 'Class credits are deducted when attendance is marked.',
+    });
+  } catch (error) {
+    console.error('Error creating admin booking:', error);
+    return NextResponse.json({ error: 'Failed to create booking' }, { status: 500 });
   }
 }
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import FloatingParticles from '@/components/FloatingParticle';
@@ -14,11 +14,19 @@ export default function CustomerDetailPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const customerId = Array.isArray(params.id) ? params.id[0] : params.id;
+  const bookingClassDate = searchParams.get('classDate') || '';
+  const bookingClassTime = searchParams.get('classTime') || '';
+  const bookingClassName = searchParams.get('className') || 'Yoga Class';
+  const bookingLocation = searchParams.get('location') || '';
+  const canBookSelectedSession = !!bookingClassDate && !!bookingClassTime;
 
   const [customer, setCustomer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [bookingThisClass, setBookingThisClass] = useState(false);
+  const [bookingResult, setBookingResult] = useState('');
   const [expandedSections, setExpandedSections] = useState({
     health: true,
     emergency: true,
@@ -71,6 +79,56 @@ export default function CustomerDetailPage() {
       ...prev,
       [section]: !prev[section],
     }));
+  };
+
+  const handleBookCurrentClass = async () => {
+    if (!canBookSelectedSession || !customer?.userEmail) return;
+
+    const confirmed = window.confirm(
+      `确认预约此课程并扣除 1 节课次？\n\n学员: ${customer.userName}\n课程: ${bookingClassName}\n时间: ${bookingClassDate} ${bookingClassTime}`
+    );
+    if (!confirmed) return;
+
+    setBookingThisClass(true);
+    setBookingResult('');
+    setError('');
+
+    try {
+      const response = await fetch('/api/admin/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          classDate: bookingClassDate,
+          classTime: bookingClassTime,
+          className: bookingClassName,
+          location: bookingLocation,
+          studentEmail: customer.userEmail,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to book this class');
+
+      const latestCredits = Number.isFinite(Number(data?.student?.classCredits))
+        ? Number(data.student.classCredits)
+        : customer.remainingClassCredits;
+
+      setCustomer((prev) => {
+        if (!prev) return prev;
+        const total = prev.totalPackageClasses ?? 5;
+        return {
+          ...prev,
+          remainingClassCredits: latestCredits,
+          usedPackageClasses: Math.max(0, total - latestCredits),
+        };
+      });
+
+      setBookingResult(data.message || '已预约并完成课次扣减。/ Class booked and credit deducted.');
+    } catch (err) {
+      setError(err.message || '预约失败。/ Failed to book this class');
+    } finally {
+      setBookingThisClass(false);
+    }
   };
 
   if (status === 'loading') {
@@ -360,6 +418,34 @@ export default function CustomerDetailPage() {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {canBookSelectedSession && (
+              <div className="mt-6 p-6 rounded-lg border border-glow-cyan/30 bg-glow-cyan/5">
+                <h2 className="font-semibold text-foreground mb-2">预约此次课程 / Book This Class</h2>
+                <p className="text-sm text-muted-foreground mb-4">
+                  当前课程：{bookingClassName} · {bookingClassDate} {bookingClassTime}
+                  {bookingLocation ? ` · ${bookingLocation}` : ''}
+                </p>
+
+                {bookingResult && (
+                  <div className="mb-3 p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-sm">
+                    {bookingResult}
+                  </div>
+                )}
+
+                <button
+                  onClick={handleBookCurrentClass}
+                  disabled={bookingThisClass}
+                  className="px-5 py-2 rounded-lg bg-glow-cyan/20 border border-glow-cyan/40 text-glow-cyan hover:bg-glow-cyan/30 disabled:opacity-50 transition-colors"
+                >
+                  {bookingThisClass ? (
+                    <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />预约中... / Booking...</span>
+                  ) : (
+                    '预约此次课程（自动扣1节）/ Book This Class (Deduct 1 Credit)'
+                  )}
+                </button>
               </div>
             )}
 
