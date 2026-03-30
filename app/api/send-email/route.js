@@ -6,6 +6,11 @@ import { appendBrandLogo } from '@/lib/email-branding';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+function normalizeSenderEmail(email) {
+  const value = String(email || '').trim();
+  return value.replace(/@innerlightyoga\.co\.nz$/i, '@innerlight.co.nz');
+}
+
 // Allow these email types to be sent by authenticated users (for transactional emails)
 const userAllowedEmailTypes = [
   'booking-confirmation',
@@ -616,8 +621,8 @@ export async function POST(request) {
     // Use Resend's test domain for local development
     const isLocal = process.env.NODE_ENV === 'development';
     const senderEmail = isLocal
-      ? process.env.EMAIL_FROM_LOCAL || 'onboarding@resend.dev'
-      : process.env.EMAIL_FROM_PRODUCTION || 'contact@innerlightyoga.co.nz';
+      ? normalizeSenderEmail(process.env.EMAIL_FROM_LOCAL || 'onboarding@resend.dev')
+      : normalizeSenderEmail(process.env.EMAIL_FROM_PRODUCTION || 'contact@innerlight.co.nz');
     const senderName = isLocal ? 'INNER LIGHT Yoga (Test)' : 'INNER LIGHT Yoga';
 
     // Send email via Resend

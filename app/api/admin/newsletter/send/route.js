@@ -13,10 +13,15 @@ import { personalizeTextForRecipient } from '@/lib/email-personalization';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+function normalizeSenderEmail(email) {
+  const value = String(email || '').trim();
+  return value.replace(/@innerlightyoga\.co\.nz$/i, '@innerlight.co.nz');
+}
+
 const SENDER_EMAIL =
   process.env.NODE_ENV === 'development'
-    ? process.env.EMAIL_FROM_LOCAL || 'onboarding@resend.dev'
-    : process.env.EMAIL_FROM_PRODUCTION || 'contact@innerlightyoga.co.nz';
+    ? normalizeSenderEmail(process.env.EMAIL_FROM_LOCAL || 'onboarding@resend.dev')
+    : normalizeSenderEmail(process.env.EMAIL_FROM_PRODUCTION || 'contact@innerlight.co.nz');
 
 const SENDER_NAME = 'Yuki · INNER LIGHT Yoga';
 const COMPANY_EMAIL = process.env.COMPANY_EMAIL || 'innerlightyuki@gmail.com';
