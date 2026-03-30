@@ -938,7 +938,6 @@ export default function AdminBookingsPage() {
 
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="p-4 rounded-lg bg-card/40 border border-glow-cyan/10">
-                      <h3 className="text-sm font-medium text-foreground mb-2">Booked Students</h3>
                       <h3 className="text-sm font-medium text-foreground mb-2">{txt('已预约学员', 'Booked Students')}</h3>
                       <div className="space-y-2">
                         <select
@@ -981,7 +980,6 @@ export default function AdminBookingsPage() {
                     </div>
 
                     <div className="p-4 rounded-lg bg-card/40 border border-glow-cyan/10">
-                      <h3 className="text-sm font-medium text-foreground mb-2">Walk-in / Not Booked</h3>
                       <h3 className="text-sm font-medium text-foreground mb-2">{txt('临时到场 / 未预约', 'Walk-in / Not Booked')}</h3>
                       <div className="space-y-2">
                         <select
@@ -992,7 +990,7 @@ export default function AdminBookingsPage() {
                           <option value="">{txt('请选择学员', 'Select student')}</option>
                           {attendanceStudents.map((s) => (
                             <option key={s.id} value={s.email}>
-                              {s.name} ({s.email}) · Credits: {s.classCredits || 0}
+                              {s.name} ({s.email}) · {txt('课次', 'Credits')}: {s.classCredits || 0}
                             </option>
                           ))}
                         </select>
@@ -1050,7 +1048,7 @@ export default function AdminBookingsPage() {
                         {form.phone && <p className="text-xs text-muted-foreground">{form.phone}</p>}
                         <div className="mt-2 flex gap-2">
                           <span className={`text-xs px-2 py-0.5 rounded-full ${form.waiverAccepted ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                            {form.waiverAccepted ? 'Waiver ✓' : 'Waiver ✗'}
+                            {form.waiverAccepted ? txt('免责已签 ✓', 'Waiver ✓') : txt('免责未签 ✗', 'Waiver ✗')}
                           </span>
                         </div>
 
@@ -1058,7 +1056,6 @@ export default function AdminBookingsPage() {
                         {selectedIntake?.id === form.id && (
                           <div className="mt-4 space-y-3 text-sm border-t border-glow-cyan/10 pt-3">
                             <div>
-                              <p className="text-xs text-muted-foreground mb-0.5">Health / Injuries</p>
                               <p className="text-xs text-muted-foreground mb-0.5">{txt('健康 / 伤病', 'Health / Injuries')}</p>
                               <p className="text-foreground whitespace-pre-wrap">{form.healthNotes}</p>
                             </div>
