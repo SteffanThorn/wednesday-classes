@@ -109,6 +109,29 @@ function normalizeTestRecipients(testEmail, fallbackName) {
   }));
 }
 
+async function loadRecipientPool() {
+  const users = await User.find({ role: 'student' }).select('email name').lean();
+  const intakes = await HealthIntake.find({}).select('userEmail userName').lean();
+
+  const emailMap = new Map();
+  users.forEach((u) => {
+    if (u.email) {
+      emailMap.set(u.email.toLowerCase(), { email: u.email, name: u.name || 'Student' });
+    }
+  });
+
+  intakes.forEach((i) => {
+    if (i.userEmail) {
+      const key = i.userEmail.toLowerCase();
+      if (!emailMap.has(key)) {
+        emailMap.set(key, { email: i.userEmail, name: i.userName || 'Student' });
+      }
+    }
+  });
+
+  return Array.from(emailMap.values()).sort((a, b) => a.email.localeCompare(b.email));
+}
+
 function buildCustomEmailHtml({ content, inlineImages = [], fileAttachments = [] }) {
   const paragraphs = content
     .split('\n\n')
@@ -203,7 +226,7 @@ export async function POST(request) {
 
   try {
     const body = await request.json();
-    const { subject, content, testEmail } = body;
+    const { subject, content, testEmail, recipientEmails } = body;
     const attachments = normalizeAttachments(body?.attachments);
 
     if (!subject?.trim()) {
@@ -219,26 +242,19 @@ export async function POST(request) {
     if (testEmail) {
       recipients = normalizeTestRecipients(testEmail, session.user.name || 'Test User');
     } else {
-      const users = await User.find({ role: 'student' }).select('email name').lean();
-      const intakes = await HealthIntake.find({}).select('userEmail userName').lean();
+      const allRecipients = await loadRecipientPool();
 
-      const emailMap = new Map();
-      users.forEach((u) => {
-        if (u.email) {
-          emailMap.set(u.email.toLowerCase(), { email: u.email, name: u.name || 'Student' });
-        }
-      });
+      if (Array.isArray(recipientEmails) && recipientEmails.length > 0) {
+        const selectedSet = new Set(
+          recipientEmails
+            .map((email) => String(email || '').trim().toLowerCase())
+            .filter(Boolean)
+        );
 
-      intakes.forEach((i) => {
-        if (i.userEmail) {
-          const key = i.userEmail.toLowerCase();
-          if (!emailMap.has(key)) {
-            emailMap.set(key, { email: i.userEmail, name: i.userName || 'Student' });
-          }
-        }
-      });
-
-      recipients = Array.from(emailMap.values());
+        recipients = allRecipients.filter((recipient) => selectedSet.has(recipient.email.toLowerCase()));
+      } else {
+        recipients = allRecipients;
+      }
     }
 
     if (recipients.length === 0) {
@@ -346,6 +362,25 @@ export async function POST(request) {
   } catch (error) {
     return NextResponse.json(
       { error: 'Failed to send custom email', detail: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET() {
+  const session = await auth();
+  if (!session?.user || session.user.role !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  await dbConnect();
+
+  try {
+    const recipients = await loadRecipientPool();
+    return NextResponse.json({ success: true, recipients, total: recipients.length });
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Failed to load recipients', detail: error.message },
       { status: 500 }
     );
   }
