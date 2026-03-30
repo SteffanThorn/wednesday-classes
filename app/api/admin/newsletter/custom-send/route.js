@@ -88,8 +88,8 @@ async function loadCompanyLogoAttachment() {
     const logoBuffer = await readFile(logoPath);
     return {
       filename: 'innerlight-logo.png',
-      content: logoBuffer,
-      contentId: COMPANY_LOGO_CID,
+      content: logoBuffer.toString('base64'),
+      cid: COMPANY_LOGO_CID,
     };
   } catch (error) {
     console.warn('Custom newsletter logo attachment not loaded, fallback to URL logo:', error?.message || error);
@@ -280,12 +280,12 @@ export async function POST(request) {
         ...(logoAttachment ? [logoAttachment] : []),
         ...inlineImages.map((img) => ({
           filename: img.filename,
-          content: Buffer.from(img.content, 'base64'),
-          contentId: img.cid,
+          content: img.content,
+          cid: img.cid,
         })),
         ...fileAttachments.map((file) => ({
           filename: file.filename,
-          content: Buffer.from(file.content, 'base64'),
+          content: file.content,
         })),
       ];
 

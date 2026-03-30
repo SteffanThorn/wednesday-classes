@@ -340,6 +340,9 @@ export default function NewsletterAdminPage() {
       return;
     }
 
+    const testRecipients =
+      selectedCustomRecipientEmails.length > 0 ? selectedCustomRecipientEmails : COMPANY_TEST_EMAILS;
+
     setCustomSendingTest(true);
     try {
       const res = await fetch('/api/admin/newsletter/custom-send', {
@@ -348,14 +351,14 @@ export default function NewsletterAdminPage() {
         body: JSON.stringify({
           subject: customForm.subject,
           content: customForm.content,
-          testEmail: COMPANY_TEST_EMAILS,
+          testEmail: testRecipients,
           attachments: customForm.attachments,
         }),
       });
 
       const data = await res.json();
       if (res.ok && data.success) {
-        showToast('success', `测试邮件已发送到 ${COMPANY_TEST_EMAILS.join('、')} ✓`);
+        showToast('success', `测试邮件已发送到 ${testRecipients.join('、')} ✓`);
       } else {
         showToast('error', data.error || '测试发送失败');
       }
@@ -613,12 +616,12 @@ export default function NewsletterAdminPage() {
 
             {customModalOpen && (
               <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-card/95 shadow-2xl">
+                <div className="w-full max-w-2xl max-h-[90vh] rounded-2xl border border-white/10 bg-card/95 shadow-2xl flex flex-col overflow-hidden">
                   <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
                     <div>
                       <h2 className="text-lg font-medium text-foreground">自定义邮件</h2>
                       <p className="text-xs text-muted-foreground mt-1">
-                        节假日通知 / 放假提醒 / 庆祝邮件（发送给全部客户）
+                        节假日通知 / 放假提醒 / 庆祝邮件（可选择客户）
                       </p>
                     </div>
                     <button
@@ -629,7 +632,46 @@ export default function NewsletterAdminPage() {
                     </button>
                   </div>
 
-                  <div className="p-5 space-y-4">
+                  <div className="px-5 py-3 border-b border-white/10 bg-card/95 backdrop-blur-sm shrink-0 flex flex-wrap items-center gap-3 justify-between">
+                    <p className="text-xs text-muted-foreground">
+                      已选客户：{selectedCustomRecipientEmails.length}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-3 justify-end">
+                      <button
+                        onClick={handleCustomSendTest}
+                        disabled={customSendingTest || customSendingAll}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium
+                          border border-violet-400/30 text-violet-400 hover:bg-violet-400/10
+                          disabled:opacity-50"
+                      >
+                        {customSendingTest ? <Loader2 className="w-4 h-4 animate-spin" /> : <FlaskConical className="w-4 h-4" />}
+                        {customSendingTest ? '发送中...' : '发测试邮件（给已选客户）'}
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          if (!customForm.subject.trim() || !customForm.content.trim()) {
+                            showToast('error', '请先填写主题和正文');
+                            return;
+                          }
+                          if (selectedCustomRecipientEmails.length === 0) {
+                            showToast('error', '请先选择至少一位客户');
+                            return;
+                          }
+                          setCustomConfirmSend(true);
+                        }}
+                        disabled={customSendingAll || customSendingTest}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium
+                          bg-gradient-to-r from-sky-600 to-violet-600 hover:from-sky-500 hover:to-violet-500
+                          text-white disabled:opacity-50"
+                      >
+                        <Send className="w-4 h-4" />
+                        发送给已选客户
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="p-5 space-y-4 overflow-y-auto min-h-0">
                     <div>
                       <label className="block text-sm font-medium text-foreground/80 mb-2">
                         邮件主题 <span className="text-red-400">*</span>
@@ -807,7 +849,7 @@ export default function NewsletterAdminPage() {
                     )}
                   </div>
 
-                  <div className="px-5 py-4 border-t border-white/10 flex flex-wrap items-center gap-3 justify-end">
+                  <div className="px-5 py-4 border-t border-white/10 bg-card/95 backdrop-blur-sm shrink-0 sticky bottom-0 flex flex-wrap items-center gap-3 justify-end">
                     <button
                       onClick={handleCustomSendTest}
                       disabled={customSendingTest || customSendingAll}
@@ -816,7 +858,7 @@ export default function NewsletterAdminPage() {
                         disabled:opacity-50"
                     >
                       {customSendingTest ? <Loader2 className="w-4 h-4 animate-spin" /> : <FlaskConical className="w-4 h-4" />}
-                      {customSendingTest ? '发送中...' : '发测试邮件给我'}
+                      {customSendingTest ? '发送中...' : '发测试邮件（给已选客户）'}
                     </button>
 
                     <button
