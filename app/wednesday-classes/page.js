@@ -8,7 +8,7 @@ import Header from '@/components/Header';
 import BookingModal from '@/components/BookingModal';
 import { useLanguage } from '@/hooks/useLanguage';
 import { Calendar, MapPin, Users, DollarSign, Clock, CheckCircle, ChevronDown } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 // Calculate the next upcoming Wednesday for display
@@ -79,7 +79,7 @@ export function getAvailableWednesdays(weeksAhead = 12) {
   return wednesdays;
 }
 
-const WednesdayClassesPage = () => {
+function WednesdayClassesPageContent() {
   const { t, mounted, language } = useLanguage();
   const searchParams = useSearchParams();
   const [openFaq, setOpenFaq] = useState(null);
@@ -461,7 +461,13 @@ const WednesdayClassesPage = () => {
       </div>
     </div>
   );
-};
+}
 
-export default WednesdayClassesPage;
+export default function WednesdayClassesPage() {
+  return (
+    <Suspense fallback={null}>
+      <WednesdayClassesPageContent />
+    </Suspense>
+  );
+}
 
