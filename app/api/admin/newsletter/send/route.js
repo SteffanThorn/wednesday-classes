@@ -229,10 +229,11 @@ export async function POST(request) {
     }
 
     if (totalSent === 0) {
+      const firstError = errors[0] ? ` ${errors[0]}` : '';
       return NextResponse.json(
         {
           success: false,
-          error: 'All newsletter deliveries failed. Please check Resend sender/domain configuration.',
+          error: `All newsletter deliveries failed.${firstError}`,
           errors,
         },
         { status: 500 }

@@ -371,10 +371,11 @@ export async function POST(request) {
     }
 
     if (totalSent === 0) {
+      const firstError = errors[0] ? ` ${errors[0]}` : '';
       return NextResponse.json(
         {
           success: false,
-          error: 'All deliveries failed',
+          error: `All deliveries failed.${firstError}`,
           errors,
         },
         { status: 500 }
