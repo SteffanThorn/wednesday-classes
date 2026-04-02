@@ -682,7 +682,7 @@ export default function NewsletterAdminPage() {
                     <div>
                       <h2 className="text-lg font-medium text-foreground">自定义邮件</h2>
                       <p className="text-xs text-muted-foreground mt-1">
-                        节假日通知 / 放假提醒 / 庆祝邮件（发送给全部客户）
+                        节假日通知 / 放假提醒 / 庆祝邮件（可发送给已选择客户或全部客户）
                       </p>
                     </div>
                     <button
