@@ -16,7 +16,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const SENDER_EMAIL =
   process.env.NODE_ENV === 'development'
     ? process.env.EMAIL_FROM_LOCAL || 'onboarding@resend.dev'
-    : process.env.EMAIL_FROM_PRODUCTION || 'contact@innerlightyoga.co.nz';
+    : process.env.EMAIL_FROM_PRODUCTION || 'onboarding@resend.dev';
 
 const SENDER_NAME = 'Yuki · INNER LIGHT Yoga';
 const COMPANY_EMAIL = process.env.COMPANY_EMAIL || 'innerlightyuki@gmail.com';

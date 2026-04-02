@@ -14,7 +14,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const SENDER_EMAIL =
   process.env.NODE_ENV === 'development'
     ? process.env.EMAIL_FROM_LOCAL || 'onboarding@resend.dev'
-    : process.env.EMAIL_FROM_PRODUCTION || 'contact@innerlightyoga.co.nz';
+    : process.env.EMAIL_FROM_PRODUCTION || 'onboarding@resend.dev';
 
 const SENDER_NAME = 'Yuki · INNER LIGHT Yoga';
 const COMPANY_EMAIL = process.env.COMPANY_EMAIL || 'innerlightyuki@gmail.com';
@@ -32,6 +32,19 @@ function extractErrorMessage(error) {
   } catch {
     return 'Unknown email error';
   }
+}
+
+function withResendGuidance(message) {
+  const normalized = String(message || '').toLowerCase();
+  if (
+    normalized.includes('you can only send testing emails to your own email address') ||
+    normalized.includes('domain') ||
+    normalized.includes('verify your domain') ||
+    normalized.includes('resend.com/domains')
+  ) {
+    return `${message} Please verify your sending domain in Resend and set EMAIL_FROM_PRODUCTION to a verified sender, or use onboarding@resend.dev for testing.`;
+  }
+  return message;
 }
 
 function escapeHtml(text = '') {
@@ -102,6 +115,11 @@ function normalizeTestRecipients(testEmail, fallbackName) {
     email,
     name: fallbackName,
   }));
+}
+
+function normalizeSelectedRecipients(selectedRecipients) {
+  if (!Array.isArray(selectedRecipients)) return [];
+  return [...new Set(selectedRecipients.map((email) => String(email || '').trim().toLowerCase()).filter(Boolean))];
 }
 
 function buildCustomEmailHtml({ userName, content, inlineImages = [], fileAttachments = [] }) {
@@ -201,6 +219,7 @@ export async function POST(request) {
   try {
     const body = await request.json();
     const { subject, content, testEmail } = body;
+    const selectedRecipientEmails = normalizeSelectedRecipients(body?.selectedRecipients);
     const attachments = normalizeAttachments(body?.attachments);
 
     if (!subject?.trim()) {
@@ -215,6 +234,33 @@ export async function POST(request) {
 
     if (testEmail) {
       recipients = normalizeTestRecipients(testEmail, session.user.name || 'Test User');
+    } else if (selectedRecipientEmails.length > 0) {
+      const users = await User.find({ role: 'student', email: { $in: selectedRecipientEmails } }).select('email name').lean();
+      const intakes = await HealthIntake.find({ userEmail: { $in: selectedRecipientEmails } }).select('userEmail userName').lean();
+
+      const emailMap = new Map();
+      users.forEach((u) => {
+        if (u.email) {
+          emailMap.set(u.email.toLowerCase(), { email: u.email, name: u.name || 'Student' });
+        }
+      });
+
+      intakes.forEach((i) => {
+        if (i.userEmail) {
+          const key = i.userEmail.toLowerCase();
+          if (!emailMap.has(key)) {
+            emailMap.set(key, { email: i.userEmail, name: i.userName || 'Student' });
+          }
+        }
+      });
+
+      recipients = selectedRecipientEmails
+        .map((email) => emailMap.get(email))
+        .filter(Boolean);
+
+      if (recipients.length === 0) {
+        return NextResponse.json({ error: 'No valid selected recipients found' }, { status: 400 });
+      }
     } else {
       const users = await User.find({ role: 'student' }).select('email name').lean();
       const intakes = await HealthIntake.find({}).select('userEmail userName').lean();
@@ -291,8 +337,9 @@ export async function POST(request) {
     if (testEmail) {
       const { data, error } = await resend.batch.send(emailBatch);
       if (error) {
+        const message = withResendGuidance(extractErrorMessage(error));
         return NextResponse.json(
-          { success: false, error: `Test email failed: ${extractErrorMessage(error)}` },
+          { success: false, error: `Test email failed: ${message}` },
           { status: 500 }
         );
       }
@@ -314,12 +361,12 @@ export async function POST(request) {
       try {
         const { data, error } = await resend.batch.send(chunk);
         if (error) {
-          errors.push(`Chunk ${i / BATCH_SIZE + 1}: ${extractErrorMessage(error)}`);
+          errors.push(`Chunk ${i / BATCH_SIZE + 1}: ${withResendGuidance(extractErrorMessage(error))}`);
           continue;
         }
         totalSent += Array.isArray(data) ? data.length : chunk.length;
       } catch (err) {
-        errors.push(`Chunk ${i / BATCH_SIZE + 1}: ${extractErrorMessage(err)}`);
+        errors.push(`Chunk ${i / BATCH_SIZE + 1}: ${withResendGuidance(extractErrorMessage(err))}`);
       }
     }
 
