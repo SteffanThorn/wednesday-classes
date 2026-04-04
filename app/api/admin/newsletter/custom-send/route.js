@@ -6,15 +6,15 @@ import { Resend } from 'resend';
 import dbConnect from '@/lib/mongodb';
 import User from '@/lib/models/User';
 import HealthIntake from '@/lib/models/HealthIntake';
-import { appendBrandLogo } from '@/lib/email-branding';
+import { appendBrandLogo, getCompanyLogoUrl } from '@/lib/email-branding';
 import { personalizeTextForRecipient } from '@/lib/email-personalization';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const SENDER_EMAIL =
-  process.env.NODE_ENV === 'development'
-    ? process.env.EMAIL_FROM_LOCAL || 'onboarding@resend.dev'
-    : process.env.EMAIL_FROM_PRODUCTION || 'onboarding@resend.dev';
+  process.env.EMAIL_FROM_PRODUCTION ||
+  process.env.EMAIL_FROM_LOCAL ||
+  'onboarding@resend.dev';
 
 const SENDER_NAME = 'Yuki · INNER LIGHT Yoga';
 const COMPANY_EMAIL = process.env.COMPANY_EMAIL || 'innerlightyuki@gmail.com';
@@ -38,6 +38,7 @@ function withResendGuidance(message) {
   const normalized = String(message || '').toLowerCase();
   if (
     normalized.includes('you can only send testing emails to your own email address') ||
+    normalized.includes('please use our testing email address instead of domains like') ||
     normalized.includes('domain') ||
     normalized.includes('verify your domain') ||
     normalized.includes('resend.com/domains')
@@ -122,7 +123,7 @@ function normalizeSelectedRecipients(selectedRecipients) {
   return [...new Set(selectedRecipients.map((email) => String(email || '').trim().toLowerCase()).filter(Boolean))];
 }
 
-function buildCustomEmailHtml({ userName, content, inlineImages = [], fileAttachments = [] }) {
+function buildCustomEmailHtml({ userName, content, logoUrl, inlineImages = [], fileAttachments = [] }) {
   const firstName = userName?.split(' ')[0] || 'Friend';
   const paragraphs = content
     .split('\n\n')
@@ -186,7 +187,7 @@ ${inlineImages
               ${attachmentSection}
               <div style="margin:24px 0 0; text-align:left;">
                 <img
-                  src="cid:innerlight-logo-footer"
+                  src="${logoUrl || getCompanyLogoUrl()}"
                   alt="INNER LIGHT Yoga"
                   width="140"
                   style="display:inline-block; height:auto; max-width:140px; opacity:0.95;"
@@ -324,10 +325,11 @@ export async function POST(request) {
           buildCustomEmailHtml({
             userName: recipient.name,
             content: personalizedContent,
+            logoUrl: getCompanyLogoUrl(),
             inlineImages,
             fileAttachments,
           }),
-          logoAttachment ? { logoSrc: `cid:${COMPANY_LOGO_CID}` } : undefined
+          undefined
         ),
         replyTo: COMPANY_EMAIL,
         attachments: allAttachments.length > 0 ? allAttachments : undefined,

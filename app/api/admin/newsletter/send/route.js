@@ -8,15 +8,15 @@ import NewsletterCampaign from '@/lib/models/NewsletterCampaign';
 import User from '@/lib/models/User';
 import HealthIntake from '@/lib/models/HealthIntake';
 import { getWeekSchedule } from '@/lib/newsletter-schedule';
-import { appendBrandLogo } from '@/lib/email-branding';
+import { appendBrandLogo, getCompanyLogoUrl } from '@/lib/email-branding';
 import { personalizeTextForRecipient } from '@/lib/email-personalization';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const SENDER_EMAIL =
-  process.env.NODE_ENV === 'development'
-    ? process.env.EMAIL_FROM_LOCAL || 'onboarding@resend.dev'
-    : process.env.EMAIL_FROM_PRODUCTION || 'onboarding@resend.dev';
+  process.env.EMAIL_FROM_PRODUCTION ||
+  process.env.EMAIL_FROM_LOCAL ||
+  'onboarding@resend.dev';
 
 const SENDER_NAME = 'Yuki · INNER LIGHT Yoga';
 const COMPANY_EMAIL = process.env.COMPANY_EMAIL || 'innerlightyuki@gmail.com';
@@ -41,7 +41,8 @@ function withResendGuidance(message) {
   const normalized = String(message || '').toLowerCase();
   if (
     normalized.includes('you can only send testing emails to your own email address') ||
-    normalized.includes('verify a domain at resend.com/domains')
+    normalized.includes('verify a domain at resend.com/domains') ||
+    normalized.includes('please use our testing email address instead of domains like')
   ) {
     return `${message} Please verify your sending domain in Resend and set EMAIL_FROM_PRODUCTION to that verified domain sender.`;
   }
@@ -75,13 +76,29 @@ function normalizeTestRecipients(testEmail, fallbackName) {
   }));
 }
 
+function isValidEmail(email) {
+  const value = String(email || '').trim().toLowerCase();
+  if (!value || value.includes('placeholder.local')) return false;
+  if (value.includes('*')) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value);
+}
+
+function stripChinese(text = '') {
+  return String(text)
+    .replace(/[\u3400-\u9FFF\uF900-\uFAFF]/g, '')
+    .replace(/[，。；：！？、“”‘’（）【】《》·]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 /**
  * POST /api/admin/newsletter/send
  * Send a newsletter campaign to all known students.
  *
- * Body: { weekNumber, testEmail? }
+ * Body: { weekNumber, testEmail?, selectedRecipients? }
  *   - weekNumber: 1–12
  *   - testEmail: optional — if provided, sends only to this address (test mode)
+ *   - selectedRecipients: optional string[] — if provided, sends only to selected customer emails
  */
 export async function POST(request) {
   const session = await auth();
@@ -93,7 +110,7 @@ export async function POST(request) {
 
   try {
     const body = await request.json();
-    const { weekNumber, testEmail } = body;
+    const { weekNumber, testEmail, selectedRecipients } = body;
 
     if (!weekNumber || weekNumber < 1 || weekNumber > 12) {
       return NextResponse.json({ error: 'Invalid weekNumber' }, { status: 400 });
@@ -116,6 +133,11 @@ export async function POST(request) {
 
     // ── Build recipient list ─────────────────────────────────────────────────
     let recipients = [];
+
+    const normalizedSelectedEmails = Array.isArray(selectedRecipients)
+      ? [...new Set(selectedRecipients.map((email) => String(email || '').trim().toLowerCase()).filter(Boolean))]
+      : [];
+    const isSelectedMode = !testEmail && normalizedSelectedEmails.length > 0;
 
     if (testEmail) {
       recipients = normalizeTestRecipients(testEmail, session.user.name || 'Test User');
@@ -143,10 +165,31 @@ export async function POST(request) {
       });
 
       recipients = Array.from(emailMap.values());
+
+      if (isSelectedMode) {
+        const selectedSet = new Set(normalizedSelectedEmails);
+        recipients = recipients.filter((recipient) => selectedSet.has(String(recipient.email || '').toLowerCase()));
+      }
     }
 
+    const invalidRecipients = recipients.filter((recipient) => !isValidEmail(recipient?.email));
+    if (invalidRecipients.length > 0) {
+      console.warn(
+        'Skipping invalid newsletter recipients:',
+        invalidRecipients.map((recipient) => recipient?.email)
+      );
+    }
+    recipients = recipients.filter((recipient) => isValidEmail(recipient?.email));
+
     if (recipients.length === 0) {
-      return NextResponse.json({ error: 'No recipients found' }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: isSelectedMode
+            ? 'No valid selected recipients found in customer list'
+            : 'No valid recipients found',
+        },
+        { status: 400 }
+      );
     }
 
     const logoAttachment = await loadCompanyLogoAttachment();
@@ -165,6 +208,7 @@ export async function POST(request) {
         bodyFocus: schedule.bodyFocus,
         bodyFocusZh: schedule.bodyFocusZh,
         emoji: schedule.emoji,
+        logoUrl: getCompanyLogoUrl(),
         classSummaries: schedule.classSummaries || [],
         mainContent: personalizedMainContent,
         practiceHighlights: campaign.practiceHighlights,
@@ -175,10 +219,7 @@ export async function POST(request) {
         from: `${SENDER_NAME} <${SENDER_EMAIL}>`,
         to: recipient.email,
         subject: personalizedSubject,
-        html: appendBrandLogo(
-          newsletterHtml,
-          logoAttachment ? { logoSrc: `cid:${COMPANY_LOGO_CID}` } : undefined
-        ),
+        html: appendBrandLogo(newsletterHtml),
         replyTo: COMPANY_EMAIL,
         attachments: logoAttachment ? [logoAttachment] : undefined,
       };
@@ -242,7 +283,7 @@ export async function POST(request) {
     }
 
     // ── Update campaign status (only for real sends) ─────────────────────────
-    if (!testEmail) {
+    if (!testEmail && !isSelectedMode) {
       campaign.status = 'sent';
       campaign.sentAt = new Date();
       campaign.recipientCount = totalSent;
@@ -253,12 +294,15 @@ export async function POST(request) {
       success: errors.length === 0,
       partialSuccess: errors.length > 0,
       testMode: false,
+      selectedMode: isSelectedMode,
       sent: totalSent,
       total: recipients.length,
       errors: errors.length > 0 ? errors : undefined,
       message:
         errors.length > 0
           ? `Newsletter partially sent: ${totalSent}/${recipients.length}`
+          : isSelectedMode
+          ? `Newsletter sent to selected recipients: ${totalSent}`
           : `Newsletter sent to ${totalSent} students`,
     });
   } catch (error) {
@@ -273,10 +317,9 @@ function buildNewsletterHtml({
   userName,
   weekNumber,
   title,
-  titleZh,
   bodyFocus,
-  bodyFocusZh,
   emoji,
+  logoUrl,
   classSummaries,
   mainContent,
   practiceHighlights,
@@ -341,6 +384,7 @@ function buildNewsletterHtml({
       ${classSummaries
         .map((item) => {
           const s = SLOT_STYLES[item.slot] || { icon: '📅', accent: '#6366f1', bg: '#f0f9ff', border: '#c7d2fe', label: item.slot, labelColor: '#4338ca' };
+          const englishSummary = stripChinese(item.summary) || `${item.series || 'Class'} session focus.`;
           return `
       <tr>
         <td style="padding: 0 0 10px;">
@@ -358,7 +402,7 @@ function buildNewsletterHtml({
                         ${item.topic}
                       </p>
                       <p style="margin: 0; color: #4b5563; font-size: 13px; line-height: 1.65;">
-                        ${item.summary}
+                        ${englishSummary}
                       </p>
                     </td>
                   </tr>
@@ -424,7 +468,7 @@ function buildNewsletterHtml({
               </h1>
               <p style="margin: 0 0 20px; color: rgba(255,255,255,0.8); font-size: 13px;
                          letter-spacing: 1px;">
-                Yoga &amp; Meditation · Auckland, NZ
+                Yoga &amp; Meditation · Palmerston North, NZ
               </p>
               <div style="display: inline-block;
                 background: rgba(255,255,255,0.15);
@@ -448,9 +492,6 @@ function buildNewsletterHtml({
               <p style="margin: 0; color: white; font-size: 22px; font-weight: 300; letter-spacing: 1px;">
                 ${emoji}&nbsp; ${bodyFocus}
               </p>
-              <p style="margin: 4px 0 0; color: rgba(255,255,255,0.55); font-size: 13px;">
-                ${bodyFocusZh}
-              </p>
             </td>
           </tr>
 
@@ -464,9 +505,7 @@ function buildNewsletterHtml({
               <h2 style="margin: 0 0 4px; color: #111827; font-size: 26px; font-weight: 400;">
                 ${title}
               </h2>
-              <p style="margin: 0 0 28px; color: #a78bfa; font-size: 14px; font-weight: 400;">
-                ${titleZh}
-              </p>
+              <div style="height: 18px;"></div>
 
               <p style="margin: 0 0 28px; color: #4b5563; font-size: 16px; line-height: 1.7;">
                 Hi ${firstName},
@@ -483,7 +522,7 @@ function buildNewsletterHtml({
                 <tr>
                   <td style="text-align: left;">
                     <img
-                      src="cid:innerlight-logo-footer"
+                      src="${logoUrl || getCompanyLogoUrl()}"
                       alt="INNER LIGHT Yoga"
                       width="140"
                       style="display:inline-block; height:auto; max-width:140px; opacity:0.95;"
@@ -500,7 +539,7 @@ function buildNewsletterHtml({
               border-top: 1px solid #e5e7eb; border-radius: 0 0 16px 16px;
               text-align: center;">
               <p style="margin: 0 0 6px; color: #6b7280; font-size: 13px;">
-                INNER LIGHT · Auckland, New Zealand
+                INNER LIGHT · Palmerston North, New Zealand
               </p>
               <p style="margin: 0 0 10px; color: #9ca3af; font-size: 12px; font-style: italic;">
                 Breathe deeply. Move gently. Live fully.

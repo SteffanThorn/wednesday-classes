@@ -110,6 +110,9 @@ export default function NewsletterAdminPage() {
   });
   const [toast, setToast] = useState(null); // { type: 'success'|'error', message }
   const [confirmSend, setConfirmSend] = useState(false);
+  const [confirmSendSelected, setConfirmSendSelected] = useState(false);
+  const [sendingSelectedWeek, setSendingSelectedWeek] = useState(false);
+  const [showWeekRecipientPicker, setShowWeekRecipientPicker] = useState(false);
   const formRef = useRef(null);
   const customFileInputRef = useRef(null);
 
@@ -141,6 +144,8 @@ export default function NewsletterAdminPage() {
   function handleSelectWeek(week) {
     setSelectedWeek(week);
     setConfirmSend(false);
+    setConfirmSendSelected(false);
+    setShowWeekRecipientPicker(false);
     if (week.campaign) {
       setForm({
         subject: week.campaign.subject || '',
@@ -166,6 +171,8 @@ export default function NewsletterAdminPage() {
   function handleBack() {
     setSelectedWeek(null);
     setConfirmSend(false);
+    setConfirmSendSelected(false);
+    setShowWeekRecipientPicker(false);
   }
 
   // ── Practice highlights helpers ────────────────────────────────────────────
@@ -235,7 +242,12 @@ export default function NewsletterAdminPage() {
       });
 
       const sorted = Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, 'en'));
-      setCustomRecipients(sorted);
+      const validRecipients = sorted.filter((item) => {
+        const email = String(item.email || '').trim().toLowerCase();
+        if (!email || email.includes('placeholder.local') || email.includes('*')) return false;
+        return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+      });
+      setCustomRecipients(validRecipients);
     } catch (err) {
       showToast('error', '客户列表加载失败，请稍后重试');
       setCustomRecipients([]);
@@ -582,6 +594,71 @@ export default function NewsletterAdminPage() {
       showToast('error', '网络错误，请重试');
     } finally {
       setSending(false);
+    }
+  }
+
+  function toggleWeekRecipientPicker() {
+    const nextOpen = !showWeekRecipientPicker;
+    setShowWeekRecipientPicker(nextOpen);
+    if (nextOpen && customRecipients.length === 0 && !customRecipientsLoading) {
+      fetchCustomRecipients();
+    }
+  }
+
+  function promptSendSelectedForWeek() {
+    if (!form.subject.trim() || !form.mainContent.trim()) {
+      showToast('error', '请先填写邮件主题和正文内容');
+      return;
+    }
+    if (customSelectedEmails.length === 0) {
+      showToast('error', '请先选择至少 1 位客户');
+      return;
+    }
+    setConfirmSend(false);
+    setConfirmSendSelected(true);
+  }
+
+  async function handleSendSelectedForWeek() {
+    if (!selectedWeek?.week) return;
+
+    setSendingSelectedWeek(true);
+    setConfirmSendSelected(false);
+
+    try {
+      // Save draft first
+      await fetch('/api/admin/newsletter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          weekNumber: selectedWeek.week,
+          subject: form.subject,
+          mainContent: form.mainContent,
+          practiceHighlights: form.practiceHighlights.filter((h) => h.trim()),
+          instructorNote: form.instructorNote,
+        }),
+      });
+
+      const res = await fetch('/api/admin/newsletter/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          weekNumber: selectedWeek.week,
+          selectedRecipients: customSelectedEmails,
+        }),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        showToast('success', `✓ 已发送给已选择客户（${data.sent} 位）`);
+      } else if (res.ok && data.partialSuccess) {
+        showToast('error', `部分发送成功：${data.sent}/${data.total}。请检查邮箱配置。`);
+      } else {
+        showToast('error', data.error || '发送失败，请重试');
+      }
+    } catch (err) {
+      showToast('error', '网络错误，请重试');
+    } finally {
+      setSendingSelectedWeek(false);
     }
   }
 
@@ -1360,6 +1437,60 @@ export default function NewsletterAdminPage() {
                 {/* ── Action Buttons ── */}
                 <div className="pt-2">
 
+                  {showWeekRecipientPicker && (
+                    <div className="mb-4 rounded-xl border border-emerald-500/25 bg-emerald-950/10 p-4 space-y-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-sm text-foreground/90">
+                          单独发送对象（已选 {customSelectedEmails.length} 位）
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => toggleSelectAllFilteredRecipients(filteredCustomRecipients)}
+                          className="text-xs px-2.5 py-1.5 rounded-lg border border-white/15 text-muted-foreground hover:text-foreground hover:border-glow-cyan/40"
+                        >
+                          {allFilteredSelected ? '取消全选(当前筛选)' : '全选(当前筛选)'}
+                        </button>
+                      </div>
+
+                      <input
+                        type="text"
+                        value={customRecipientSearch}
+                        onChange={(e) => setCustomRecipientSearch(e.target.value)}
+                        placeholder="搜索客户姓名或邮箱"
+                        className="w-full px-3 py-2.5 rounded-lg border border-white/10 bg-card/50 text-sm focus:outline-none focus:border-glow-cyan/40"
+                      />
+
+                      <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
+                        {customRecipientsLoading ? (
+                          <p className="text-xs text-muted-foreground">加载客户列表中...</p>
+                        ) : filteredCustomRecipients.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">没有匹配的客户</p>
+                        ) : (
+                          filteredCustomRecipients.map((item) => (
+                            <label
+                              key={`week-${item.email}`}
+                              className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-white/5 cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={customSelectedEmails.includes(item.email)}
+                                onChange={() => toggleCustomRecipient(item.email)}
+                                className="w-4 h-4"
+                              />
+                              <span className="text-xs text-foreground/90 truncate">
+                                {item.name} · {item.email}
+                              </span>
+                            </label>
+                          ))
+                        )}
+                      </div>
+
+                      <p className="text-xs text-muted-foreground">
+                        仅发送给勾选客户，不会标记为“已发送给所有学生”。
+                      </p>
+                    </div>
+                  )}
+
                   {/* Confirm send dialog */}
                   {confirmSend && (
                     <div className="mb-4 p-4 rounded-xl border border-red-500/25 bg-red-950/15">
@@ -1386,6 +1517,39 @@ export default function NewsletterAdminPage() {
                           className="px-4 py-2 rounded-xl text-sm text-muted-foreground
                             hover:text-foreground border border-white/10 hover:border-white/20
                             transition-all">
+                          取消
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {confirmSendSelected && (
+                    <div className="mb-4 p-4 rounded-xl border border-red-500/25 bg-red-950/15">
+                      <p className="text-sm text-red-300 mb-3 flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                        确认要将 Week {selectedWeek.week} 的邮件发送给已选择的 {customSelectedEmails.length} 位客户吗？
+                      </p>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={handleSendSelectedForWeek}
+                          disabled={sendingSelectedWeek}
+                          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium
+                            bg-red-600 hover:bg-red-500 text-white transition-colors
+                            disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {sendingSelectedWeek ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Send className="w-3.5 h-3.5" />
+                          )}
+                          {sendingSelectedWeek ? '发送中...' : '确认发送'}
+                        </button>
+                        <button
+                          onClick={() => setConfirmSendSelected(false)}
+                          className="px-4 py-2 rounded-xl text-sm text-muted-foreground
+                            hover:text-foreground border border-white/10 hover:border-white/20
+                            transition-all"
+                        >
                           取消
                         </button>
                       </div>
@@ -1426,14 +1590,43 @@ export default function NewsletterAdminPage() {
                     {/* Send All */}
                     {!isSent && (
                       <button
+                        onClick={toggleWeekRecipientPicker}
+                        disabled={sending || sendingSelectedWeek}
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium
+                          border border-emerald-400/30 text-emerald-400 hover:bg-emerald-400/10
+                          transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Send className="w-4 h-4" />
+                        {showWeekRecipientPicker ? '收起选择客户' : '单独发送给已选择客户'}
+                      </button>
+                    )}
+
+                    {!isSent && showWeekRecipientPicker && (
+                      <button
+                        onClick={promptSendSelectedForWeek}
+                        disabled={sending || sendingSelectedWeek || customSelectedEmails.length === 0}
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium
+                          border border-emerald-400/30 text-emerald-300 hover:bg-emerald-400/10
+                          transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {sendingSelectedWeek ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                        {customSelectedEmails.length > 0
+                          ? `确认发送给已选择客户（${customSelectedEmails.length}）`
+                          : '请先选择客户'}
+                      </button>
+                    )}
+
+                    {!isSent && (
+                      <button
                         onClick={() => {
                           if (!form.subject.trim() || !form.mainContent.trim()) {
                             showToast('error', '请先填写邮件主题和正文内容');
                             return;
                           }
+                          setConfirmSendSelected(false);
                           setConfirmSend(true);
                         }}
-                        disabled={sending}
+                        disabled={sending || sendingSelectedWeek}
                         className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium
                           bg-gradient-to-r from-sky-600 to-violet-600 hover:from-sky-500 hover:to-violet-500
                           text-white shadow-sm transition-all
