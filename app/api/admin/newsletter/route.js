@@ -135,3 +135,24 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Failed to save newsletter draft' }, { status: 500 });
   }
 }
+
+/**
+ * DELETE /api/admin/newsletter
+ * Clear all saved newsletter campaigns (all weeks), so admin can restart from blank.
+ */
+export async function DELETE() {
+  const session = await auth();
+  if (!session?.user || session.user.role !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  await dbConnect();
+
+  try {
+    await NewsletterCampaign.deleteMany({});
+    return NextResponse.json({ success: true, message: 'All newsletter campaigns cleared' });
+  } catch (error) {
+    console.error('DELETE /api/admin/newsletter error:', error);
+    return NextResponse.json({ error: 'Failed to clear newsletter data' }, { status: 500 });
+  }
+}

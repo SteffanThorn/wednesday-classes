@@ -4,7 +4,29 @@ import dbConnect from '@/lib/mongodb';
 import Booking from '@/lib/models/Booking';
 import User from '@/lib/models/User';
 import ClassAttendance from '@/lib/models/ClassAttendance';
-import { inferDayFromClassName } from '@/lib/class-schedule';
+import { inferDayFromClassName, getClassNameForDay, getClassTimeForDay } from '@/lib/class-schedule';
+
+const DEFAULT_CLASS_LOCATION = 'Village Valley Centre, Ashhurst';
+const SLOT_ORDER = {
+  'wednesday-morning': 1,
+  'wednesday-evening': 2,
+  'thursday-evening': 3,
+};
+
+const SLOT_CONFIG = [
+  {
+    scheduleKey: 'wednesday-morning',
+    dayIndex: 3,
+  },
+  {
+    scheduleKey: 'wednesday-evening',
+    dayIndex: 3,
+  },
+  {
+    scheduleKey: 'thursday-evening',
+    dayIndex: 4,
+  },
+];
 
 function toDateKey(date) {
   return new Date(date).toISOString().split('T')[0];
@@ -20,22 +42,102 @@ function getDayRange(classDate) {
   return { dayStart, dayEnd };
 }
 
+function getTimeSortValue(label = '') {
+  const normalized = String(label || '').trim().toUpperCase();
+  const match = normalized.match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?/);
+  if (!match) return Number.MAX_SAFE_INTEGER;
+
+  let hour = Number(match[1] || 0);
+  const minute = Number(match[2] || 0);
+  const period = match[3] || null;
+
+  if (period === 'AM' && hour === 12) hour = 0;
+  if (period === 'PM' && hour < 12) hour += 12;
+
+  return hour * 60 + minute;
+}
+
+function getScheduleKeyFromDateTime(classDate, classTime) {
+  if (!classDate || !classTime) return null;
+  return getScheduleKey({
+    classDate,
+    classTime,
+    className: '',
+  });
+}
+
+function buildGeneratedSessions(startDate, endDate) {
+  const sessions = [];
+
+  SLOT_CONFIG.forEach(({ scheduleKey, dayIndex }) => {
+    const classTime = getClassTimeForDay(scheduleKey);
+    const className = getClassNameForDay(scheduleKey);
+
+    const cursor = new Date(startDate);
+    cursor.setHours(0, 0, 0, 0);
+
+    const offset = (dayIndex - cursor.getDay() + 7) % 7;
+    cursor.setDate(cursor.getDate() + offset);
+
+    while (cursor <= endDate) {
+      const classDate = toDateKey(cursor);
+      const { labelZh, labelEn } = getSlotLabels(scheduleKey, cursor, classTime);
+
+      sessions.push({
+        key: `${classDate}|${classTime}`,
+        classDate,
+        classTime,
+        className,
+        scheduleKey,
+        location: DEFAULT_CLASS_LOCATION,
+        label: `${classDate} · ${classTime}`,
+        labelZh,
+        labelEn,
+        bookings: [],
+      });
+
+      cursor.setDate(cursor.getDate() + 7);
+    }
+  });
+
+  return sessions;
+}
+
 function getScheduleKey(booking) {
   const inferred = inferDayFromClassName(booking.className || '');
   if (inferred) return inferred;
 
   const classTime = String(booking.classTime || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  const compactTime = classTime.replace(/\s+/g, '');
   const weekday = new Date(booking.classDate).getDay();
 
   if (weekday === 3 && (classTime.includes('9:15') || classTime.includes('09:15'))) {
     return 'wednesday-morning';
   }
 
-  if (weekday === 3 && (classTime.includes('6:00') || classTime.includes('18:00') || classTime.includes('6pm'))) {
+  if (
+    weekday === 3 &&
+    (
+      classTime.includes('6:00') ||
+      classTime.includes('18:00') ||
+      compactTime.includes('6pm') ||
+      compactTime.includes('6:00pm') ||
+      compactTime.includes('18:00')
+    )
+  ) {
     return 'wednesday-evening';
   }
 
-  if (weekday === 4 && (classTime.includes('5:30') || classTime.includes('17:30') || classTime.includes('5.30'))) {
+  if (
+    weekday === 4 &&
+    (
+      classTime.includes('5:30') ||
+      classTime.includes('17:30') ||
+      classTime.includes('5.30') ||
+      compactTime.includes('5:30pm') ||
+      compactTime.includes('17:30')
+    )
+  ) {
     return 'thursday-evening';
   }
 
@@ -53,18 +155,30 @@ function getSlotLabels(scheduleKey, classDate, fallbackTime) {
     month: 'short',
   });
 
+  const toZhTime = (timeLabel = '') => {
+    const normalized = String(timeLabel).trim().toUpperCase();
+    if (!normalized) return '';
+    if (normalized.endsWith('AM')) {
+      return `上午 ${normalized.replace(/\s*AM$/, '')}`;
+    }
+    if (normalized.endsWith('PM')) {
+      return `下午 ${normalized.replace(/\s*PM$/, '')}`;
+    }
+    return normalized;
+  };
+
   const slotMap = {
     'wednesday-morning': {
-      zh: '周三上午 9:15',
-      en: 'Wednesday 9:15 AM',
+      zh: `周三${toZhTime(getClassTimeForDay('wednesday-morning'))}`,
+      en: `Wednesday ${getClassTimeForDay('wednesday-morning')}`,
     },
     'wednesday-evening': {
-      zh: '周三下午 18:00',
-      en: 'Wednesday 6:00 PM',
+      zh: `周三${toZhTime(getClassTimeForDay('wednesday-evening'))}`,
+      en: `Wednesday ${getClassTimeForDay('wednesday-evening')}`,
     },
     'thursday-evening': {
-      zh: '周四下午 17:30',
-      en: 'Thursday 5:30 PM',
+      zh: `周四${toZhTime(getClassTimeForDay('thursday-evening'))}`,
+      en: `Thursday ${getClassTimeForDay('thursday-evening')}`,
     },
   };
 
@@ -123,19 +237,21 @@ export async function GET(request) {
 
     bookings.forEach((booking) => {
       const classDateKey = toDateKey(booking.classDate);
-      const key = `${classDateKey}|${booking.classTime}`;
       const scheduleKey = getScheduleKey(booking);
-      const { labelZh, labelEn } = getSlotLabels(scheduleKey, booking.classDate, booking.classTime);
+      const normalizedTime = scheduleKey ? getClassTimeForDay(scheduleKey) : booking.classTime;
+      const normalizedClassName = scheduleKey ? getClassNameForDay(scheduleKey) : booking.className;
+      const key = `${classDateKey}|${normalizedTime}`;
+      const { labelZh, labelEn } = getSlotLabels(scheduleKey, booking.classDate, normalizedTime);
 
       if (!sessionMap.has(key)) {
         sessionMap.set(key, {
           key,
           classDate: classDateKey,
-          classTime: booking.classTime,
-          className: booking.className,
+          classTime: normalizedTime,
+          className: normalizedClassName,
           scheduleKey,
-          location: booking.location,
-          label: `${classDateKey} · ${booking.classTime}`,
+          location: booking.location || DEFAULT_CLASS_LOCATION,
+          label: `${classDateKey} · ${normalizedTime}`,
           labelZh,
           labelEn,
           bookings: [],
@@ -151,14 +267,39 @@ export async function GET(request) {
       });
     });
 
+    const generatedSessions = buildGeneratedSessions(start, end);
+    generatedSessions.forEach((sessionItem) => {
+      if (!sessionMap.has(sessionItem.key)) {
+        sessionMap.set(sessionItem.key, sessionItem);
+        return;
+      }
+
+      const existing = sessionMap.get(sessionItem.key);
+      existing.className = existing.className || sessionItem.className;
+      existing.scheduleKey = existing.scheduleKey || sessionItem.scheduleKey;
+      existing.location = existing.location || sessionItem.location;
+      existing.labelZh = existing.labelZh || sessionItem.labelZh;
+      existing.labelEn = existing.labelEn || sessionItem.labelEn;
+    });
+
     const classSessions = Array.from(sessionMap.values()).sort((a, b) => {
       const dateCompare = b.classDate.localeCompare(a.classDate);
       if (dateCompare !== 0) return dateCompare;
-      return a.classTime.localeCompare(b.classTime);
+
+      const orderA = SLOT_ORDER[a.scheduleKey] || 99;
+      const orderB = SLOT_ORDER[b.scheduleKey] || 99;
+      if (orderA !== orderB) return orderA - orderB;
+
+      return getTimeSortValue(a.classTime) - getTimeSortValue(b.classTime);
     });
 
+    const selectedScheduleKey = getScheduleKeyFromDateTime(selectedDate, selectedTime);
+
     const effectiveSession = classSessions.find(
-      (s) => s.classDate === selectedDate && s.classTime === selectedTime
+      (s) =>
+        s.classDate === selectedDate &&
+        (s.classTime === selectedTime ||
+          (selectedScheduleKey && s.scheduleKey === selectedScheduleKey))
     ) || classSessions[0] || null;
 
     let attendance = [];

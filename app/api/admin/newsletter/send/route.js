@@ -165,6 +165,7 @@ export async function POST(request) {
         bodyFocus: schedule.bodyFocus,
         bodyFocusZh: schedule.bodyFocusZh,
         emoji: schedule.emoji,
+        classSummaries: schedule.classSummaries || [],
         mainContent: personalizedMainContent,
         practiceHighlights: campaign.practiceHighlights,
         instructorNote: personalizedInstructorNote,
@@ -276,6 +277,7 @@ function buildNewsletterHtml({
   bodyFocus,
   bodyFocusZh,
   emoji,
+  classSummaries,
   mainContent,
   practiceHighlights,
   instructorNote,
@@ -316,6 +318,57 @@ function buildNewsletterHtml({
         </td>
       </tr>`
         )
+        .join('')}
+    </table>`
+      : '';
+
+  // Color config per slot
+  const SLOT_STYLES = {
+    'Wed 9:15':  { icon: '☀️', accent: '#f97316', bg: '#fff7ed', border: '#fed7aa', label: 'Morning · Pain Relief',   labelColor: '#c2410c' },
+    'Wed 18:00': { icon: '🌙', accent: '#9333ea', bg: '#faf5ff', border: '#e9d5ff', label: 'Evening · Breathwork',     labelColor: '#7e22ce' },
+    'Thu 17:30': { icon: '🌿', accent: '#0d9488', bg: '#f0fdfa', border: '#99f6e4', label: 'Thursday · Alignment',     labelColor: '#0f766e' },
+  };
+
+  const classSummariesHtml =
+    Array.isArray(classSummaries) && classSummaries.length > 0
+      ? `
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 28px;">
+      <tr><td style="padding-bottom: 10px;">
+        <p style="margin: 0; color: #374151; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700;">
+          This Week · All Three Classes
+        </p>
+      </td></tr>
+      ${classSummaries
+        .map((item) => {
+          const s = SLOT_STYLES[item.slot] || { icon: '📅', accent: '#6366f1', bg: '#f0f9ff', border: '#c7d2fe', label: item.slot, labelColor: '#4338ca' };
+          return `
+      <tr>
+        <td style="padding: 0 0 10px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
+            style="background: ${s.bg}; border: 1px solid ${s.border}; border-left: 4px solid ${s.accent}; border-radius: 10px;">
+            <tr>
+              <td style="padding: 14px 16px 12px;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                  <tr>
+                    <td>
+                      <p style="margin: 0 0 2px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: ${s.labelColor};">
+                        ${s.icon}&nbsp; ${s.label}
+                      </p>
+                      <p style="margin: 0 0 6px; color: #111827; font-size: 15px; font-weight: 600; line-height: 1.4;">
+                        ${item.topic}
+                      </p>
+                      <p style="margin: 0; color: #4b5563; font-size: 13px; line-height: 1.65;">
+                        ${item.summary}
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>`;
+        })
         .join('')}
     </table>`
       : '';
@@ -419,6 +472,7 @@ function buildNewsletterHtml({
                 Hi ${firstName},
               </p>
 
+              ${classSummariesHtml}
               ${contentHtml}
               ${highlightsHtml}
               ${instructorNoteHtml}

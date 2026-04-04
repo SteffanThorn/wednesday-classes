@@ -90,6 +90,10 @@ export default function NewsletterAdminPage() {
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendingTest, setSendingTest] = useState(false);
+  const [sendingAllWeeks, setSendingAllWeeks] = useState(false);
+  const [confirmSendAllWeeks, setConfirmSendAllWeeks] = useState(false);
+  const [clearingAll, setClearingAll] = useState(false);
+  const [confirmClearAll, setConfirmClearAll] = useState(false);
   const [customModalOpen, setCustomModalOpen] = useState(false);
   const [customSendingTest, setCustomSendingTest] = useState(false);
   const [customSendingAll, setCustomSendingAll] = useState(false);
@@ -149,7 +153,7 @@ export default function NewsletterAdminPage() {
       });
     } else {
       setForm({
-        subject: `Week ${week.week} · ${week.title} — INNER LIGHT Yoga`,
+        subject: '',
         mainContent: '',
         practiceHighlights: [''],
         instructorNote: '',
@@ -581,6 +585,100 @@ export default function NewsletterAdminPage() {
     }
   }
 
+  // ── Send all draft weeks to all students ─────────────────────────────────
+  async function handleSendAllDraftWeeks() {
+    const draftWeeks = weeks
+      .filter((week) => week?.campaign?.status === 'draft')
+      .sort((a, b) => a.week - b.week);
+
+    if (draftWeeks.length === 0) {
+      showToast('error', '目前没有可发送的草稿周');
+      setConfirmSendAllWeeks(false);
+      return;
+    }
+
+    setSendingAllWeeks(true);
+    setConfirmSendAllWeeks(false);
+
+    const successWeeks = [];
+    const failedWeeks = [];
+    const partialWeeks = [];
+
+    try {
+      for (const week of draftWeeks) {
+        try {
+          const res = await fetch('/api/admin/newsletter/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ weekNumber: week.week }),
+          });
+
+          const data = await res.json();
+
+          if (res.ok && data.success) {
+            successWeeks.push(`Week ${week.week}`);
+          } else if (res.ok && data.partialSuccess) {
+            partialWeeks.push(`Week ${week.week} (${data.sent}/${data.total})`);
+          } else {
+            failedWeeks.push(`Week ${week.week}`);
+          }
+        } catch (err) {
+          failedWeeks.push(`Week ${week.week}`);
+        }
+      }
+
+      await fetchWeeks();
+
+      if (failedWeeks.length === 0 && partialWeeks.length === 0) {
+        showToast('success', `✅ 已完成群发：${successWeeks.length} 个草稿周全部发送成功`);
+        return;
+      }
+
+      const summary = [
+        successWeeks.length > 0 ? `成功 ${successWeeks.length}` : null,
+        partialWeeks.length > 0 ? `部分成功 ${partialWeeks.length}` : null,
+        failedWeeks.length > 0 ? `失败 ${failedWeeks.length}` : null,
+      ]
+        .filter(Boolean)
+        .join(' · ');
+
+      showToast('error', `群发已完成（${summary}）`);
+    } finally {
+      setSendingAllWeeks(false);
+    }
+  }
+
+  async function handleClearAllNewsletterContent() {
+    setClearingAll(true);
+    setConfirmClearAll(false);
+
+    try {
+      const res = await fetch('/api/admin/newsletter', {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data?.success) {
+        showToast('error', data?.error || '清空失败，请重试');
+        return;
+      }
+
+      setSelectedWeek(null);
+      setForm({
+        subject: '',
+        mainContent: '',
+        practiceHighlights: [''],
+        instructorNote: '',
+      });
+      await fetchWeeks();
+      showToast('success', '✅ 已清空所有邮件内容，可重新整理');
+    } catch (err) {
+      showToast('error', '网络错误，清空失败');
+    } finally {
+      setClearingAll(false);
+    }
+  }
+
   // ─── Render ────────────────────────────────────────────────────────────────
 
   if (status === 'loading' || loading) {
@@ -665,15 +763,95 @@ export default function NewsletterAdminPage() {
                 </div>
               </div>
 
-              <button
-                onClick={openCustomComposer}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium
-                  border border-glow-cyan/30 text-glow-cyan hover:bg-glow-cyan/10 transition-all"
-              >
-                <Pencil className="w-4 h-4" />
-                写邮件
-              </button>
+              <div className="flex items-center gap-2">
+                {!selectedWeek && (
+                  <button
+                    onClick={() => setConfirmSendAllWeeks(true)}
+                    disabled={sendingAllWeeks}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium
+                      border border-emerald-400/30 text-emerald-400 hover:bg-emerald-400/10 transition-all
+                      disabled:opacity-50"
+                  >
+                    {sendingAllWeeks ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    {sendingAllWeeks ? '群发中...' : '发送所有草稿周'}
+                  </button>
+                )}
+
+                {!selectedWeek && (
+                  <button
+                    onClick={() => setConfirmClearAll(true)}
+                    disabled={clearingAll}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium
+                      border border-red-400/30 text-red-300 hover:bg-red-500/10 transition-all
+                      disabled:opacity-50"
+                  >
+                    {clearingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                    {clearingAll ? '清空中...' : '清空全部内容'}
+                  </button>
+                )}
+
+                <button
+                  onClick={openCustomComposer}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium
+                    border border-glow-cyan/30 text-glow-cyan hover:bg-glow-cyan/10 transition-all"
+                >
+                  <Pencil className="w-4 h-4" />
+                  写邮件
+                </button>
+              </div>
             </div>
+
+            {!selectedWeek && confirmSendAllWeeks && (
+              <div className="mb-6 p-4 rounded-xl border border-red-500/25 bg-red-950/15">
+                <p className="text-sm text-red-300 mb-3 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  确认要一次性发送所有“草稿”状态的周邮件给全部学生吗？
+                </p>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleSendAllDraftWeeks}
+                    disabled={sendingAllWeeks}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium
+                      bg-red-600 hover:bg-red-500 text-white disabled:opacity-50"
+                  >
+                    {sendingAllWeeks ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                    {sendingAllWeeks ? '发送中...' : '确认群发'}
+                  </button>
+                  <button
+                    onClick={() => setConfirmSendAllWeeks(false)}
+                    className="px-4 py-2 rounded-xl text-sm text-muted-foreground border border-white/10 hover:border-white/20"
+                  >
+                    取消
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!selectedWeek && confirmClearAll && (
+              <div className="mb-6 p-4 rounded-xl border border-red-500/25 bg-red-950/15">
+                <p className="text-sm text-red-300 mb-3 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  确认清空此页面全部课程与邮件内容吗？此操作不可撤回。
+                </p>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleClearAllNewsletterContent}
+                    disabled={clearingAll}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium
+                      bg-red-600 hover:bg-red-500 text-white disabled:opacity-50"
+                  >
+                    {clearingAll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                    {clearingAll ? '清空中...' : '确认清空'}
+                  </button>
+                  <button
+                    onClick={() => setConfirmClearAll(false)}
+                    className="px-4 py-2 rounded-xl text-sm text-muted-foreground border border-white/10 hover:border-white/20"
+                  >
+                    取消
+                  </button>
+                </div>
+              </div>
+            )}
 
             {customModalOpen && (
               <div className="fixed inset-0 z-40 overflow-y-auto p-4 bg-black/60 backdrop-blur-sm">
@@ -925,15 +1103,15 @@ export default function NewsletterAdminPage() {
                   <div className="flex flex-wrap items-center gap-x-8 gap-y-2 text-sm">
                     <div>
                       <span className="text-muted-foreground">课程开始：</span>
-                      <span className="text-foreground font-medium ml-1">2026年4月6日</span>
+                      <span className="text-foreground font-medium ml-1">2026年4月1日（周三 9:15）</span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">总周数：</span>
-                      <span className="text-foreground font-medium ml-1">12 Weeks</span>
+                      <span className="text-foreground font-medium ml-1">5 Weeks（4月）</span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">主题：</span>
-                      <span className="text-foreground font-medium ml-1">身体各部位专注练习</span>
+                      <span className="text-foreground font-medium ml-1">功能性疼痛缓解系列（周三上午 9:15）</span>
                     </div>
                   </div>
                 </div>
@@ -964,6 +1142,22 @@ export default function NewsletterAdminPage() {
                           {week.title}
                         </p>
                         <p className="text-xs text-muted-foreground/70">{week.bodyFocus}</p>
+                        {Array.isArray(week.classSummaries) && week.classSummaries.length > 0 && (
+                          <div className="mt-2 space-y-1">
+                            {week.classSummaries.slice(0, 3).map((item, idx) => {
+                              const dotColor =
+                                item.slot === 'Wed 9:15'  ? 'bg-orange-400' :
+                                item.slot === 'Wed 18:00' ? 'bg-glow-purple' :
+                                item.slot === 'Thu 17:30' ? 'bg-glow-teal' : 'bg-white/30';
+                              return (
+                                <p key={`${week.week}-${item.slot}-${idx}`} className="flex items-center gap-1.5 text-[11px] text-muted-foreground/75 leading-snug">
+                                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
+                                  {item.slot} · {item.topic}
+                                </p>
+                              );
+                            })}
+                          </div>
+                        )}
 
                         {campaignStatus === 'sent' && week.campaign?.sentAt && (
                           <p className="mt-2 text-xs text-emerald-400/70">
@@ -1021,6 +1215,26 @@ export default function NewsletterAdminPage() {
                       Body Focus: <strong className="text-foreground/80">{selectedWeek.bodyFocus}</strong>
                       {' '}· {selectedWeek.bodyFocusZh}
                     </p>
+                    {Array.isArray(selectedWeek.classSummaries) && selectedWeek.classSummaries.length > 0 && (
+                      <div className="mt-3 space-y-1.5">
+                        {selectedWeek.classSummaries.map((item, idx) => {
+                          const accentColor =
+                            item.slot === 'Wed 9:15'  ? 'text-orange-400 border-orange-400/40 bg-orange-400/10' :
+                            item.slot === 'Wed 18:00' ? 'text-glow-purple border-glow-purple/40 bg-glow-purple/10' :
+                            item.slot === 'Thu 17:30' ? 'text-glow-teal border-glow-teal/40 bg-glow-teal/10' : 'text-muted-foreground';
+                          return (
+                            <div key={`summary-${selectedWeek.week}-${item.slot}-${idx}`}
+                              className={`flex items-start gap-2 px-3 py-2 rounded-lg border ${accentColor}`}>
+                              <span className="text-[11px] font-bold shrink-0 mt-0.5">{item.slot}</span>
+                              <span className="text-xs text-muted-foreground">
+                                <span className="font-medium text-foreground/80">{item.topic}</span>
+                                {' '}— {item.summary}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                   {selectedWeek.campaign?.sentAt && (
                     <div className="text-right text-xs text-emerald-400">
