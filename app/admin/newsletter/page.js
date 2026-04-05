@@ -27,6 +27,7 @@ export const dynamic = 'force-dynamic';
 
 const MAX_ATTACHMENTS = 5;
 const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024; // 5MB
+const SEND_CONFIRM_PHRASE = 'SEND';
 
 // ─── Status helpers ───────────────────────────────────────────────────────────
 
@@ -92,6 +93,7 @@ export default function NewsletterAdminPage() {
   const [sendingTest, setSendingTest] = useState(false);
   const [sendingAllWeeks, setSendingAllWeeks] = useState(false);
   const [confirmSendAllWeeks, setConfirmSendAllWeeks] = useState(false);
+  const [confirmSendAllWeeksInput, setConfirmSendAllWeeksInput] = useState('');
   const [clearingAll, setClearingAll] = useState(false);
   const [confirmClearAll, setConfirmClearAll] = useState(false);
   const [customModalOpen, setCustomModalOpen] = useState(false);
@@ -99,6 +101,7 @@ export default function NewsletterAdminPage() {
   const [customSendingAll, setCustomSendingAll] = useState(false);
   const [customSendingSelected, setCustomSendingSelected] = useState(false);
   const [customConfirmSendType, setCustomConfirmSendType] = useState(null); // 'all' | 'selected' | null
+  const [customConfirmInput, setCustomConfirmInput] = useState('');
   const [customRecipientsLoading, setCustomRecipientsLoading] = useState(false);
   const [customRecipients, setCustomRecipients] = useState([]);
   const [customSelectedEmails, setCustomSelectedEmails] = useState([]);
@@ -110,7 +113,9 @@ export default function NewsletterAdminPage() {
   });
   const [toast, setToast] = useState(null); // { type: 'success'|'error', message }
   const [confirmSend, setConfirmSend] = useState(false);
+  const [confirmSendInput, setConfirmSendInput] = useState('');
   const [confirmSendSelected, setConfirmSendSelected] = useState(false);
+  const [confirmSendSelectedInput, setConfirmSendSelectedInput] = useState('');
   const [sendingSelectedWeek, setSendingSelectedWeek] = useState(false);
   const [showWeekRecipientPicker, setShowWeekRecipientPicker] = useState(false);
   const formRef = useRef(null);
@@ -144,7 +149,9 @@ export default function NewsletterAdminPage() {
   function handleSelectWeek(week) {
     setSelectedWeek(week);
     setConfirmSend(false);
+    setConfirmSendInput('');
     setConfirmSendSelected(false);
+    setConfirmSendSelectedInput('');
     setShowWeekRecipientPicker(false);
     if (week.campaign) {
       setForm({
@@ -171,7 +178,9 @@ export default function NewsletterAdminPage() {
   function handleBack() {
     setSelectedWeek(null);
     setConfirmSend(false);
+    setConfirmSendInput('');
     setConfirmSendSelected(false);
+    setConfirmSendSelectedInput('');
     setShowWeekRecipientPicker(false);
   }
 
@@ -209,6 +218,7 @@ export default function NewsletterAdminPage() {
       attachments: [],
     });
     setCustomConfirmSendType(null);
+    setCustomConfirmInput('');
     setCustomSelectedEmails([]);
     setCustomRecipientSearch('');
     setCustomModalOpen(true);
@@ -218,6 +228,7 @@ export default function NewsletterAdminPage() {
   function closeCustomComposer() {
     setCustomModalOpen(false);
     setCustomConfirmSendType(null);
+    setCustomConfirmInput('');
   }
 
   async function fetchCustomRecipients() {
@@ -389,6 +400,7 @@ export default function NewsletterAdminPage() {
 
     setCustomSendingAll(true);
     setCustomConfirmSendType(null);
+    setCustomConfirmInput('');
 
     try {
       const res = await fetch('/api/admin/newsletter/custom-send', {
@@ -398,6 +410,7 @@ export default function NewsletterAdminPage() {
           subject: customForm.subject,
           content: customForm.content,
           attachments: customForm.attachments,
+          confirmPhrase: SEND_CONFIRM_PHRASE,
         }),
       });
 
@@ -430,6 +443,7 @@ export default function NewsletterAdminPage() {
 
     setCustomSendingSelected(true);
     setCustomConfirmSendType(null);
+    setCustomConfirmInput('');
 
     try {
       const res = await fetch('/api/admin/newsletter/custom-send', {
@@ -440,6 +454,7 @@ export default function NewsletterAdminPage() {
           content: customForm.content,
           attachments: customForm.attachments,
           selectedRecipients: customSelectedEmails,
+          confirmPhrase: SEND_CONFIRM_PHRASE,
         }),
       });
 
@@ -469,6 +484,7 @@ export default function NewsletterAdminPage() {
       return;
     }
     setCustomConfirmSendType('selected');
+    setCustomConfirmInput('');
   }
 
   function promptCustomSendAll() {
@@ -477,6 +493,7 @@ export default function NewsletterAdminPage() {
       return;
     }
     setCustomConfirmSendType('all');
+    setCustomConfirmInput('');
   }
 
   // ── Save draft ─────────────────────────────────────────────────────────────
@@ -560,6 +577,7 @@ export default function NewsletterAdminPage() {
   async function handleSendAll() {
     setSending(true);
     setConfirmSend(false);
+    setConfirmSendInput('');
     try {
       // Save draft first
       await fetch('/api/admin/newsletter', {
@@ -577,7 +595,10 @@ export default function NewsletterAdminPage() {
       const res = await fetch('/api/admin/newsletter/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ weekNumber: selectedWeek.week }),
+        body: JSON.stringify({
+          weekNumber: selectedWeek.week,
+          confirmPhrase: SEND_CONFIRM_PHRASE,
+        }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
@@ -615,6 +636,7 @@ export default function NewsletterAdminPage() {
       return;
     }
     setConfirmSend(false);
+    setConfirmSendInput('');
     setConfirmSendSelected(true);
   }
 
@@ -623,6 +645,7 @@ export default function NewsletterAdminPage() {
 
     setSendingSelectedWeek(true);
     setConfirmSendSelected(false);
+    setConfirmSendSelectedInput('');
 
     try {
       // Save draft first
@@ -644,6 +667,7 @@ export default function NewsletterAdminPage() {
         body: JSON.stringify({
           weekNumber: selectedWeek.week,
           selectedRecipients: customSelectedEmails,
+          confirmPhrase: SEND_CONFIRM_PHRASE,
         }),
       });
       const data = await res.json();
@@ -676,6 +700,7 @@ export default function NewsletterAdminPage() {
 
     setSendingAllWeeks(true);
     setConfirmSendAllWeeks(false);
+    setConfirmSendAllWeeksInput('');
 
     const successWeeks = [];
     const failedWeeks = [];
@@ -687,7 +712,10 @@ export default function NewsletterAdminPage() {
           const res = await fetch('/api/admin/newsletter/send', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ weekNumber: week.week }),
+            body: JSON.stringify({
+              weekNumber: week.week,
+              confirmPhrase: SEND_CONFIRM_PHRASE,
+            }),
           });
 
           const data = await res.json();
@@ -843,7 +871,10 @@ export default function NewsletterAdminPage() {
               <div className="flex items-center gap-2">
                 {!selectedWeek && (
                   <button
-                    onClick={() => setConfirmSendAllWeeks(true)}
+                      onClick={() => {
+                        setConfirmSendAllWeeks(true);
+                        setConfirmSendAllWeeksInput('');
+                      }}
                     disabled={sendingAllWeeks}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium
                       border border-emerald-400/30 text-emerald-400 hover:bg-emerald-400/10 transition-all
@@ -884,10 +915,20 @@ export default function NewsletterAdminPage() {
                   <AlertCircle className="w-4 h-4 flex-shrink-0" />
                   确认要一次性发送所有“草稿”状态的周邮件给全部学生吗？
                 </p>
+                <p className="text-xs text-muted-foreground mb-2">
+                  二次确认：请输入 {SEND_CONFIRM_PHRASE}
+                </p>
+                <input
+                  type="text"
+                  value={confirmSendAllWeeksInput}
+                  onChange={(e) => setConfirmSendAllWeeksInput(e.target.value)}
+                  placeholder={`请输入 ${SEND_CONFIRM_PHRASE}`}
+                  className="mb-3 w-full max-w-xs px-3 py-2 rounded-lg border border-white/10 bg-card/50 text-sm focus:outline-none focus:border-red-400/40"
+                />
                 <div className="flex items-center gap-3">
                   <button
                     onClick={handleSendAllDraftWeeks}
-                    disabled={sendingAllWeeks}
+                    disabled={sendingAllWeeks || confirmSendAllWeeksInput.trim() !== SEND_CONFIRM_PHRASE}
                     className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium
                       bg-red-600 hover:bg-red-500 text-white disabled:opacity-50"
                   >
@@ -895,7 +936,10 @@ export default function NewsletterAdminPage() {
                     {sendingAllWeeks ? '发送中...' : '确认群发'}
                   </button>
                   <button
-                    onClick={() => setConfirmSendAllWeeks(false)}
+                    onClick={() => {
+                      setConfirmSendAllWeeks(false);
+                      setConfirmSendAllWeeksInput('');
+                    }}
                     className="px-4 py-2 rounded-xl text-sm text-muted-foreground border border-white/10 hover:border-white/20"
                   >
                     取消
@@ -1111,10 +1155,20 @@ export default function NewsletterAdminPage() {
                             ? `确认发送这封自定义邮件给已选择的 ${customSelectedEmails.length} 位客户吗？`
                             : '确认发送这封自定义邮件给所有客户吗？'}
                         </p>
+                        <p className="text-xs text-muted-foreground mb-2">
+                          二次确认：请输入 {SEND_CONFIRM_PHRASE}
+                        </p>
+                        <input
+                          type="text"
+                          value={customConfirmInput}
+                          onChange={(e) => setCustomConfirmInput(e.target.value)}
+                          placeholder={`请输入 ${SEND_CONFIRM_PHRASE}`}
+                          className="mb-3 w-full max-w-xs px-3 py-2 rounded-lg border border-white/10 bg-card/50 text-sm focus:outline-none focus:border-red-400/40"
+                        />
                         <div className="flex items-center gap-3">
                           <button
                             onClick={customConfirmSendType === 'selected' ? handleCustomSendSelected : handleCustomSendAll}
-                            disabled={customSendingAll || customSendingSelected}
+                            disabled={customSendingAll || customSendingSelected || customConfirmInput.trim() !== SEND_CONFIRM_PHRASE}
                             className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium
                               bg-red-600 hover:bg-red-500 text-white disabled:opacity-50"
                           >
@@ -1122,7 +1176,10 @@ export default function NewsletterAdminPage() {
                             {customSendingAll || customSendingSelected ? '发送中...' : '确认发送'}
                           </button>
                           <button
-                            onClick={() => setCustomConfirmSendType(null)}
+                            onClick={() => {
+                              setCustomConfirmSendType(null);
+                              setCustomConfirmInput('');
+                            }}
                             className="px-4 py-2 rounded-xl text-sm text-muted-foreground
                               border border-white/10 hover:border-white/20"
                           >
@@ -1498,10 +1555,20 @@ export default function NewsletterAdminPage() {
                         <AlertCircle className="w-4 h-4 flex-shrink-0" />
                         确认要将 Week {selectedWeek.week} 的邮件发送给所有学生吗？此操作无法撤回。
                       </p>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        二次确认：请输入 {SEND_CONFIRM_PHRASE}
+                      </p>
+                      <input
+                        type="text"
+                        value={confirmSendInput}
+                        onChange={(e) => setConfirmSendInput(e.target.value)}
+                        placeholder={`请输入 ${SEND_CONFIRM_PHRASE}`}
+                        className="mb-3 w-full max-w-xs px-3 py-2 rounded-lg border border-white/10 bg-card/50 text-sm focus:outline-none focus:border-red-400/40"
+                      />
                       <div className="flex items-center gap-3">
                         <button
                           onClick={handleSendAll}
-                          disabled={sending}
+                          disabled={sending || confirmSendInput.trim() !== SEND_CONFIRM_PHRASE}
                           className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium
                             bg-red-600 hover:bg-red-500 text-white transition-colors
                             disabled:opacity-50 disabled:cursor-not-allowed">
@@ -1513,7 +1580,10 @@ export default function NewsletterAdminPage() {
                           {sending ? '发送中...' : '确认发送'}
                         </button>
                         <button
-                          onClick={() => setConfirmSend(false)}
+                          onClick={() => {
+                            setConfirmSend(false);
+                            setConfirmSendInput('');
+                          }}
                           className="px-4 py-2 rounded-xl text-sm text-muted-foreground
                             hover:text-foreground border border-white/10 hover:border-white/20
                             transition-all">
@@ -1529,10 +1599,20 @@ export default function NewsletterAdminPage() {
                         <AlertCircle className="w-4 h-4 flex-shrink-0" />
                         确认要将 Week {selectedWeek.week} 的邮件发送给已选择的 {customSelectedEmails.length} 位客户吗？
                       </p>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        二次确认：请输入 {SEND_CONFIRM_PHRASE}
+                      </p>
+                      <input
+                        type="text"
+                        value={confirmSendSelectedInput}
+                        onChange={(e) => setConfirmSendSelectedInput(e.target.value)}
+                        placeholder={`请输入 ${SEND_CONFIRM_PHRASE}`}
+                        className="mb-3 w-full max-w-xs px-3 py-2 rounded-lg border border-white/10 bg-card/50 text-sm focus:outline-none focus:border-red-400/40"
+                      />
                       <div className="flex items-center gap-3">
                         <button
                           onClick={handleSendSelectedForWeek}
-                          disabled={sendingSelectedWeek}
+                          disabled={sendingSelectedWeek || confirmSendSelectedInput.trim() !== SEND_CONFIRM_PHRASE}
                           className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium
                             bg-red-600 hover:bg-red-500 text-white transition-colors
                             disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1545,7 +1625,10 @@ export default function NewsletterAdminPage() {
                           {sendingSelectedWeek ? '发送中...' : '确认发送'}
                         </button>
                         <button
-                          onClick={() => setConfirmSendSelected(false)}
+                          onClick={() => {
+                            setConfirmSendSelected(false);
+                            setConfirmSendSelectedInput('');
+                          }}
                           className="px-4 py-2 rounded-xl text-sm text-muted-foreground
                             hover:text-foreground border border-white/10 hover:border-white/20
                             transition-all"
@@ -1624,7 +1707,9 @@ export default function NewsletterAdminPage() {
                             return;
                           }
                           setConfirmSendSelected(false);
+                          setConfirmSendSelectedInput('');
                           setConfirmSend(true);
+                          setConfirmSendInput('');
                         }}
                         disabled={sending || sendingSelectedWeek}
                         className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium

@@ -21,6 +21,7 @@ const SENDER_EMAIL =
 const SENDER_NAME = 'Yuki · INNER LIGHT Yoga';
 const COMPANY_EMAIL = process.env.COMPANY_EMAIL || 'innerlightyuki@gmail.com';
 const COMPANY_LOGO_CID = 'innerlight-logo-footer';
+const REQUIRED_CONFIRM_PHRASE = 'SEND';
 
 // Resend batch limit
 const BATCH_SIZE = 100;
@@ -110,10 +111,17 @@ export async function POST(request) {
 
   try {
     const body = await request.json();
-    const { weekNumber, testEmail, selectedRecipients } = body;
+    const { weekNumber, testEmail, selectedRecipients, confirmPhrase } = body;
 
     if (!weekNumber || weekNumber < 1 || weekNumber > 12) {
       return NextResponse.json({ error: 'Invalid weekNumber' }, { status: 400 });
+    }
+
+    if (!testEmail && String(confirmPhrase || '').trim() !== REQUIRED_CONFIRM_PHRASE) {
+      return NextResponse.json(
+        { error: `Confirmation required. Please provide confirmPhrase: ${REQUIRED_CONFIRM_PHRASE}` },
+        { status: 400 }
+      );
     }
 
     // Load campaign

@@ -22,6 +22,7 @@ const COMPANY_LOGO_CID = 'innerlight-logo-footer';
 const BATCH_SIZE = 100;
 const MAX_ATTACHMENTS = 5;
 const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024; // 5MB
+const REQUIRED_CONFIRM_PHRASE = 'SEND';
 
 function extractErrorMessage(error) {
   if (!error) return 'Unknown email error';
@@ -219,7 +220,7 @@ export async function POST(request) {
 
   try {
     const body = await request.json();
-    const { subject, content, testEmail } = body;
+    const { subject, content, testEmail, confirmPhrase } = body;
     const selectedRecipientEmails = normalizeSelectedRecipients(body?.selectedRecipients);
     const attachments = normalizeAttachments(body?.attachments);
 
@@ -229,6 +230,13 @@ export async function POST(request) {
 
     if (!content?.trim()) {
       return NextResponse.json({ error: 'Email content is required' }, { status: 400 });
+    }
+
+    if (!testEmail && String(confirmPhrase || '').trim() !== REQUIRED_CONFIRM_PHRASE) {
+      return NextResponse.json(
+        { error: `Confirmation required. Please provide confirmPhrase: ${REQUIRED_CONFIRM_PHRASE}` },
+        { status: 400 }
+      );
     }
 
     let recipients = [];

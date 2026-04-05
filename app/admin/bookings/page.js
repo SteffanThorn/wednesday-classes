@@ -43,6 +43,9 @@ export default function AdminBookingsPage() {
   const [customerLookupLoading, setCustomerLookupLoading] = useState(false);
   const [bookingCustomerId, setBookingCustomerId] = useState('');
   const [assistedBookingLoading, setAssistedBookingLoading] = useState(false);
+  const [sendingAdminBookingTest, setSendingAdminBookingTest] = useState(false);
+  const [assistedConfirmOpen, setAssistedConfirmOpen] = useState(false);
+  const [pendingAssistedBooking, setPendingAssistedBooking] = useState(null);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const savedLanguage = String(window.localStorage.getItem('language') || '').toLowerCase();
@@ -416,7 +419,7 @@ export default function AdminBookingsPage() {
   };
 
   const handleCreateAssistedBooking = async (customer, options = {}) => {
-    const { sendEmail = true } = options;
+    const { sendEmail = true, skipConfirm = false } = options;
 
     if (!selectedSessionData || !selectedAttendanceSession) {
       setAttendanceError(txt('请先选择课程场次。', 'Please select a class session first.'));
@@ -436,14 +439,17 @@ export default function AdminBookingsPage() {
     }
 
     const [classDate, classTime] = selectedAttendanceSession.split('|');
-    const confirmed = window.confirm(
-      txt(
-        `确认给该会员预约此课程${sendEmail ? '并发送预约邮件' : '，且不发送预约邮件'}？\n\n${customer.userName} (${customer.userEmail})\n${selectedSessionData.className}\n${classDate} ${classTime}`,
-        `Book this class for this member${sendEmail ? ' and send the booking email' : ' without sending the booking email'}?\n\n${customer.userName} (${customer.userEmail})\n${selectedSessionData.className}\n${classDate} ${classTime}`
-      )
-    );
-
-    if (!confirmed) return;
+    if (!skipConfirm) {
+      setPendingAssistedBooking({
+        customer,
+        sendEmail,
+        classDate,
+        classTime,
+        className: selectedSessionData.className,
+      });
+      setAssistedConfirmOpen(true);
+      return;
+    }
 
     setAssistedBookingLoading(true);
     setBookingCustomerId(customer.id);
@@ -480,10 +486,14 @@ export default function AdminBookingsPage() {
       setAttendanceMessage(
         txt(
           sendEmail
-            ? `预约成功，邮件已发送。当前剩余课次：${data.remainingClassCredits}（到课时自动扣减）。`
+            ? data.emailSent === false
+              ? `预约成功，但预约邮件发送失败。当前剩余课次：${data.remainingClassCredits}（到课时自动扣减）。${data.emailError ? ` 原因：${data.emailError}` : ''}`
+              : `预约成功，邮件已发送至 ${data.emailTo || customer.userEmail}。当前剩余课次：${data.remainingClassCredits}（到课时自动扣减）。${data.emailMessageId ? ` 邮件ID：${data.emailMessageId}` : ''}`
             : `预约成功，未发送预约邮件。当前剩余课次：${data.remainingClassCredits}（到课时自动扣减）。`,
           sendEmail
-            ? `Booking successful and confirmation email sent. Remaining credits: ${data.remainingClassCredits} (deducted when attendance is marked).`
+            ? data.emailSent === false
+              ? `Booking successful, but confirmation email failed. Remaining credits: ${data.remainingClassCredits} (deducted when attendance is marked).${data.emailError ? ` Reason: ${data.emailError}` : ''}`
+              : `Booking successful and confirmation email sent to ${data.emailTo || customer.userEmail}. Remaining credits: ${data.remainingClassCredits} (deducted when attendance is marked).${data.emailMessageId ? ` Email ID: ${data.emailMessageId}` : ''}`
             : `Booking successful without sending the booking email. Remaining credits: ${data.remainingClassCredits} (deducted when attendance is marked).`
         )
       );
@@ -496,6 +506,70 @@ export default function AdminBookingsPage() {
     } finally {
       setAssistedBookingLoading(false);
       setBookingCustomerId('');
+      setAssistedConfirmOpen(false);
+      setPendingAssistedBooking(null);
+    }
+  };
+
+  const handleCancelAssistedBookingConfirm = () => {
+    setAssistedConfirmOpen(false);
+    setPendingAssistedBooking(null);
+    setAttendanceError('');
+    setAttendanceMessage(txt('已取消预约操作。', 'Booking action cancelled.'));
+  };
+
+  const handleSendAdminBookingTestEmail = async () => {
+    if (!selectedAttendanceSession || !selectedSessionData) {
+      setAttendanceError(txt('请先选择课程场次。', 'Please select a class session first.'));
+      return;
+    }
+
+    const adminEmail = session?.user?.email;
+    if (!adminEmail) {
+      setAttendanceError(txt('当前账号缺少邮箱，无法发送测试邮件。', 'Current account has no email, cannot send test email.'));
+      return;
+    }
+
+    const [classDate, classTime] = selectedAttendanceSession.split('|');
+
+    setSendingAdminBookingTest(true);
+    setAttendanceError('');
+    setAttendanceMessage('');
+
+    try {
+      const response = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: adminEmail,
+          emailType: 'booking-confirmation',
+          data: {
+            userName: session?.user?.name || 'Admin Test',
+            className: selectedSessionData.className || 'Booking Confirmation Test',
+            classDate,
+            classTime,
+            location: selectedSessionData.location || 'Village Valley Centre, Ashhurst',
+            amount: 0,
+            bookingId: `test-${Date.now()}`,
+          },
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.details || data?.error || 'Failed to send test email');
+      }
+
+      setAttendanceMessage(
+        txt(
+          `测试预约邮件已发送至 ${adminEmail}${data?.id ? `（邮件ID：${data.id}）` : ''}`,
+          `Test booking email sent to ${adminEmail}${data?.id ? ` (Email ID: ${data.id})` : ''}`
+        )
+      );
+    } catch (error) {
+      setAttendanceError(error.message || 'Failed to send test email');
+    } finally {
+      setSendingAdminBookingTest(false);
     }
   };
 
@@ -862,6 +936,16 @@ export default function AdminBookingsPage() {
                       >
                         {txt('打开预约首页（现场协助）', 'Open Booking Homepage (Assist On-site)')}
                       </button>
+                      <button
+                        type="button"
+                        onClick={handleSendAdminBookingTestEmail}
+                        disabled={!selectedAttendanceSession || sendingAdminBookingTest}
+                        className="px-3 py-2 rounded-lg bg-violet-500/10 border border-violet-500/30 text-violet-300 hover:bg-violet-500/20 transition-colors text-xs disabled:opacity-50"
+                      >
+                        {sendingAdminBookingTest
+                          ? txt('发送测试中...', 'Sending test...')
+                          : txt('发送预约测试邮件给我', 'Send Booking Test Email to Me')}
+                      </button>
                     </div>
                     <input
                       type="text"
@@ -908,6 +992,11 @@ export default function AdminBookingsPage() {
                                     {txt('该会员本场次已预约，请在下方“已预约学员”中点击“确认到课”。', 'Already booked for this session. Use Confirm Attended below under Booked Students.')}
                                   </p>
                                 )}
+                                {!selectedAttendanceSession && (
+                                  <p className="mt-1 text-xs text-yellow-300">
+                                    {txt('请先在上方选择课程场次后再代客预约。', 'Please select a class session above before creating assisted bookings.')}
+                                  </p>
+                                )}
                                 <div className="mt-2 flex flex-wrap gap-2">
                                   <button
                                     type="button"
@@ -925,7 +1014,7 @@ export default function AdminBookingsPage() {
                                       e.stopPropagation();
                                       handleCreateAssistedBooking(customer, { sendEmail: true });
                                     }}
-                                    disabled={isAlreadyBooked || (assistedBookingLoading && bookingCustomerId === customer.id)}
+                                    disabled={!selectedAttendanceSession || !selectedSessionData || isAlreadyBooked || (assistedBookingLoading && bookingCustomerId === customer.id)}
                                     className="px-3 py-1 rounded bg-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500/20 transition-colors text-xs disabled:opacity-50"
                                   >
                                     {(assistedBookingLoading && bookingCustomerId === customer.id)
@@ -938,7 +1027,7 @@ export default function AdminBookingsPage() {
                                       e.stopPropagation();
                                       handleCreateAssistedBooking(customer, { sendEmail: false });
                                     }}
-                                    disabled={isAlreadyBooked || (assistedBookingLoading && bookingCustomerId === customer.id)}
+                                    disabled={!selectedAttendanceSession || !selectedSessionData || isAlreadyBooked || (assistedBookingLoading && bookingCustomerId === customer.id)}
                                     className="px-3 py-1 rounded bg-yellow-500/10 border border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/20 transition-colors text-xs disabled:opacity-50"
                                   >
                                     {(assistedBookingLoading && bookingCustomerId === customer.id)
@@ -1025,6 +1114,47 @@ export default function AdminBookingsPage() {
                       </div>
                     </div>
                   </div>
+
+                  {assistedConfirmOpen && pendingAssistedBooking && (
+                    <div className="mt-4 p-4 rounded-lg bg-red-500/10 border border-red-500/30">
+                      <p className="text-sm text-red-300 mb-3">
+                        {txt(
+                          `确认给该会员预约此课程${pendingAssistedBooking.sendEmail ? '并发送预约邮件' : '，且不发送预约邮件'}？`,
+                          `Confirm assisted booking${pendingAssistedBooking.sendEmail ? ' and send confirmation email' : ' without sending confirmation email'}?`
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        {pendingAssistedBooking.customer.userName} ({pendingAssistedBooking.customer.userEmail})
+                        {' · '}
+                        {pendingAssistedBooking.className}
+                        {' · '}
+                        {pendingAssistedBooking.classDate} {pendingAssistedBooking.classTime}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleCreateAssistedBooking(pendingAssistedBooking.customer, {
+                            sendEmail: pendingAssistedBooking.sendEmail,
+                            skipConfirm: true,
+                          })}
+                          disabled={assistedBookingLoading}
+                          className="px-3 py-2 rounded bg-red-600 text-white hover:bg-red-500 disabled:opacity-50 text-xs"
+                        >
+                          {assistedBookingLoading
+                            ? txt('预约中...', 'Booking...')
+                            : txt('确认预约', 'Confirm Booking')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCancelAssistedBookingConfirm}
+                          disabled={assistedBookingLoading}
+                          className="px-3 py-2 rounded border border-white/20 text-muted-foreground hover:text-foreground text-xs"
+                        >
+                          {txt('取消', 'Cancel')}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
               </div>

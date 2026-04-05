@@ -238,24 +238,42 @@ export async function POST(request) {
       day: 'numeric',
     });
 
+    let emailSent = !sendEmail;
+    let emailError = null;
+    let emailMessageId = null;
+
     if (sendEmail) {
-      sendBookingConfirmationEmail({
-        userEmail: booking.userEmail,
-        userName: booking.userName,
-        className: booking.className,
-        classDate: formattedDate,
-        classTime: booking.classTime,
-        location: booking.location,
-        amount: booking.amount,
-        bookingId: booking._id.toString(),
-      }).catch((err) => console.error('Failed to send booking confirmation email:', err));
+      try {
+        const emailResult = await sendBookingConfirmationEmail({
+          userEmail: booking.userEmail,
+          userName: booking.userName,
+          className: booking.className,
+          classDate: formattedDate,
+          classTime: booking.classTime,
+          location: booking.location,
+          amount: booking.amount,
+          bookingId: booking._id.toString(),
+        });
+        emailSent = true;
+        emailMessageId = emailResult?.id || null;
+      } catch (err) {
+        emailSent = false;
+        emailError = err?.message || 'Failed to send booking confirmation email';
+        console.error('Failed to send booking confirmation email:', err);
+      }
     }
 
     return NextResponse.json({
       success: true,
       message: sendEmail
-        ? 'Booking created and confirmation email sent.'
+        ? emailSent
+          ? 'Booking created and confirmation email sent.'
+          : 'Booking created, but confirmation email failed to send.'
         : 'Booking created without sending confirmation email.',
+      emailSent,
+      emailError: emailError || undefined,
+      emailTo: sendEmail ? booking.userEmail : undefined,
+      emailMessageId: emailMessageId || undefined,
       booking: {
         id: booking._id.toString(),
         userEmail: booking.userEmail,

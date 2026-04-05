@@ -11,6 +11,8 @@ import { Resend } from 'resend';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createInterface } from 'node:readline/promises';
+import { stdin as input, stdout as output } from 'node:process';
 
 dotenv.config({ path: '.env.local' });
 
@@ -64,6 +66,19 @@ if (DRY_RUN) {
   recipients.forEach((r) => console.log(`  • ${r.name} <${r.email}>`));
   console.log('\n✋  DRY_RUN=true — no emails sent.\n');
   process.exit(0);
+}
+
+// ── Safety confirmation before live send ───────────────────────────────────
+const CONFIRM_PHRASE = 'SEND';
+const rl = createInterface({ input, output });
+const answer = await rl.question(
+  `\n⚠️  You are about to send to ${recipients.length} customers. Type ${CONFIRM_PHRASE} to continue: `
+);
+rl.close();
+
+if (answer.trim() !== CONFIRM_PHRASE) {
+  console.log('✋  Confirmation mismatch. Sending cancelled.');
+  process.exit(1);
 }
 
 // ── Build HTML ─────────────────────────────────────────────────────────────

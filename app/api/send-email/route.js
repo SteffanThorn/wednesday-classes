@@ -521,26 +521,27 @@ function getTemplateSubject(emailType, data) {
 
 export async function POST(request) {
   try {
-    // SECURITY: Check for internal API key (for server-to-server communication)
-    const internalApiKey = request.headers.get('x-internal-api-key');
-    const validInternalKey = process.env.INTERNAL_API_KEY;
-    
-    // Check if this is an internal call
-    // Note: isInternalCall will be false if INTERNAL_API_KEY is not set in environment
-    const isInternalCall = validInternalKey && internalApiKey === validInternalKey;
-    
-    // If INTERNAL_API_KEY is not set, return a helpful error message
-    if (!validInternalKey) {
-      console.error('INTERNAL_API_KEY is not configured in environment variables');
+    if (!process.env.RESEND_API_KEY) {
       return NextResponse.json(
-        { error: 'Email service configuration error. Please contact the administrator.' },
+        { error: 'Missing RESEND_API_KEY' },
         { status: 500 }
       );
     }
+
+    // SECURITY: Check for internal API key (for server-to-server communication)
+    const internalApiKey = request.headers.get('x-internal-api-key');
+    const validInternalKey = process.env.INTERNAL_API_KEY;
+    const isInternalCall = Boolean(validInternalKey && internalApiKey === validInternalKey);
+
+    if (internalApiKey && !validInternalKey) {
+      console.warn('x-internal-api-key provided but INTERNAL_API_KEY is not configured. Falling back to session auth.');
+    }
+
+    let session = null;
     
     // If not internal call, require user authentication
     if (!isInternalCall) {
-      const session = await auth();
+      session = await auth();
       
       if (!session?.user) {
         return NextResponse.json(
@@ -575,7 +576,7 @@ export async function POST(request) {
 
     // SECURITY: Check authorization based on email type
     // Custom emails require admin role
-    if (adminOnlyEmailTypes.includes(emailType)) {
+    if (!isInternalCall && adminOnlyEmailTypes.includes(emailType)) {
       if (session.user.role !== 'admin') {
         return NextResponse.json(
           { error: 'Admin access required for custom emails' },
@@ -585,7 +586,7 @@ export async function POST(request) {
     }
 
     // For user-allowed email types, verify user owns the email or is admin
-    if (userAllowedEmailTypes.includes(emailType)) {
+    if (!isInternalCall && userAllowedEmailTypes.includes(emailType)) {
       // Users can only send to their own email (or admin can send to any)
       if (session.user.role !== 'admin' && to !== session.user.email) {
         return NextResponse.json(
@@ -613,12 +614,17 @@ export async function POST(request) {
 
     html = appendBrandLogo(html);
 
-    // Use Resend's test domain for local development
+    // Prefer verified production sender whenever available (even in local/dev)
     const isLocal = process.env.NODE_ENV === 'development';
-    const senderEmail = isLocal
-      ? process.env.EMAIL_FROM_LOCAL || 'onboarding@resend.dev'
-      : process.env.EMAIL_FROM_PRODUCTION || 'contact@innerlightyoga.co.nz';
-    const senderName = isLocal ? 'INNER LIGHT Yoga (Test)' : 'INNER LIGHT Yoga';
+    const hasProductionSender = Boolean(process.env.EMAIL_FROM_PRODUCTION);
+    const senderEmail = hasProductionSender
+      ? process.env.EMAIL_FROM_PRODUCTION
+      : (isLocal
+        ? process.env.EMAIL_FROM_LOCAL || 'onboarding@resend.dev'
+        : 'contact@innerlightyoga.co.nz');
+    const senderName = hasProductionSender
+      ? 'INNER LIGHT Yoga'
+      : (isLocal ? 'INNER LIGHT Yoga (Test)' : 'INNER LIGHT Yoga');
 
     // Send email via Resend
     const { data: emailData, error } = await resend.emails.send({
