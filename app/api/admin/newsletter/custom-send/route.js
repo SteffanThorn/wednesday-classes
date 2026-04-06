@@ -187,24 +187,6 @@ ${inlineImages
               ${paragraphs}
               ${imagesSection}
               ${attachmentSection}
-              <div style="margin:24px 0 0; text-align:left;">
-                <img
-                  src="${logoUrl || getCompanyLogoUrl()}"
-                  alt="INNER LIGHT Yoga"
-                  width="140"
-                  style="display:inline-block; height:auto; max-width:140px; opacity:0.95;"
-                />
-              </div>
-
-              <div style="margin:22px 0 8px; text-align:left;">
-                <a
-                  href="https://www.innerlight.co.nz/"
-                  style="display:inline-block;padding:12px 24px;border-radius:999px;background:linear-gradient(135deg,#0ea5e9,#8b5cf6);color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;letter-spacing:0.2px;"
-                >
-                  Book Classe Here
-                </a>
-              </div>
-
               <div style="margin:24px 0 0;padding-top:20px;border-top:1px solid #e5e7eb;text-align:left;">
                 <p style="margin:0 0 12px;color:#111827;font-size:14px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;">CLASS DETAILS</p>
                 <p style="margin:0 0 8px;color:#374151;font-size:14px;line-height:1.7;">📍 <strong>Venue:</strong> Village Valley Centre, Ashhurst</p>
@@ -216,6 +198,24 @@ ${inlineImages
                 <p style="margin:0 0 10px;color:#374151;font-size:14px;line-height:1.7;">Classes start from <strong>1 April 2026</strong>.<br />Spots are limited — book early to secure your place.</p>
 
                 <p style="margin:0;color:#374151;font-size:14px;line-height:1.7;">Looking forward to seeing you on the mat 🙏</p>
+              </div>
+
+              <div style="margin:24px 0 12px; text-align:left;">
+                <a
+                  href="https://www.innerlight.co.nz/"
+                  style="display:inline-block;padding:12px 24px;border-radius:999px;background:linear-gradient(135deg,#0ea5e9,#8b5cf6);color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;letter-spacing:0.2px;"
+                >
+                  Book Classe Here
+                </a>
+              </div>
+
+              <div style="margin:0; text-align:left;">
+                <img
+                  src="${logoUrl || getCompanyLogoUrl()}"
+                  alt="INNER LIGHT Yoga"
+                  width="140"
+                  style="display:inline-block; height:auto; max-width:140px; opacity:0.95;"
+                />
               </div>
             </td>
           </tr>
