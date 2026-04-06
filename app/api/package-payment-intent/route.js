@@ -6,6 +6,10 @@ import { FIVE_CLASS_PACKAGE_PRICE, FIVE_CLASS_PACKAGE_SIZE } from '@/lib/pricing
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const ADMIN_TEST_PACKAGE_COUPON = 'ADMINTEST1NZD';
 const ADMIN_TEST_PACKAGE_PRICE = 1;
+const TEST_COUPON_ALLOWED_EMAILS = new Set([
+  'innerlightyuki@gmail.com',
+  'nzsteffan@gmail.com',
+]);
 
 export async function POST(request) {
   try {
@@ -22,7 +26,24 @@ export async function POST(request) {
     const couponCode = String(body?.couponCode || '').trim().toUpperCase();
 
     const isAdmin = session?.user?.role === 'admin';
-    const useAdminTestCoupon = couponCode === ADMIN_TEST_PACKAGE_COUPON && isAdmin;
+    const normalizedEmail = String(session?.user?.email || '').trim().toLowerCase();
+    const isAllowedTester = TEST_COUPON_ALLOWED_EMAILS.has(normalizedEmail);
+
+    if (couponCode && couponCode !== ADMIN_TEST_PACKAGE_COUPON) {
+      return NextResponse.json(
+        { error: 'Invalid coupon code for package checkout' },
+        { status: 400 }
+      );
+    }
+
+    if (couponCode === ADMIN_TEST_PACKAGE_COUPON && !isAdmin && !isAllowedTester) {
+      return NextResponse.json(
+        { error: 'This test coupon is restricted to admin/tester accounts' },
+        { status: 403 }
+      );
+    }
+
+    const useAdminTestCoupon = couponCode === ADMIN_TEST_PACKAGE_COUPON && (isAdmin || isAllowedTester);
     const payableAmount = useAdminTestCoupon ? ADMIN_TEST_PACKAGE_PRICE : FIVE_CLASS_PACKAGE_PRICE;
 
     const paymentIntent = await stripe.paymentIntents.create({

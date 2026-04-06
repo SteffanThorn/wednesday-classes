@@ -181,7 +181,7 @@ export default function PackageCheckoutPage() {
                 </button>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                Admin live-test coupon: <span className="text-foreground">ADMINTEST1NZD</span>
+                Live test coupon: <span className="text-foreground">ADMINTEST1NZD</span> (admin/tester accounts only)
               </p>
             </div>
 
