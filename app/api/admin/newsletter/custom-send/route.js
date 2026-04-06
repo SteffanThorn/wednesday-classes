@@ -202,21 +202,21 @@ ${inlineImages
 
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:24px;">
                 <tr>
-                  <td style="text-align:left; vertical-align:middle;">
-                    <a
-                      href="https://www.innerlight.co.nz/"
-                      style="display:inline-block;padding:12px 24px;border-radius:999px;background:linear-gradient(135deg,#0ea5e9,#8b5cf6);color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;letter-spacing:0.2px;"
-                    >
-                      Book Classe Here
-                    </a>
-                  </td>
-                  <td style="text-align:right; vertical-align:middle;">
+                  <td style="width:55%; text-align:center; vertical-align:middle;">
                     <img
                       src="${logoUrl || getCompanyLogoUrl()}"
                       alt="INNER LIGHT Yoga"
                       width="140"
                       style="display:inline-block; height:auto; max-width:140px; opacity:0.95;"
                     />
+                  </td>
+                  <td style="width:45%; text-align:right; vertical-align:middle;">
+                    <a
+                      href="https://www.innerlight.co.nz/"
+                      style="display:inline-block;padding:12px 24px;border-radius:999px;background:linear-gradient(135deg,#0ea5e9,#8b5cf6);color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;letter-spacing:0.2px;"
+                    >
+                      Book Classe Here
+                    </a>
                   </td>
                 </tr>
               </table>
