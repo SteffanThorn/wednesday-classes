@@ -614,17 +614,20 @@ export async function POST(request) {
 
     html = appendBrandLogo(html);
 
-    // Prefer verified production sender whenever available (even in local/dev)
-    const isLocal = process.env.NODE_ENV === 'development';
-    const hasProductionSender = Boolean(process.env.EMAIL_FROM_PRODUCTION);
+    // Sender address rules:
+    // 1) Use EMAIL_FROM_PRODUCTION when configured (must be a verified domain in Resend)
+    // 2) Otherwise always fall back to Resend test sender to avoid unverified-domain hard failures
+    const configuredProductionSender = (process.env.EMAIL_FROM_PRODUCTION || '').trim();
+    const configuredLocalSender = (process.env.EMAIL_FROM_LOCAL || '').trim();
+    const hasProductionSender = Boolean(configuredProductionSender);
+
     const senderEmail = hasProductionSender
-      ? process.env.EMAIL_FROM_PRODUCTION
-      : (isLocal
-        ? process.env.EMAIL_FROM_LOCAL || 'onboarding@resend.dev'
-        : 'contact@innerlightyoga.co.nz');
+      ? configuredProductionSender
+      : (configuredLocalSender || 'onboarding@resend.dev');
+
     const senderName = hasProductionSender
       ? 'INNER LIGHT Yoga'
-      : (isLocal ? 'INNER LIGHT Yoga (Test)' : 'INNER LIGHT Yoga');
+      : 'INNER LIGHT Yoga (Test)';
 
     // Send email via Resend
     const { data: emailData, error } = await resend.emails.send({
