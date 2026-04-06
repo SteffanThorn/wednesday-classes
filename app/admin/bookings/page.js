@@ -43,6 +43,7 @@ export default function AdminBookingsPage() {
   const [customerLookupLoading, setCustomerLookupLoading] = useState(false);
   const [bookingCustomerId, setBookingCustomerId] = useState('');
   const [assistedBookingLoading, setAssistedBookingLoading] = useState(false);
+  const [deletingBookingId, setDeletingBookingId] = useState('');
   const [sendingAdminBookingTest, setSendingAdminBookingTest] = useState(false);
   const [assistedConfirmOpen, setAssistedConfirmOpen] = useState(false);
   const [pendingAssistedBooking, setPendingAssistedBooking] = useState(null);
@@ -267,6 +268,37 @@ export default function AdminBookingsPage() {
     } catch (error) {
       console.error('Error marking no-show:', error);
       setAttendanceError(error.message || 'Failed to mark no-show');
+    }
+  };
+
+  const handleDeleteBooked = async ({ bookingId }) => {
+    if (!bookingId) return;
+
+    setAttendanceMessage('');
+    setAttendanceError('');
+    setDeletingBookingId(bookingId);
+
+    try {
+      const response = await fetch('/api/admin/bookings', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingId }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to remove booking');
+      }
+
+      setAttendanceMessage(txt('已删除该预约。', 'Booking removed.'));
+      setSelectedBookedStudent('');
+      await fetchAttendanceData(selectedAttendanceSession);
+      await fetchBookings();
+    } catch (error) {
+      console.error('Error removing booking:', error);
+      setAttendanceError(error.message || 'Failed to remove booking');
+    } finally {
+      setDeletingBookingId('');
     }
   };
 
@@ -1116,6 +1148,19 @@ export default function AdminBookingsPage() {
                             {txt('标记未到场', 'Mark No-Show')}
                           </button>
                         </div>
+                        <button
+                          onClick={() => {
+                            if (!selectedBookedStudent) return;
+                            const [, bookingId] = selectedBookedStudent.split('|');
+                            handleDeleteBooked({ bookingId });
+                          }}
+                          disabled={!selectedBookedStudent || !selectedAttendanceSession || !!deletingBookingId}
+                          className="w-full px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/40 text-red-300 hover:bg-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {deletingBookingId
+                            ? txt('删除中...', 'Removing...')
+                            : txt('删除已预约', 'Delete Booked')}
+                        </button>
                       </div>
                     </div>
 

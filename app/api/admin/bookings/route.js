@@ -302,3 +302,58 @@ export async function POST(request) {
   }
 }
 
+// DELETE - Admin remove/cancel a booking
+export async function DELETE(request) {
+  try {
+    const session = await auth();
+
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (session.user.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
+    }
+
+    await dbConnect();
+
+    const body = await request.json();
+    const bookingId = body?.bookingId;
+
+    if (!bookingId) {
+      return NextResponse.json({ error: 'bookingId is required' }, { status: 400 });
+    }
+
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+    }
+
+    if (booking.status === 'cancelled') {
+      return NextResponse.json({
+        success: true,
+        message: 'Booking already cancelled.',
+      });
+    }
+
+    booking.status = 'cancelled';
+    booking.cancelledAt = new Date();
+    booking.cancellationReason = 'Removed by admin from Booking Management';
+
+    if (booking.paymentStatus === 'pending' || booking.paymentStatus === 'processing') {
+      booking.paymentStatus = 'canceled';
+    }
+
+    await booking.save();
+
+    return NextResponse.json({
+      success: true,
+      message: 'Booking removed successfully.',
+      bookingId: booking._id.toString(),
+    });
+  } catch (error) {
+    console.error('Error removing booking:', error);
+    return NextResponse.json({ error: 'Failed to remove booking' }, { status: 500 });
+  }
+}
+
