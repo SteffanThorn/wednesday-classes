@@ -431,16 +431,19 @@ async function handleCheckoutSessionCompleted(session) {
       day: 'numeric'
     });
     
-    sendBookingConfirmationEmail({
-      userEmail: booking.userEmail,
-      userName: booking.userName,
-      className: booking.className,
-      classDate: formattedDate,
-      classTime: booking.classTime,
-      location: booking.location,
-      amount: booking.amount,
-      bookingId: booking._id.toString()
-    }).catch(err => console.error('Failed to send booking confirmation email:', err));
+    User.findOne({ email: booking.userEmail.toLowerCase() }).select('classCredits').lean()
+      .then(bookingUser => sendBookingConfirmationEmail({
+        userEmail: booking.userEmail,
+        userName: booking.userName,
+        className: booking.className,
+        classDate: formattedDate,
+        classTime: booking.classTime,
+        location: booking.location,
+        amount: booking.amount,
+        bookingId: booking._id.toString(),
+        remainingClasses: bookingUser?.classCredits ?? 0,
+      }))
+      .catch(err => console.error('Failed to send booking confirmation email:', err));
     
     console.log(`   Booking ${booking._id} confirmed`);
   }

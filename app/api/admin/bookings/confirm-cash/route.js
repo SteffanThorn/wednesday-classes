@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import dbConnect from '@/lib/mongodb';
 import Booking from '@/lib/models/Booking';
+import User from '@/lib/models/User';
 import AuditLog from '@/lib/models/AuditLog';
 import { sendBookingConfirmationEmail } from '@/lib/email';
 
@@ -65,6 +66,7 @@ export async function PUT(request) {
         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
       });
 
+      const cashUser = await User.findOne({ email: booking.userEmail.toLowerCase() }).select('classCredits').lean();
       await sendBookingConfirmationEmail({
         userEmail: booking.userEmail,
         userName: booking.userName,
@@ -73,7 +75,8 @@ export async function PUT(request) {
         classTime: booking.classTime,
         location: booking.location,
         amount: booking.amount,
-        bookingId: booking._id.toString()
+        bookingId: booking._id.toString(),
+        remainingClasses: cashUser?.classCredits ?? 0,
       });
     } catch (emailErr) {
       console.error('Failed to send cash confirmation email:', emailErr);

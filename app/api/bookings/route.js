@@ -154,6 +154,11 @@ export async function POST(request) {
       month: 'long',
       day: 'numeric'
     });
+
+    // Fetch latest classCredits for the email (userForCredits already loaded for member_card)
+    const emailUserCredits = userForCredits
+      ? (userForCredits.classCredits ?? 0)
+      : await User.findOne({ email: session.user.email.toLowerCase().trim() }).select('classCredits').lean().then(u => u?.classCredits ?? 0).catch(() => null);
     
     sendBookingConfirmationEmail({
       userEmail: booking.userEmail,
@@ -163,7 +168,8 @@ export async function POST(request) {
       classTime: booking.classTime,
       location: booking.location,
       amount: booking.amount,
-      bookingId: booking._id.toString()
+      bookingId: booking._id.toString(),
+      remainingClasses: emailUserCredits,
     }).catch(err => console.error('Failed to send booking confirmation email:', err));
 
     // Return the created booking

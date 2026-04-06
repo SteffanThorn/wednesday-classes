@@ -256,6 +256,7 @@ export async function POST(request) {
           location: booking.location,
           amount: booking.amount,
           bookingId: booking._id.toString(),
+          remainingClasses: user.classCredits ?? 0,
         });
         emailMessageId = emailResult?.id || null;
         emailSent = Boolean(emailMessageId);
