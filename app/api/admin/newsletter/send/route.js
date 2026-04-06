@@ -464,18 +464,18 @@ function buildNewsletterHtml({
 
           <!-- ── Header ── -->
           <tr>
-            <td style="text-align: center; padding: 36px 24px 28px;
+            <td style="text-align: center; padding: 22px 24px 14px;
               background: linear-gradient(135deg, #ff8a80 0%, #ffcc80 16.66%, #fff9c4 33.33%, #a5d6a7 50%, #81d4fa 66.66%, #9fa8da 83.33%, #ce93d8 100%);
               border-radius: 16px 16px 0 0;">
               <p style="margin: 0 0 4px; color: rgba(255,255,255,0.7); font-size: 11px;
                          text-transform: uppercase; letter-spacing: 3px;">
                 12-Week Yoga Course · 2026
               </p>
-              <h1 style="margin: 0 0 6px; color: white; font-size: 30px; font-weight: 300;
+              <h1 style="margin: 0 0 4px; color: white; font-size: 26px; font-weight: 300;
                           letter-spacing: 5px; text-transform: uppercase;">
                 INNER LIGHT
               </h1>
-              <p style="margin: 0 0 20px; color: rgba(255,255,255,0.8); font-size: 13px;
+              <p style="margin: 0 0 12px; color: rgba(255,255,255,0.8); font-size: 13px;
                          letter-spacing: 1px;">
                 Yoga &amp; Meditation · Palmerston North, NZ
               </p>
@@ -493,12 +493,12 @@ function buildNewsletterHtml({
           <!-- ── Body Focus Banner ── -->
           <tr>
             <td style="background: linear-gradient(135deg, #0c4a6e 0%, #4c1d95 100%);
-              padding: 20px 28px; text-align: center;">
+              padding: 12px 28px; text-align: center;">
               <p style="margin: 0 0 4px; color: rgba(255,255,255,0.55); font-size: 10px;
                          text-transform: uppercase; letter-spacing: 2.5px;">
                 This Week's Focus
               </p>
-              <p style="margin: 0; color: white; font-size: 22px; font-weight: 300; letter-spacing: 1px;">
+              <p style="margin: 0; color: white; font-size: 20px; font-weight: 300; letter-spacing: 1px;">
                 ${emoji}&nbsp; ${bodyFocus}
               </p>
             </td>
@@ -506,7 +506,7 @@ function buildNewsletterHtml({
 
           <!-- ── Main Content ── -->
           <tr>
-            <td style="background-color: #ffffff; padding: 40px 32px 20px;">
+            <td style="background-color: #ffffff; padding: 28px 32px 20px;">
               <p style="margin: 0 0 6px; color: #9ca3af; font-size: 12px;
                          text-transform: uppercase; letter-spacing: 1.5px;">
                 Week ${weekNumber}
