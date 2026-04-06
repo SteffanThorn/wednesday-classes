@@ -550,6 +550,24 @@ function buildNewsletterHtml({
                   </td>
                 </tr>
               </table>
+
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
+                style="margin-top: 24px; border-top: 1px solid #e5e7eb;">
+                <tr>
+                  <td style="padding-top: 20px; text-align: left;">
+                    <p style="margin:0 0 12px;color:#111827;font-size:14px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;">CLASS DETAILS</p>
+                    <p style="margin:0 0 8px;color:#374151;font-size:14px;line-height:1.7;">📍 <strong>Venue:</strong> Village Valley Centre, Ashhurst</p>
+                    <p style="margin:0 0 8px;color:#374151;font-size:14px;line-height:1.7;">⏱ <strong>Duration:</strong> 60 minutes per class</p>
+                    <p style="margin:0 0 12px;color:#374151;font-size:14px;line-height:1.7;">👥 <strong>Evening class:</strong> Small group</p>
+
+                    <p style="margin:0 0 12px;color:#374151;font-size:14px;line-height:1.7;">💡 <strong>Wednesday 9:15am:</strong> Not limited in numbers — <strong>walk-ins welcome</strong></p>
+
+                    <p style="margin:0 0 10px;color:#374151;font-size:14px;line-height:1.7;">Classes start from <strong>1 April 2026</strong>.<br />Spots are limited — book early to secure your place.</p>
+
+                    <p style="margin:0;color:#374151;font-size:14px;line-height:1.7;">Looking forward to seeing you on the mat 🙏</p>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
 
