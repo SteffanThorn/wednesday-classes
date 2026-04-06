@@ -11,10 +11,11 @@ import { personalizeTextForRecipient } from '@/lib/email-personalization';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const SENDER_EMAIL =
+const SENDER_EMAIL = (
   process.env.EMAIL_FROM_PRODUCTION ||
   process.env.EMAIL_FROM_LOCAL ||
-  'onboarding@resend.dev';
+  'onboarding@resend.dev'
+).trim();
 
 const SENDER_NAME = 'Yuki · INNER LIGHT Yoga';
 const COMPANY_EMAIL = process.env.COMPANY_EMAIL || 'innerlightyuki@gmail.com';
@@ -44,7 +45,7 @@ function withResendGuidance(message) {
     normalized.includes('verify your domain') ||
     normalized.includes('resend.com/domains')
   ) {
-    return `${message} Please verify your sending domain in Resend and set EMAIL_FROM_PRODUCTION to a verified sender, or use onboarding@resend.dev for testing.`;
+    return `${message} Current sender: ${SENDER_EMAIL}. Please verify this sender domain in Resend and set EMAIL_FROM_PRODUCTION to a verified sender (for example: contact@email.innerlight.co.nz), or use onboarding@resend.dev for testing.`;
   }
   return message;
 }
