@@ -195,6 +195,15 @@ ${inlineImages
                   style="display:inline-block; height:auto; max-width:140px; opacity:0.95;"
                 />
               </div>
+
+              <div style="margin:22px 0 8px; text-align:left;">
+                <a
+                  href="https://www.innerlight.co.nz/"
+                  style="display:inline-block;padding:12px 24px;border-radius:999px;background:linear-gradient(135deg,#0ea5e9,#8b5cf6);color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;letter-spacing:0.2px;"
+                >
+                  Book Classe Here
+                </a>
+              </div>
             </td>
           </tr>
           <tr>
