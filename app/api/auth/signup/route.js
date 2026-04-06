@@ -5,7 +5,15 @@ import { sendWelcomeEmail } from '@/lib/email';
 
 export async function POST(request) {
   try {
-    const { name, email, password, phone } = await request.json();
+    const { name, email, password, phone, preferredLanguage } = await request.json();
+
+    const normalizedLanguage = (() => {
+      const value = String(preferredLanguage || '').toLowerCase().trim();
+      if (value === 'zh' || value === 'cn' || value.startsWith('zh-') || value.startsWith('zh_')) {
+        return 'zh';
+      }
+      return 'en';
+    })();
 
     // Validate input
     if (!name || !email || !password) {
@@ -39,6 +47,7 @@ export async function POST(request) {
       email: email.toLowerCase(),
       password,
       phone,
+      preferredLanguage: normalizedLanguage,
     });
 
     // Send welcome email (non-blocking - don't wait for it)

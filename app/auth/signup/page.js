@@ -30,10 +30,16 @@ const SignupPage = () => {
     setError('');
 
     try {
+      const languageRaw = typeof window !== 'undefined' ? localStorage.getItem('language') : null;
+      const preferredLanguage = (languageRaw && String(languageRaw).toLowerCase().startsWith('zh')) ? 'zh' : 'en';
+
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          preferredLanguage,
+        }),
       });
 
       const data = await response.json();

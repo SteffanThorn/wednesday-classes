@@ -66,7 +66,7 @@ export async function PUT(request) {
         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
       });
 
-      const cashUser = await User.findOne({ email: booking.userEmail.toLowerCase() }).select('classCredits').lean();
+      const cashUser = await User.findOne({ email: booking.userEmail.toLowerCase() }).select('classCredits preferredLanguage').lean();
       await sendBookingConfirmationEmail({
         userEmail: booking.userEmail,
         userName: booking.userName,
@@ -77,6 +77,7 @@ export async function PUT(request) {
         amount: booking.amount,
         bookingId: booking._id.toString(),
         remainingClasses: cashUser?.classCredits ?? 0,
+        preferredLanguage: cashUser?.preferredLanguage || 'en',
       });
     } catch (emailErr) {
       console.error('Failed to send cash confirmation email:', emailErr);

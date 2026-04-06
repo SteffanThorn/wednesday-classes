@@ -431,7 +431,7 @@ async function handleCheckoutSessionCompleted(session) {
       day: 'numeric'
     });
     
-    User.findOne({ email: booking.userEmail.toLowerCase() }).select('classCredits').lean()
+    User.findOne({ email: booking.userEmail.toLowerCase() }).select('classCredits preferredLanguage').lean()
       .then(bookingUser => sendBookingConfirmationEmail({
         userEmail: booking.userEmail,
         userName: booking.userName,
@@ -442,6 +442,7 @@ async function handleCheckoutSessionCompleted(session) {
         amount: booking.amount,
         bookingId: booking._id.toString(),
         remainingClasses: bookingUser?.classCredits ?? 0,
+        preferredLanguage: bookingUser?.preferredLanguage || 'en',
       }))
       .catch(err => console.error('Failed to send booking confirmation email:', err));
     

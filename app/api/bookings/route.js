@@ -155,10 +155,17 @@ export async function POST(request) {
       day: 'numeric'
     });
 
-    // Fetch latest classCredits for the email (userForCredits already loaded for member_card)
-    const emailUserCredits = userForCredits
-      ? (userForCredits.classCredits ?? 0)
-      : await User.findOne({ email: session.user.email.toLowerCase().trim() }).select('classCredits').lean().then(u => u?.classCredits ?? 0).catch(() => null);
+    // Fetch latest classCredits and preferredLanguage for the email
+    const emailUserData = userForCredits
+      ? { classCredits: userForCredits.classCredits ?? 0, preferredLanguage: userForCredits.preferredLanguage || 'en' }
+      : await User.findOne({ email: session.user.email.toLowerCase().trim() })
+        .select('classCredits preferredLanguage')
+        .lean()
+        .then(u => ({
+          classCredits: u?.classCredits ?? 0,
+          preferredLanguage: u?.preferredLanguage || 'en',
+        }))
+        .catch(() => ({ classCredits: null, preferredLanguage: 'en' }));
     
     sendBookingConfirmationEmail({
       userEmail: booking.userEmail,
@@ -169,7 +176,8 @@ export async function POST(request) {
       location: booking.location,
       amount: booking.amount,
       bookingId: booking._id.toString(),
-      remainingClasses: emailUserCredits,
+      remainingClasses: emailUserData.classCredits,
+      preferredLanguage: emailUserData.preferredLanguage,
     }).catch(err => console.error('Failed to send booking confirmation email:', err));
 
     // Return the created booking
