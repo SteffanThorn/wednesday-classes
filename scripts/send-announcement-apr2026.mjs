@@ -228,7 +228,7 @@ function buildHtml(firstName) {
       <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 0 32px;">
         <tr>
           <td style="border-radius:50px;background:linear-gradient(135deg,#0ea5e9,#8b5cf6);">
-            <a href="https://innerlightyoga.co.nz/wednesday-classes"
+            <a href="https://www.innerlight.co.nz/"
                style="display:inline-block;padding:14px 36px;font-size:15px;font-weight:600;
                       color:#fff;text-decoration:none;letter-spacing:0.5px;">
               Book Your Class →
