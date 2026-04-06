@@ -1335,12 +1335,13 @@ export default function AdminBookingsPage() {
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">{txt('状态', 'Status')}</th>
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">{txt('支付', 'Payment')}</th>
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">{txt('带朋友', 'Bring a Friend')}</th>
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">{txt('操作', 'Actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredBookings.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="p-8 text-center text-muted-foreground">
+                      <td colSpan={9} className="p-8 text-center text-muted-foreground">
                         {txt('未找到预约记录', 'No bookings found')}
                       </td>
                     </tr>
@@ -1487,6 +1488,22 @@ export default function AdminBookingsPage() {
                                 </button>
                               )}
                             </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </td>
+                        <td className="p-4">
+                          {booking.status !== 'cancelled' ? (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteBooked({ bookingId: booking._id })}
+                              disabled={!!deletingBookingId}
+                              className="px-2 py-1 rounded-md text-xs bg-red-500/10 border border-red-500/30 text-red-300 hover:bg-red-500/20 disabled:opacity-50"
+                            >
+                              {deletingBookingId === booking._id
+                                ? txt('删除中...', 'Removing...')
+                                : txt('删除预约', 'Delete Booking')}
+                            </button>
                           ) : (
                             <span className="text-xs text-muted-foreground">—</span>
                           )}
