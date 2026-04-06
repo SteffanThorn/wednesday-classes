@@ -254,8 +254,11 @@ export async function POST(request) {
           amount: booking.amount,
           bookingId: booking._id.toString(),
         });
-        emailSent = true;
         emailMessageId = emailResult?.id || null;
+        emailSent = Boolean(emailMessageId);
+        if (!emailSent) {
+          emailError = 'Email provider did not return a message ID';
+        }
       } catch (err) {
         emailSent = false;
         emailError = err?.message || 'Failed to send booking confirmation email';
