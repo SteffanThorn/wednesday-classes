@@ -17,6 +17,26 @@ export default function PackageCheckoutPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [needsIntake, setNeedsIntake] = useState(false);
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [payableAmount, setPayableAmount] = useState(FIVE_CLASS_PACKAGE_PRICE);
+
+  const initPackageCheckout = async (inputCouponCode = '') => {
+    const response = await fetch('/api/package-payment-intent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ couponCode: inputCouponCode || '' }),
+    });
+    const data = await response.json();
+
+    if (!response.ok || !data.clientSecret) {
+      throw new Error(data.error || 'Failed to initialise package checkout');
+    }
+
+    setClientSecret(data.clientSecret);
+    setPayableAmount(typeof data.amount === 'number' ? data.amount : FIVE_CLASS_PACKAGE_PRICE);
+    setAppliedCoupon(data.appliedCoupon || null);
+  };
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -40,14 +60,7 @@ export default function PackageCheckoutPage() {
           return;
         }
 
-        const response = await fetch('/api/package-payment-intent', { method: 'POST' });
-        const data = await response.json();
-
-        if (!response.ok || !data.clientSecret) {
-          throw new Error(data.error || 'Failed to initialise package checkout');
-        }
-
-        setClientSecret(data.clientSecret);
+        await initPackageCheckout();
       } catch (err) {
         setError(err.message || 'Failed to initialise package checkout');
       } finally {
@@ -100,10 +113,7 @@ export default function PackageCheckoutPage() {
             setNeedsIntake(false);
             setIsLoading(true);
             try {
-              const response = await fetch('/api/package-payment-intent', { method: 'POST' });
-              const data = await response.json();
-              if (!response.ok || !data.clientSecret) throw new Error(data.error || 'Failed to initialise');
-              setClientSecret(data.clientSecret);
+              await initPackageCheckout(couponCode);
             } catch (err) {
               setError(err.message);
             } finally {
@@ -140,9 +150,52 @@ export default function PackageCheckoutPage() {
               1 credit = 1 class
             </div>
 
+            <div>
+              <label className="block text-sm text-muted-foreground mb-1">Coupon Code (optional)</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                  placeholder="Enter coupon code"
+                  className="flex-1 px-3 py-2 rounded-lg bg-card/60 border border-glow-cyan/20 focus:border-glow-cyan/50 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      setIsLoading(true);
+                      setError('');
+                      await initPackageCheckout(couponCode);
+                    } catch (err) {
+                      setError(err.message || 'Failed to apply coupon');
+                      setAppliedCoupon(null);
+                      setPayableAmount(FIVE_CLASS_PACKAGE_PRICE);
+                    } finally {
+                      setIsLoading(false);
+                    }
+                  }}
+                  className="px-3 py-2 rounded-lg border border-glow-cyan/30 text-glow-cyan hover:bg-glow-cyan/10 transition-colors"
+                >
+                  Apply
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Admin live-test coupon: <span className="text-foreground">ADMINTEST1NZD</span>
+              </p>
+            </div>
+
+            {appliedCoupon && (
+              <div className="rounded-lg border border-green-500/30 bg-green-500/10 p-2">
+                <p className="text-sm text-green-400">
+                  Coupon applied: {appliedCoupon.code} · Final amount ${payableAmount.toFixed(2)}
+                </p>
+              </div>
+            )}
+
             <div className="pt-3 mt-3 border-t border-glow-cyan/20 flex items-center justify-between">
               <span className="text-muted-foreground">Total</span>
-              <span className="text-3xl font-display text-glow-cyan">${FIVE_CLASS_PACKAGE_PRICE.toFixed(2)}</span>
+              <span className="text-3xl font-display text-glow-cyan">${payableAmount.toFixed(2)}</span>
             </div>
           </div>
         </div>
@@ -159,7 +212,7 @@ export default function PackageCheckoutPage() {
 
           <PaymentForm
             clientSecret={clientSecret}
-            amount={FIVE_CLASS_PACKAGE_PRICE}
+            amount={payableAmount}
             onSuccess={handlePaymentSuccess}
             onError={handlePaymentError}
             language="en"
