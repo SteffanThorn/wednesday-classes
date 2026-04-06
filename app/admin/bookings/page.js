@@ -501,12 +501,12 @@ export default function AdminBookingsPage() {
         txt(
           sendEmail
             ? data.emailSent === false
-              ? `预约成功，但预约邮件发送失败。当前剩余课次：${data.remainingClassCredits}（到课时自动扣减）。${data.emailError ? ` 原因：${data.emailError}` : ''}`
+              ? `预约成功，但预约邮件发送失败。当前剩余课次：${data.remainingClassCredits}（到课时自动扣减）。${data.emailError?.includes('not verified') ? '⚠️ 邮件域名尚未验证，请前往 resend.com/domains 完成域名验证后方可向客户发送邮件。' : data.emailError ? `原因：${data.emailError}` : ''}`
               : `预约成功，邮件已发送至 ${data.emailTo || customer.userEmail}。当前剩余课次：${data.remainingClassCredits}（到课时自动扣减）。${data.emailMessageId ? ` 邮件ID：${data.emailMessageId}` : ''}`
             : `预约成功，未发送预约邮件。当前剩余课次：${data.remainingClassCredits}（到课时自动扣减）。`,
           sendEmail
             ? data.emailSent === false
-              ? `Booking successful, but confirmation email failed. Remaining credits: ${data.remainingClassCredits} (deducted when attendance is marked).${data.emailError ? ` Reason: ${data.emailError}` : ''}`
+              ? `Booking successful, but confirmation email failed. Remaining credits: ${data.remainingClassCredits} (deducted when attendance is marked). ${data.emailError?.includes('not verified') ? '⚠️ Email domain not verified. Please go to resend.com/domains to verify your domain before sending emails to customers.' : data.emailError ? `Reason: ${data.emailError}` : ''}`
               : `Booking successful and confirmation email sent to ${data.emailTo || customer.userEmail}. Remaining credits: ${data.remainingClassCredits} (deducted when attendance is marked).${data.emailMessageId ? ` Email ID: ${data.emailMessageId}` : ''}`
             : `Booking successful without sending the booking email. Remaining credits: ${data.remainingClassCredits} (deducted when attendance is marked).`
         )
@@ -903,8 +903,16 @@ export default function AdminBookingsPage() {
                   )}
 
                   {attendanceMessage && (
-                    <div className="mb-4 p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-sm">
-                      {attendanceMessage}
+                    <div className={`mb-4 p-3 rounded-lg text-sm ${attendanceMessage.includes('resend.com/domains') ? 'bg-yellow-500/10 border border-yellow-500/30 text-yellow-300' : 'bg-green-500/10 border border-green-500/20 text-green-400'}`}>
+                      {attendanceMessage.includes('resend.com/domains') ? (
+                        <>
+                          {attendanceMessage.split('resend.com/domains')[0]}
+                          <a href="https://resend.com/domains" target="_blank" rel="noopener noreferrer" className="underline font-semibold hover:text-yellow-100">
+                            resend.com/domains
+                          </a>
+                          {attendanceMessage.split('resend.com/domains')[1]}
+                        </>
+                      ) : attendanceMessage}
                     </div>
                   )}
 
