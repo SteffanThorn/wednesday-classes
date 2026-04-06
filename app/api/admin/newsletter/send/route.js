@@ -543,22 +543,17 @@ function buildNewsletterHtml({
                 </tr>
               </table>
 
-              <table role="presentation" cellspacing="0" cellpadding="0" style="margin-top: 20px;">
+              <!-- Bottom actions -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
+                style="margin-top: 20px;">
                 <tr>
-                  <td style="border-radius: 999px; background: linear-gradient(135deg,#0ea5e9,#8b5cf6);">
+                  <td style="text-align: left; vertical-align: middle;">
                     <a href="https://www.innerlight.co.nz/"
-                      style="display:inline-block;padding:12px 24px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;letter-spacing:0.2px;">
+                      style="display:inline-block;padding:12px 24px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;letter-spacing:0.2px;border-radius:999px;background:linear-gradient(135deg,#0ea5e9,#8b5cf6);">
                       Book Classe Here
                     </a>
                   </td>
-                </tr>
-              </table>
-
-              <!-- Sign-off -->
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
-                style="margin-top: 14px;">
-                <tr>
-                  <td style="text-align: left;">
+                  <td style="text-align: right; vertical-align: middle;">
                     <img
                       src="${logoUrl || getCompanyLogoUrl()}"
                       alt="INNER LIGHT Yoga"
