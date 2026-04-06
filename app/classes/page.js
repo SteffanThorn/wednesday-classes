@@ -119,12 +119,12 @@ const ClassesPage = () => {
         <section className="px-6 py-16">
           <div className="max-w-7xl mx-auto">
             <div className="grid md:grid-cols-2 gap-6">
-              {/* Beginner Yoga - Wednesday 9:15 AM */}
+              {/* Wednesday 9:15 AM */}
               <div className="relative group cursor-pointer" onClick={() => setIsWedMorningModalOpen(true)}>
                 <ClassCard
                   icon={Zap}
-                  titleEn="Beginner Yoga"
-                  titleZh="初级瑜伽"
+                  titleEn="Functional Pain Relief Series"
+                  titleZh="Functional Pain Relief Series"
                   descriptionEn={'Wednesday 9:15 AM\nFunctional Pain Relief Series'}
                   descriptionZh={'每周三早上9:15\nFunctional Pain Relief Series'}
                   duration="60 min"
@@ -139,12 +139,12 @@ const ClassesPage = () => {
                 />
               </div>
 
-              {/* Beginner Yoga - Wednesday 6 PM */}
+              {/* Wednesday 6 PM */}
               <div className="relative group cursor-pointer" onClick={() => setIsWedEveningModalOpen(true)}>
                 <ClassCard
                   icon={Zap}
-                  titleEn="Beginner Yoga"
-                  titleZh="初级瑜伽"
+                  titleEn="Nervous System Reset & Breathwork Series"
+                  titleZh="Nervous System Reset & Breathwork Series"
                   descriptionEn={'Wednesday 6:00 PM\nNervous System Reset & Breathwork Series'}
                   descriptionZh={'每周三晚上6点\nNervous System Reset & Breathwork Series'}
                   duration="60 min"
@@ -159,12 +159,12 @@ const ClassesPage = () => {
                 />
               </div>
 
-              {/* Beginner Yoga - Thursday 5:30 PM */}
+              {/* Thursday 5:30 PM */}
               <div className="relative group cursor-pointer" onClick={() => setIsThuEveningModalOpen(true)}>
                 <ClassCard
                   icon={Heart}
-                  titleEn="Beginner Yoga"
-                  titleZh="初级瑜伽"
+                  titleEn="Structural Alignment & Deep Mobility Series"
+                  titleZh="Structural Alignment & Deep Mobility Series"
                   descriptionEn={'Thursday 5:30 PM\nStructural Alignment & Deep Mobility Series'}
                   descriptionZh={'每周四下午5:30\nStructural Alignment & Deep Mobility Series'}
                   duration="60 min"

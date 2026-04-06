@@ -161,7 +161,7 @@ function WednesdayClassesPageContent() {
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="font-display text-4xl md:text-6xl lg:text-7xl font-light 
                          text-glow animate-fade-in-up mb-6">
-              {mounted ? (language === 'zh' ? 'Ashhurst初级瑜伽' : 'Beginner Yoga in Ashhurst') : 'Beginner Yoga in Ashhurst'}
+              {mounted ? (language === 'zh' ? 'Ashhurst瑜伽课' : 'Yoga Classes in Ashhurst') : 'Yoga Classes in Ashhurst'}
             </h1>
             
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto 
