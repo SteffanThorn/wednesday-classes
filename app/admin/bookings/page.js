@@ -426,8 +426,22 @@ export default function AdminBookingsPage() {
       return;
     }
 
+    const isActiveBooked = (booking) => {
+      const status = String(booking?.status || '').toLowerCase();
+      const paymentStatus = String(booking?.paymentStatus || '').toLowerCase();
+      return (
+        status === 'confirmed' ||
+        status === 'completed' ||
+        paymentStatus === 'completed' ||
+        paymentStatus === 'paid' ||
+        paymentStatus === 'processing'
+      );
+    };
+
     const existingBooking = (selectedSessionData.bookings || []).find(
-      (b) => (b.userEmail || '').toLowerCase().trim() === (customer.userEmail || '').toLowerCase().trim()
+      (b) =>
+        (b.userEmail || '').toLowerCase().trim() === (customer.userEmail || '').toLowerCase().trim() &&
+        isActiveBooked(b)
     );
 
     if (existingBooking) {
@@ -974,9 +988,20 @@ export default function AdminBookingsPage() {
                           <p className="text-xs text-muted-foreground">{txt('未找到匹配客户。', 'No matched customer.')}</p>
                         ) : (
                           filteredCustomerLookup.map((customer) => {
-                            const isAlreadyBooked = (selectedSessionData?.bookings || []).some(
-                              (b) => (b.userEmail || '').toLowerCase().trim() === (customer.userEmail || '').toLowerCase().trim()
-                            );
+                            const isAlreadyBooked = (selectedSessionData?.bookings || []).some((b) => {
+                              const status = String(b?.status || '').toLowerCase();
+                              const paymentStatus = String(b?.paymentStatus || '').toLowerCase();
+                              const isActiveBooked =
+                                status === 'confirmed' ||
+                                status === 'completed' ||
+                                paymentStatus === 'completed' ||
+                                paymentStatus === 'paid' ||
+                                paymentStatus === 'processing';
+                              return (
+                                isActiveBooked &&
+                                (b.userEmail || '').toLowerCase().trim() === (customer.userEmail || '').toLowerCase().trim()
+                              );
+                            });
 
                             return (
                               <div

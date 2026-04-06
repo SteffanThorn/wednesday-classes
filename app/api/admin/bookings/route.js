@@ -203,7 +203,10 @@ export async function POST(request) {
       userEmail: normalizedEmail,
       classDate: { $gte: dayStart, $lte: dayEnd },
       classTime,
-      status: { $ne: 'cancelled' },
+      $or: [
+        { status: { $in: ['confirmed', 'completed'] } },
+        { paymentStatus: { $in: ['completed', 'paid', 'processing'] } },
+      ],
     }).lean();
 
     if (existingBooking) {
