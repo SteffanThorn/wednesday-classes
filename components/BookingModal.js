@@ -872,14 +872,9 @@ export default function BookingModal({
                     </div>
                     <div className="text-left">
                       <div className="font-medium">{date.displayDate}</div>
-                      <div className="text-xs text-muted-foreground">{getClassTimeForDay(effectiveDayOfWeek)}</div>
                       {weeklyFocus && (
                         <div className="mt-2 p-2 rounded-lg bg-glow-purple/10 border border-glow-purple/30">
-                          <p className="text-[11px] uppercase tracking-wide text-glow-purple font-semibold">
-                            {weeklyFocus.title}
-                          </p>
-                          <p className="text-xs text-foreground mt-1">{weeklyFocus.weekTitle}</p>
-                          <p className="text-[11px] text-muted-foreground mt-1">{weeklyFocus.subtitle}</p>
+                          <p className="text-xs text-foreground font-medium">{weeklyFocus.weekTitle}</p>
                           <p className="text-[11px] text-muted-foreground mt-2">
                             <span className="text-foreground font-medium">{language === 'zh' ? '专注点：' : 'Focus: '}</span>
                             {weeklyFocus.focus}
