@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession, signIn } from 'next-auth/react';
-import { X, Calendar, Clock, MapPin, DollarSign, Loader2, LogIn, Check, ChevronLeft, ChevronRight, Tag, Gift } from 'lucide-react';
+import { X, Calendar, Clock, MapPin, Loader2, LogIn, Check, ChevronLeft, ChevronRight, Tag, Gift } from 'lucide-react';
 import { getAvailableDatesByDay, getClassNameForDay, getClassTimeForDay } from '@/lib/class-schedule';
 import { calculateClassBookingTotal, SINGLE_CLASS_PRICE } from '@/lib/pricing';
 import HealthIntakeForm from '@/components/HealthIntakeForm';
@@ -383,6 +383,7 @@ export default function BookingModal({
   const discount = calculateDiscount();
   const finalPrice = Math.max(0, totalPrice - discount);
   const payableAmount = bringAFriend ? 0 : finalPrice;
+  const shouldHidePriceForMember = true;
   const displayClassName = language === 'zh' ? '功能性整合瑜伽' : 'Functional Integrative Yoga';
   const slotSeriesInfo = {
     'wednesday-morning': {
@@ -700,30 +701,49 @@ export default function BookingModal({
               <Clock className="w-3 h-3" />
               {getClassTimeForDay(effectiveDayOfWeek)}
             </div>
-            <div className="flex items-center gap-1">
-              <MapPin className="w-3 h-3" />
-              {classDetails.location}
-            </div>
+            {!shouldHidePriceForMember && (
+              <div className="flex items-center gap-1">
+                <MapPin className="w-3 h-3" />
+                {classDetails.location}
+              </div>
+            )}
           </div>
-          <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl font-display text-glow-cyan">
-                ${classDetails.price}
-              </span>
-              <span className="text-muted-foreground">
-                {language === 'zh' ? '每节课' : 'per class'}
-              </span>
+          {shouldHidePriceForMember ? (
+            <div className="mt-3 p-3 rounded-xl bg-glow-purple/10 border border-glow-purple/30">
+              <p className="text-xs font-semibold text-glow-purple">
+                {slotSeriesInfo[effectiveDayOfWeek]?.title}
+              </p>
+              <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
+                {slotSeriesInfo[effectiveDayOfWeek]?.subtitle}
+              </p>
+              <p className="mt-2 text-[11px] text-muted-foreground leading-relaxed">
+                <span className="text-foreground font-medium">
+                  {language === 'zh' ? '专注点：' : 'Focus: '}
+                </span>
+                {slotSeriesInfo[effectiveDayOfWeek]?.focus}
+              </p>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                window.location.href = '/checkout/package';
-              }}
-              className="py-2 px-3 rounded-lg font-medium transition-colors bg-glow-cyan/20 border border-glow-cyan/50 text-glow-cyan hover:bg-glow-cyan/30"
-            >
-              {language === 'zh' ? '购买5节课套餐（$65）' : 'Buy 5-Class Package ($65)'}
-            </button>
-          </div>
+          ) : (
+            <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-display text-glow-cyan">
+                  ${classDetails.price}
+                </span>
+                <span className="text-muted-foreground">
+                  {language === 'zh' ? '每节课' : 'per class'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.href = '/checkout/package';
+                }}
+                className="py-2 px-3 rounded-lg font-medium transition-colors bg-glow-cyan/20 border border-glow-cyan/50 text-glow-cyan hover:bg-glow-cyan/30"
+              >
+                {language === 'zh' ? '购买5节课套餐（$65）' : 'Buy 5-Class Package ($65)'}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Day Selection Tabs (only if dayOfWeek not pre-specified) */}
@@ -871,9 +891,11 @@ export default function BookingModal({
                       )}
                     </div>
                   </div>
-                  <div className="text-glow-cyan font-medium">
-                    ${classDetails.price}
-                  </div>
+                  {!shouldHidePriceForMember && (
+                    <div className="text-glow-cyan font-medium">
+                      ${classDetails.price}
+                    </div>
+                  )}
                 </button>
               );
             })}
@@ -911,14 +933,16 @@ export default function BookingModal({
               <span className="text-foreground">
                 {selectedDates.length} {language === 'zh' ? '节课' : 'class(es)'}
               </span>
-              <div className="flex items-center gap-2">
-                <span className="text-2xl font-display text-glow-cyan">
-                  ${totalPrice}
-                </span>
-              </div>
+              {!shouldHidePriceForMember && (
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl font-display text-glow-cyan">
+                    ${totalPrice}
+                  </span>
+                </div>
+              )}
             </div>
 
-            {packageSavings > 0 && (
+            {!shouldHidePriceForMember && packageSavings > 0 && (
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">
                   {language === 'zh' ? '套餐优惠' : 'Package savings'}
@@ -928,7 +952,7 @@ export default function BookingModal({
             )}
 
             {/* Coupon Input Section */}
-            {!appliedCoupon ? (
+            {!shouldHidePriceForMember && !appliedCoupon ? (
               <div className="flex gap-2">
                 <div className="flex-1 relative">
                   <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -952,7 +976,7 @@ export default function BookingModal({
                   {couponLoading ? '...' : language === 'zh' ? '应用' : 'Apply'}
                 </button>
               </div>
-            ) : (
+            ) : !shouldHidePriceForMember ? (
               <div className="flex items-center justify-between p-2 rounded-lg bg-green-500/10 border border-green-500/20">
                 <div className="flex items-center gap-2">
                   <Gift className="w-4 h-4 text-green-400" />
@@ -973,15 +997,15 @@ export default function BookingModal({
                   {language === 'zh' ? '移除' : 'Remove'}
                 </button>
               </div>
-            )}
+            ) : null}
 
             {/* Coupon Error */}
-            {couponError && (
+            {!shouldHidePriceForMember && couponError && (
               <p className="text-xs text-red-400">{couponError}</p>
             )}
 
             {/* Discount Display */}
-            {appliedCoupon && discount > 0 && (
+            {!shouldHidePriceForMember && appliedCoupon && discount > 0 && (
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">
                   {language === 'zh' ? '折扣' : 'Discount'}
@@ -993,7 +1017,7 @@ export default function BookingModal({
             )}
 
             {/* Final Price */}
-            {appliedCoupon && finalPrice !== totalPrice && (
+            {!shouldHidePriceForMember && appliedCoupon && finalPrice !== totalPrice && (
               <div className="flex items-center justify-between pt-2 border-t border-glow-cyan/10">
                 <span className="font-medium text-foreground">
                   {language === 'zh' ? '应付金额' : 'Total'}
@@ -1064,27 +1088,8 @@ export default function BookingModal({
             {/* Payment Method Selection */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">{language === 'zh' ? '支付方式' : 'Payment Method'}</label>
-              <label className={`w-full p-3 rounded-lg border flex items-start gap-3 transition-colors ${bringAFriend ? 'border-green-500/40 bg-green-500/10' : 'border-border/30 bg-card/60'}`}>
-                <input
-                  type="checkbox"
-                  checked={bringAFriend}
-                  onChange={(e) => setBringAFriend(e.target.checked)}
-                  className="mt-1"
-                />
-                <div>
-                  <div className="font-medium text-foreground">
-                    {language === 'zh' ? '带朋友来（免费课程）' : 'Bring a Friend (Free Class)'}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {language === 'zh'
-                      ? '选择后本次预约免费，管理员将在线下确认你已带朋友。'
-                      : 'This booking is free. Admin will confirm after class that you brought a friend.'}
-                  </p>
-                </div>
-              </label>
-
               <div className="flex gap-3">
-                <label className={`px-3 py-2 rounded-lg border ${paymentMethod === 'card' ? 'border-glow-cyan/40 bg-glow-cyan/10' : 'border-border/30 bg-card/60'} cursor-pointer flex-1 text-center ${bringAFriend ? 'opacity-50 pointer-events-none' : ''}`}> 
+                <label className={`px-3 py-2 rounded-lg border ${paymentMethod === 'card' ? 'border-glow-cyan/40 bg-glow-cyan/10' : 'border-border/30 bg-card/60'} cursor-pointer flex-1 text-center`}> 
                   <input
                     type="radio"
                     name="paymentMethod"
@@ -1095,7 +1100,7 @@ export default function BookingModal({
                   />
                   {language === 'zh' ? '卡' : 'Card'}
                 </label>
-                <label className={`px-3 py-2 rounded-lg border ${paymentMethod === 'cash' ? 'border-glow-cyan/40 bg-glow-cyan/10' : 'border-border/30 bg-card/60'} cursor-pointer flex-1 text-center ${bringAFriend ? 'opacity-50 pointer-events-none' : ''}`}> 
+                <label className={`px-3 py-2 rounded-lg border ${paymentMethod === 'cash' ? 'border-glow-cyan/40 bg-glow-cyan/10' : 'border-border/30 bg-card/60'} cursor-pointer flex-1 text-center`}> 
                   <input
                     type="radio"
                     name="paymentMethod"
@@ -1106,7 +1111,7 @@ export default function BookingModal({
                   />
                   {language === 'zh' ? '现金支付' : 'Pay Cash'}
                 </label>
-                <label className={`px-3 py-2 rounded-lg border ${paymentMethod === 'member_card' ? 'border-glow-cyan/40 bg-glow-cyan/10' : 'border-border/30 bg-card/60'} cursor-pointer flex-1 text-center ${bringAFriend ? 'opacity-50 pointer-events-none' : ''}`}> 
+                <label className={`px-3 py-2 rounded-lg border ${paymentMethod === 'member_card' ? 'border-glow-cyan/40 bg-glow-cyan/10' : 'border-border/30 bg-card/60'} cursor-pointer flex-1 text-center`}> 
                   <input
                     type="radio"
                     name="paymentMethod"
@@ -1118,13 +1123,11 @@ export default function BookingModal({
                   {language === 'zh' ? '会员卡次数' : 'Member Credits'}
                 </label>
               </div>
-              {!bringAFriend && (
-                <p className="text-xs text-muted-foreground">
-                  {language === 'zh'
-                    ? `当前会员卡剩余次数：${memberCredits}`
-                    : `Current member credits: ${memberCredits}`}
-                </p>
-              )}
+              <p className="text-xs text-muted-foreground">
+                {language === 'zh'
+                  ? `当前会员卡剩余次数：${memberCredits}`
+                  : `Current member credits: ${memberCredits}`}
+              </p>
             </div>
 
             <button
@@ -1142,12 +1145,7 @@ export default function BookingModal({
                 </>
               ) : (
                 <>
-                  <DollarSign className="w-5 h-5" />
-                  {bringAFriend
-                    ? (language === 'zh' ? '免费预约（带朋友）' : 'Book Free (Bring a Friend)')
-                    : paymentMethod === 'member_card'
-                      ? (language === 'zh' ? `使用会员卡次数预约（需 ${selectedDates.length} 次）` : `Book with Member Credits (needs ${selectedDates.length})`)
-                    : (language === 'zh' ? `支付 $${payableAmount.toFixed(2)}` : `Pay $${payableAmount.toFixed(2)}`)}
+                  {language === 'zh' ? '确认预约' : 'Confirm Booking'}
                 </>
               )}
             </button>
@@ -1203,6 +1201,13 @@ export default function BookingModal({
             </div>
           </div>
         )}
+
+        <div className="px-6 py-4 border-t border-glow-cyan/10 bg-background/40">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <MapPin className="w-4 h-4" />
+            <span>{language === 'zh' ? '上课地点：' : 'Class Location: '}{classDetails.location}</span>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 import Link from 'next/link';
 import FloatingParticles from '@/components/FloatingParticle';
 import Header from '@/components/Header';
@@ -18,6 +19,7 @@ const SignupPage = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [autoLoginLoading, setAutoLoginLoading] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -49,16 +51,46 @@ const SignupPage = () => {
       }
 
       setSuccess(true);
-      
-      // Redirect to sign in after 2 seconds
-      setTimeout(() => {
-        router.push('/auth/signin');
-      }, 2000);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEnableAutoLogin = async () => {
+    setError('');
+    setAutoLoginLoading(true);
+
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('autoLoginEnabled', 'true');
+      }
+
+      const result = await signIn('credentials', {
+        email: formData.email,
+        password: formData.password,
+        redirect: false,
+        callbackUrl: '/',
+      });
+
+      if (result?.error) {
+        throw new Error(result.error);
+      }
+
+      router.push('/');
+      router.refresh();
+    } catch (err) {
+      setError(err.message || 'Auto login failed, please sign in manually.');
+      setAutoLoginLoading(false);
+    }
+  };
+
+  const handleDisableAutoLogin = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('autoLoginEnabled', 'false');
+    }
+    router.push('/auth/signin');
   };
 
   if (success) {
@@ -79,8 +111,43 @@ const SignupPage = () => {
                   Account Created!
                 </h2>
                 <p className="text-muted-foreground mb-4">
-                  Your account has been created successfully. Redirecting to sign in...
+                  Your account has been created successfully.
                 </p>
+
+                <p className="text-foreground/90 mb-5 text-sm">
+                  Enable one-click login mode now?
+                </p>
+
+                {error && (
+                  <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 
+                               flex items-center gap-2 text-red-400">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span className="text-sm">{error}</span>
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={handleEnableAutoLogin}
+                    disabled={autoLoginLoading}
+                    className="flex-1 py-2.5 px-4 rounded-xl bg-glow-cyan/20 border border-glow-cyan/40 
+                             text-glow-cyan font-medium hover:bg-glow-cyan/30 hover:box-glow
+                             transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {autoLoginLoading ? 'Enabling...' : 'Yes'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDisableAutoLogin}
+                    disabled={autoLoginLoading}
+                    className="flex-1 py-2.5 px-4 rounded-xl bg-card/50 border border-border/60 
+                             text-muted-foreground font-medium hover:bg-card/70 transition-all duration-300
+                             disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    No
+                  </button>
+                </div>
               </div>
             </div>
           </div>
