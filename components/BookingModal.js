@@ -463,7 +463,7 @@ export default function BookingModal({
     });
   };
 
-  const proceedWithBooking = async () => {
+  const proceedWithBooking = async (paymentMethodOverride = null) => {
     if (selectedDates.length === 0) {
       setError(language === 'zh' ? '请至少选择一个日期' : 'Please select at least one date');
       return;
@@ -473,11 +473,12 @@ export default function BookingModal({
     setError('');
 
     try {
+      const effectivePaymentMethod = paymentMethodOverride || paymentMethod;
       // Build query params for checkout page
       const className = getClassNameForDay(effectiveDayOfWeek);
       const classTime = getClassTimeForDay(effectiveDayOfWeek);
 
-        if (!bringAFriend && paymentMethod === 'card') {
+        if (!bringAFriend && effectivePaymentMethod === 'card') {
           // Build query params for checkout page
           const params = new URLSearchParams();
           params.set('class_name', className);
@@ -506,13 +507,7 @@ export default function BookingModal({
         } else {
           // Pay by cash / member card / Bring a Friend: create bookings directly
           try {
-            if (!bringAFriend && paymentMethod === 'member_card' && selectedDates.length > 1) {
-              throw new Error(language === 'zh'
-                ? '会员卡支付每次仅支持预约一个课程日期，请只选择一个日期'
-                : 'Member-credit payment currently supports one class date per booking. Please select only one date.');
-            }
-
-            if (!bringAFriend && paymentMethod === 'member_card' && memberCredits < selectedDates.length) {
+            if (!bringAFriend && effectivePaymentMethod === 'member_card' && memberCredits < selectedDates.length) {
               throw new Error(language === 'zh'
                 ? `会员卡剩余次数不足（当前 ${memberCredits}，需要 ${selectedDates.length}）`
                 : `Not enough member credits (have ${memberCredits}, need ${selectedDates.length})`);
@@ -521,7 +516,7 @@ export default function BookingModal({
             // Distribute payable total across selected dates (per-booking amount)
             const perBooking = bringAFriend
               ? 0
-              : paymentMethod === 'member_card'
+              : effectivePaymentMethod === 'member_card'
                 ? 0
               : parseFloat((payableAmount / selectedDates.length).toFixed(2));
 
@@ -534,7 +529,7 @@ export default function BookingModal({
                 location: classDetails.location,
                 amount: perBooking,
                 notes: formData.notes || '',
-                paymentMethod: bringAFriend ? 'bring_a_friend' : (paymentMethod === 'member_card' ? 'member_card' : 'cash'),
+                paymentMethod: bringAFriend ? 'bring_a_friend' : (effectivePaymentMethod === 'member_card' ? 'member_card' : 'cash'),
                 bringAFriend: bringAFriend
               };
 
@@ -553,7 +548,7 @@ export default function BookingModal({
 
             // Successfully created all bookings - redirect to dashboard with success message
             // Keep loading state until redirect completes
-            const paidType = bringAFriend ? 'bring-friend' : (paymentMethod === 'member_card' ? 'member-card' : 'cash');
+            const paidType = bringAFriend ? 'bring-friend' : (effectivePaymentMethod === 'member_card' ? 'member-card' : 'cash');
             window.location.href = '/dashboard?paid=' + paidType + '&created=' + encodeURIComponent(created.map(b => b._id).join(','));
             return; // Exit early to prevent setIsLoading(false) below
           } catch (err) {
@@ -564,7 +559,7 @@ export default function BookingModal({
         }
     } finally {
       // For card payment flow, ensure loading is reset
-      if (!bringAFriend && paymentMethod === 'card') {
+      if (!bringAFriend && (paymentMethodOverride || paymentMethod) === 'card') {
         setIsLoading(false);
       }
     }
@@ -576,6 +571,50 @@ export default function BookingModal({
     if (selectedDates.length === 0) {
       setError(language === 'zh' ? '请至少选择一个日期' : 'Please select at least one date');
       return;
+    }
+
+    if (paymentMethod === 'member_card') {
+      const bookedTime = getClassTimeForDay(effectiveDayOfWeek);
+      const bookedContent = selectedDates
+        .map((d) => getWeeklyFocusForDate(effectiveDayOfWeek, d.date)?.weekTitle || d.displayDate)
+        .join('、');
+      const remainingAfterBooking = memberCredits - selectedDates.length;
+
+      if (memberCredits < selectedDates.length) {
+        const goRecharge = window.confirm(
+          language === 'zh'
+            ? `会员卡剩余次数不足（当前 ${memberCredits}，需要 ${selectedDates.length}）。\n点击“确定”去充值；点击“取消”改为现金支付。`
+            : `Not enough member credits (have ${memberCredits}, need ${selectedDates.length}).\nClick OK to recharge, or Cancel to switch to cash payment.`
+        );
+
+        if (goRecharge) {
+          window.location.href = '/checkout/package';
+          return;
+        }
+
+        const confirmCashBooking = window.confirm(
+          language === 'zh'
+            ? '将改为现金支付继续预约，是否确认？'
+            : 'Continue booking with cash payment instead, confirm?'
+        );
+
+        if (!confirmCashBooking) {
+          return;
+        }
+
+        await proceedWithBooking('cash');
+        return;
+      }
+
+      const memberBookingConfirmed = window.confirm(
+        language === 'zh'
+          ? `您已选择预约：\n时间：${bookedTime}\n课程内容：${bookedContent}\n预约后剩余课程次数：${remainingAfterBooking}\n\n确认预约吗？`
+          : `You are booking:\nTime: ${bookedTime}\nClass content: ${bookedContent}\nRemaining credits after booking: ${remainingAfterBooking}\n\nConfirm booking?`
+      );
+
+      if (!memberBookingConfirmed) {
+        return;
+      }
     }
     
     setIsLoading(true);
