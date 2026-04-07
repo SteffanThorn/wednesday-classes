@@ -384,7 +384,6 @@ export default function BookingModal({
   const finalPrice = Math.max(0, totalPrice - discount);
   const payableAmount = bringAFriend ? 0 : finalPrice;
   const shouldHidePriceForMember = true;
-  const displayClassName = language === 'zh' ? '功能性整合瑜伽' : 'Functional Integrative Yoga';
   const slotSeriesInfo = {
     'wednesday-morning': {
       title: 'Functional Pain Relief Series',
@@ -402,6 +401,8 @@ export default function BookingModal({
       focus: 'Postural alignment, hip and shoulder mobility, and joint stability',
     },
   };
+  const selectedSeriesTitle = slotSeriesInfo[effectiveDayOfWeek]?.title;
+  const displayClassName = selectedSeriesTitle || classDetails?.name || (language === 'zh' ? '功能性整合瑜伽' : 'Functional Integrative Yoga');
 
   // Handle coupon application
   const handleApplyCoupon = async () => {
