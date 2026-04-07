@@ -346,7 +346,7 @@ export default function BookingModal({
         const data = await res.json();
         if (!res.ok) return;
         if (!cancelled) {
-          setMemberCredits(Math.max(0, Number(data.currentClassCredits ?? data.intake?.remainingClassCredits ?? 0)));
+          setMemberCredits(Number(data.currentClassCredits ?? data.intake?.remainingClassCredits ?? 0));
         }
       } catch {
         // ignore
@@ -688,6 +688,16 @@ export default function BookingModal({
             <X className="w-5 h-5 text-muted-foreground" />
           </button>
         </div>
+
+        {session && (
+          <div className="px-6 py-3 border-b border-glow-cyan/10 bg-background/40">
+            <p className={`text-sm ${memberCredits < 0 ? 'text-red-400' : 'text-muted-foreground'}`}>
+              {language === 'zh'
+                ? `当前剩余课程次数：${memberCredits}`
+                : `Current member credits: ${memberCredits}`}
+            </p>
+          </div>
+        )}
 
         {/* Class Details Summary */}
         <div className="px-6 py-4 bg-glow-cyan/5 border-b border-glow-cyan/10">
@@ -1119,11 +1129,6 @@ export default function BookingModal({
                   {language === 'zh' ? '会员卡次数' : 'Member Credits'}
                 </label>
               </div>
-              <p className="text-xs text-muted-foreground">
-                {language === 'zh'
-                  ? `当前会员卡剩余次数：${memberCredits}`
-                  : `Current member credits: ${memberCredits}`}
-              </p>
             </div>
 
             <button
