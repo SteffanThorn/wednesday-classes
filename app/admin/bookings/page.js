@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/hooks/useLanguage';
 import Header from '@/components/Header';
 import FloatingParticles from '@/components/FloatingParticle';
@@ -15,7 +15,6 @@ export default function AdminBookingsPage() {
   const { language, mounted } = useLanguage();
   const { data: session, status } = useSession();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [forceZhMode, setForceZhMode] = useState(false);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -95,13 +94,14 @@ export default function AdminBookingsPage() {
   }, [status, session]);
 
   useEffect(() => {
-    const entryView = String(searchParams.get('view') || '').toLowerCase();
+    if (typeof window === 'undefined') return;
+    const entryView = String(new URLSearchParams(window.location.search).get('view') || '').toLowerCase();
     if (entryView === 'assisted' || entryView === 'attendance') {
       setShowWeeklyView(false);
       setShowAttendanceView(true);
       setShowIntakeView(false);
     }
-  }, [searchParams]);
+  }, []);
 
   const fetchCustomerLookupPool = async () => {
     try {
