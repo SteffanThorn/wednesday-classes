@@ -13,23 +13,31 @@ const SLOT_ORDER = {
   'thursday-evening': 3,
 };
 
-const SLOT_CONFIG = [
-  {
-    scheduleKey: 'wednesday-morning',
-    dayIndex: 3,
-  },
-  {
-    scheduleKey: 'wednesday-evening',
-    dayIndex: 3,
-  },
-  {
-    scheduleKey: 'thursday-evening',
-    dayIndex: 4,
-  },
-];
+function getScheduleKeysForWeekday(weekday) {
+  if (weekday === 3) return ['wednesday-morning', 'wednesday-evening'];
+  if (weekday === 4) return ['thursday-evening'];
+  return [];
+}
+
+function getBookingPriority(booking = {}) {
+  const status = String(booking.status || '').toLowerCase();
+  const paymentStatus = String(booking.paymentStatus || '').toLowerCase();
+
+  if (status === 'completed' || paymentStatus === 'completed' || paymentStatus === 'paid') return 5;
+  if (status === 'confirmed' || paymentStatus === 'processing') return 4;
+  if (status === 'booked') return 3;
+  if (status === 'pending' || paymentStatus === 'pending') return 2;
+  if (status === 'cancelled' || paymentStatus === 'canceled' || paymentStatus === 'failed') return 1;
+  return 0;
+}
+
 
 function toDateKey(date) {
-  return new Date(date).toISOString().split('T')[0];
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function getDayRange(classDate) {
@@ -64,43 +72,6 @@ function getScheduleKeyFromDateTime(classDate, classTime) {
     classTime,
     className: '',
   });
-}
-
-function buildGeneratedSessions(startDate, endDate) {
-  const sessions = [];
-
-  SLOT_CONFIG.forEach(({ scheduleKey, dayIndex }) => {
-    const classTime = getClassTimeForDay(scheduleKey);
-    const className = getClassNameForDay(scheduleKey);
-
-    const cursor = new Date(startDate);
-    cursor.setHours(0, 0, 0, 0);
-
-    const offset = (dayIndex - cursor.getDay() + 7) % 7;
-    cursor.setDate(cursor.getDate() + offset);
-
-    while (cursor <= endDate) {
-      const classDate = toDateKey(cursor);
-      const { labelZh, labelEn } = getSlotLabels(scheduleKey, cursor, classTime);
-
-      sessions.push({
-        key: `${classDate}|${classTime}`,
-        classDate,
-        classTime,
-        className,
-        scheduleKey,
-        location: DEFAULT_CLASS_LOCATION,
-        label: `${classDate} · ${classTime}`,
-        labelZh,
-        labelEn,
-        bookings: [],
-      });
-
-      cursor.setDate(cursor.getDate() + 7);
-    }
-  });
-
-  return sessions;
 }
 
 function getScheduleKey(booking) {
@@ -167,18 +138,22 @@ function getSlotLabels(scheduleKey, classDate, fallbackTime) {
     return normalized;
   };
 
+  const weekDayZhMap = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  const weekDayEnMap = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const weekDayIndex = date.getDay();
+
   const slotMap = {
     'wednesday-morning': {
-      zh: `周三${toZhTime(getClassTimeForDay('wednesday-morning'))}`,
-      en: `Wednesday ${getClassTimeForDay('wednesday-morning')}`,
+      zh: `${weekDayZhMap[weekDayIndex]}${toZhTime(getClassTimeForDay('wednesday-morning'))}`,
+      en: `${weekDayEnMap[weekDayIndex]} ${getClassTimeForDay('wednesday-morning')}`,
     },
     'wednesday-evening': {
-      zh: `周三${toZhTime(getClassTimeForDay('wednesday-evening'))}`,
-      en: `Wednesday ${getClassTimeForDay('wednesday-evening')}`,
+      zh: `${weekDayZhMap[weekDayIndex]}${toZhTime(getClassTimeForDay('wednesday-evening'))}`,
+      en: `${weekDayEnMap[weekDayIndex]} ${getClassTimeForDay('wednesday-evening')}`,
     },
     'thursday-evening': {
-      zh: `周四${toZhTime(getClassTimeForDay('thursday-evening'))}`,
-      en: `Thursday ${getClassTimeForDay('thursday-evening')}`,
+      zh: `${weekDayZhMap[weekDayIndex]}${toZhTime(getClassTimeForDay('thursday-evening'))}`,
+      en: `${weekDayEnMap[weekDayIndex]} ${getClassTimeForDay('thursday-evening')}`,
     },
   };
 
@@ -267,40 +242,264 @@ export async function GET(request) {
       });
     });
 
-    const generatedSessions = buildGeneratedSessions(start, end);
-    generatedSessions.forEach((sessionItem) => {
-      if (!sessionMap.has(sessionItem.key)) {
-        sessionMap.set(sessionItem.key, sessionItem);
+    const normalizedSessionMap = new Map();
+
+    Array.from(sessionMap.values()).forEach((sessionItem) => {
+      const resolvedScheduleKey =
+        sessionItem.scheduleKey ||
+        getScheduleKeyFromDateTime(sessionItem.classDate, sessionItem.classTime);
+      const canonicalTime = resolvedScheduleKey
+        ? getClassTimeForDay(resolvedScheduleKey)
+        : String(sessionItem.classTime || '').trim();
+      const canonicalClassName = resolvedScheduleKey
+        ? getClassNameForDay(resolvedScheduleKey)
+        : sessionItem.className;
+      const canonicalKey = `${sessionItem.classDate}|${canonicalTime}`;
+      const { labelZh, labelEn } = getSlotLabels(
+        resolvedScheduleKey,
+        sessionItem.classDate,
+        canonicalTime
+      );
+
+      if (!normalizedSessionMap.has(canonicalKey)) {
+        normalizedSessionMap.set(canonicalKey, {
+          ...sessionItem,
+          key: canonicalKey,
+          classTime: canonicalTime,
+          className: canonicalClassName,
+          scheduleKey: resolvedScheduleKey,
+          label: `${sessionItem.classDate} · ${canonicalTime}`,
+          labelZh,
+          labelEn,
+          bookings: [...(sessionItem.bookings || [])],
+        });
         return;
       }
 
-      const existing = sessionMap.get(sessionItem.key);
-      existing.className = existing.className || sessionItem.className;
-      existing.scheduleKey = existing.scheduleKey || sessionItem.scheduleKey;
+      const existing = normalizedSessionMap.get(canonicalKey);
+      const mergedBookings = [...(existing.bookings || []), ...(sessionItem.bookings || [])];
+      const dedupByEmail = new Map();
+
+      mergedBookings.forEach((b) => {
+        const emailKey = String(b.userEmail || '').toLowerCase().trim();
+        const identity = emailKey || String(b.bookingId || '').trim();
+        if (!identity) return;
+
+        const prev = dedupByEmail.get(identity);
+        if (!prev || getBookingPriority(b) > getBookingPriority(prev)) {
+          dedupByEmail.set(identity, b);
+        }
+      });
+
+      existing.bookings = Array.from(dedupByEmail.values());
+      existing.className = existing.className || canonicalClassName;
+      existing.scheduleKey = existing.scheduleKey || resolvedScheduleKey;
       existing.location = existing.location || sessionItem.location;
-      existing.labelZh = existing.labelZh || sessionItem.labelZh;
-      existing.labelEn = existing.labelEn || sessionItem.labelEn;
+      existing.labelZh = existing.labelZh || labelZh;
+      existing.labelEn = existing.labelEn || labelEn;
     });
 
-    const classSessions = Array.from(sessionMap.values()).sort((a, b) => {
-      const dateCompare = b.classDate.localeCompare(a.classDate);
-      if (dateCompare !== 0) return dateCompare;
+    const todayKey = toDateKey(new Date());
+
+    const sortSessions = (a, b) => {
+      const aIsUpcoming = a.classDate >= todayKey;
+      const bIsUpcoming = b.classDate >= todayKey;
+
+      if (aIsUpcoming !== bIsUpcoming) {
+        return aIsUpcoming ? -1 : 1;
+      }
+
+      if (a.classDate !== b.classDate) {
+        return aIsUpcoming
+          ? a.classDate.localeCompare(b.classDate)
+          : b.classDate.localeCompare(a.classDate);
+      }
 
       const orderA = SLOT_ORDER[a.scheduleKey] || 99;
       const orderB = SLOT_ORDER[b.scheduleKey] || 99;
       if (orderA !== orderB) return orderA - orderB;
 
       return getTimeSortValue(a.classTime) - getTimeSortValue(b.classTime);
+    };
+
+    const classSessions = Array.from(normalizedSessionMap.values()).sort(sortSessions);
+
+    const attendanceWindow = await ClassAttendance.find({
+      classDate: { $gte: start, $lte: end },
+    })
+      .select('_id classDate classTime status userEmail userName bookingId')
+      .lean();
+
+    const attendanceCountMap = new Map();
+    const attendanceParticipantMap = new Map();
+    const attendanceStatusMap = new Map();
+
+    attendanceWindow.forEach((record) => {
+      const classDateKey = toDateKey(record.classDate);
+      const rawClassTime = String(record.classTime || '').trim();
+      if (!classDateKey || !rawClassTime) return;
+
+      const resolvedScheduleKey = getScheduleKeyFromDateTime(classDateKey, rawClassTime);
+      const classTime = resolvedScheduleKey
+        ? getClassTimeForDay(resolvedScheduleKey)
+        : rawClassTime;
+
+      const key = `${classDateKey}|${classTime}`;
+      if (!attendanceCountMap.has(key)) {
+        attendanceCountMap.set(key, { checkedInCount: 0, noShowCount: 0 });
+      }
+      if (!attendanceParticipantMap.has(key)) {
+        attendanceParticipantMap.set(key, new Map());
+      }
+      if (!attendanceStatusMap.has(key)) {
+        attendanceStatusMap.set(key, new Map());
+      }
+
+      const status = String(record.status || 'attended').toLowerCase();
+      const normalizedEmail = String(record.userEmail || '').toLowerCase().trim();
+      const identity = normalizedEmail || `record:${String(record._id || '').trim()}`;
+      const normalizedStatus = status === 'no-show' ? 'no-show' : 'attended';
+      const statusBucket = attendanceStatusMap.get(key);
+      const previousStatus = statusBucket.get(identity);
+
+      // If duplicate records exist for one student/session, attended wins over no-show.
+      if (!previousStatus || (previousStatus === 'no-show' && normalizedStatus === 'attended')) {
+        statusBucket.set(identity, normalizedStatus);
+      }
+
+      if (normalizedEmail) {
+        const participantBucket = attendanceParticipantMap.get(key);
+        if (!participantBucket.has(normalizedEmail)) {
+          participantBucket.set(normalizedEmail, {
+            bookingId: record.bookingId ? record.bookingId.toString() : null,
+            userEmail: record.userEmail,
+            userName: record.userName || record.userEmail,
+            status: 'completed',
+            paymentStatus: 'completed',
+          });
+        } else {
+          const existingParticipant = participantBucket.get(normalizedEmail);
+          if (!existingParticipant.userName && record.userName) {
+            existingParticipant.userName = record.userName;
+          }
+        }
+      }
     });
+
+    attendanceStatusMap.forEach((statusBucket, key) => {
+      let checkedInCount = 0;
+      let noShowCount = 0;
+
+      statusBucket.forEach((status) => {
+        if (status === 'no-show') noShowCount += 1;
+        else checkedInCount += 1;
+      });
+
+      attendanceCountMap.set(key, { checkedInCount, noShowCount });
+    });
+
+    const sessionsWithCounts = classSessions.map((sessionItem) => {
+      const counts = attendanceCountMap.get(sessionItem.key) || { checkedInCount: 0, noShowCount: 0 };
+      const attendanceParticipants = Array.from(
+        (attendanceParticipantMap.get(sessionItem.key) || new Map()).values()
+      );
+
+      const mergedBookings = [
+        ...(sessionItem.bookings || []),
+        ...attendanceParticipants,
+      ];
+      const bookingDedup = new Map();
+
+      mergedBookings.forEach((booking) => {
+        const emailKey = String(booking.userEmail || '').toLowerCase().trim();
+        const identity = emailKey || String(booking.bookingId || '').trim();
+        if (!identity) return;
+
+        if (!bookingDedup.has(identity)) {
+          bookingDedup.set(identity, booking);
+          return;
+        }
+
+        const prev = bookingDedup.get(identity);
+        if (getBookingPriority(booking) > getBookingPriority(prev)) {
+          bookingDedup.set(identity, booking);
+        }
+      });
+
+      return {
+        ...sessionItem,
+        bookings: Array.from(bookingDedup.values()),
+        checkedInCount: counts.checkedInCount,
+        noShowCount: counts.noShowCount,
+      };
+    });
+
+    const sessionsByKey = new Map(sessionsWithCounts.map((s) => [s.key, s]));
+
+    attendanceParticipantMap.forEach((participantMap, key) => {
+      if (sessionsByKey.has(key)) return;
+
+      const [classDateKey, classTime] = key.split('|');
+      const scheduleKey = getScheduleKeyFromDateTime(classDateKey, classTime);
+      const { labelZh, labelEn } = getSlotLabels(scheduleKey, classDateKey, classTime);
+      const counts = attendanceCountMap.get(key) || { checkedInCount: 0, noShowCount: 0 };
+
+      sessionsByKey.set(key, {
+        key,
+        classDate: classDateKey,
+        classTime,
+        className: scheduleKey ? getClassNameForDay(scheduleKey) : 'Functional Integrative Yoga',
+        scheduleKey,
+        location: DEFAULT_CLASS_LOCATION,
+        label: `${classDateKey} · ${classTime}`,
+        labelZh,
+        labelEn,
+        bookings: Array.from(participantMap.values()),
+        checkedInCount: counts.checkedInCount,
+        noShowCount: counts.noShowCount,
+      });
+    });
+
+    // Keep today's standard class slots visible so on-site staff can take attendance
+    // even when there are no pre-bookings yet (e.g. walk-in heavy sessions).
+    const today = new Date();
+    const todayDateKey = toDateKey(today);
+    const todayWeekday = today.getDay();
+    const todayScheduleKeys = getScheduleKeysForWeekday(todayWeekday);
+
+    todayScheduleKeys.forEach((scheduleKey) => {
+      const classTime = getClassTimeForDay(scheduleKey);
+      const key = `${todayDateKey}|${classTime}`;
+      if (sessionsByKey.has(key)) return;
+
+      const { labelZh, labelEn } = getSlotLabels(scheduleKey, todayDateKey, classTime);
+
+      sessionsByKey.set(key, {
+        key,
+        classDate: todayDateKey,
+        classTime,
+        className: getClassNameForDay(scheduleKey),
+        scheduleKey,
+        location: DEFAULT_CLASS_LOCATION,
+        label: `${todayDateKey} · ${classTime}`,
+        labelZh,
+        labelEn,
+        bookings: [],
+        checkedInCount: 0,
+        noShowCount: 0,
+      });
+    });
+
+    const finalSessions = Array.from(sessionsByKey.values()).sort(sortSessions);
 
     const selectedScheduleKey = getScheduleKeyFromDateTime(selectedDate, selectedTime);
 
-    const effectiveSession = classSessions.find(
+    const effectiveSession = finalSessions.find(
       (s) =>
         s.classDate === selectedDate &&
         (s.classTime === selectedTime ||
           (selectedScheduleKey && s.scheduleKey === selectedScheduleKey))
-    ) || classSessions[0] || null;
+    ) || finalSessions[0] || null;
 
     let attendance = [];
 
@@ -320,7 +519,7 @@ export async function GET(request) {
       .lean();
 
     return NextResponse.json({
-      classSessions,
+      classSessions: finalSessions,
       selectedSession: effectiveSession,
       attendance: attendance.map((a) => ({
         id: a._id.toString(),

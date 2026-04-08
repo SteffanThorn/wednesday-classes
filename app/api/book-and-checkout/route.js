@@ -5,6 +5,26 @@ import dbConnect from '@/lib/mongodb';
 import Booking from '@/lib/models/Booking';
 import Coupon from '@/lib/models/Coupon';
 
+function getDayRange(classDateInput) {
+  const d = new Date(classDateInput);
+  const dayStart = new Date(d);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(d);
+  dayEnd.setHours(23, 59, 59, 999);
+  return { dayStart, dayEnd };
+}
+
+async function findDuplicateBooking({ userEmail, classDate, classTime }) {
+  const { dayStart, dayEnd } = getDayRange(classDate);
+  return Booking.findOne({
+    userEmail: String(userEmail || '').toLowerCase().trim(),
+    classDate: { $gte: dayStart, $lte: dayEnd },
+    classTime,
+    status: { $ne: 'cancelled' },
+    paymentStatus: { $nin: ['failed', 'canceled', 'refunded'] },
+  }).lean();
+}
+
 // Check for Stripe key at module load time
 const hasStripeKey = process.env.STRIPE_SECRET_KEY && process.env.STRIPE_SECRET_KEY.startsWith('sk_');
 
@@ -164,6 +184,28 @@ export async function POST(request) {
     const userNameValue = session.user.name || 'Guest';
     const userId = session.user.id;
 
+    const duplicateBooking = await findDuplicateBooking({
+      userEmail: userEmailAddress,
+      classDate,
+      classTime,
+    });
+
+    if (duplicateBooking) {
+      return NextResponse.json(
+        {
+          error: 'You already booked this class session. Duplicate booking is not allowed.',
+          duplicate: {
+            bookingId: duplicateBooking._id.toString(),
+            classDate: duplicateBooking.classDate,
+            classTime: duplicateBooking.classTime,
+            status: duplicateBooking.status,
+            paymentStatus: duplicateBooking.paymentStatus,
+          },
+        },
+        { status: 409 }
+      );
+    }
+
     // Create the booking
     const booking = new Booking({
       userId: userId,
@@ -266,6 +308,28 @@ async function handleMultiDateBooking({ selectedDates, className, classTime, loc
     const pricePerClass = amount / selectedDates.length;
     
     for (const date of selectedDates) {
+      const duplicateBooking = await findDuplicateBooking({
+        userEmail: userEmailAddress,
+        classDate: date,
+        classTime,
+      });
+
+      if (duplicateBooking) {
+        return NextResponse.json(
+          {
+            error: 'You already booked one of the selected class sessions. Duplicate booking is not allowed.',
+            duplicate: {
+              bookingId: duplicateBooking._id.toString(),
+              classDate: duplicateBooking.classDate,
+              classTime: duplicateBooking.classTime,
+              status: duplicateBooking.status,
+              paymentStatus: duplicateBooking.paymentStatus,
+            },
+          },
+          { status: 409 }
+        );
+      }
+
       const booking = new Booking({
         userId: userId,
         userEmail: userEmailAddress,

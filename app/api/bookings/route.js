@@ -6,6 +6,26 @@ import User from '@/lib/models/User';
 import { sendBookingConfirmationEmail, sendCancellationEmail } from '@/lib/email';
 import { inferDayFromClassName, isAllowedClassDate } from '@/lib/class-schedule';
 
+function getDayRange(classDateInput) {
+  const d = new Date(classDateInput);
+  const dayStart = new Date(d);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(d);
+  dayEnd.setHours(23, 59, 59, 999);
+  return { dayStart, dayEnd };
+}
+
+async function findDuplicateBooking({ userEmail, classDate, classTime }) {
+  const { dayStart, dayEnd } = getDayRange(classDate);
+  return Booking.findOne({
+    userEmail: String(userEmail || '').toLowerCase().trim(),
+    classDate: { $gte: dayStart, $lte: dayEnd },
+    classTime,
+    status: { $ne: 'cancelled' },
+    paymentStatus: { $nin: ['failed', 'canceled', 'refunded'] },
+  }).lean();
+}
+
 // GET - Fetch user's bookings
 export async function GET() {
   try {
@@ -91,6 +111,28 @@ export async function POST(request) {
       return NextResponse.json(
         { error: `Selected date is not available for ${scheduleDay} classes` },
         { status: 400 }
+      );
+    }
+
+    const duplicateBooking = await findDuplicateBooking({
+      userEmail: session.user.email,
+      classDate: normalizedClassDate,
+      classTime,
+    });
+
+    if (duplicateBooking) {
+      return NextResponse.json(
+        {
+          error: 'You already have a booking for this class session.',
+          duplicate: {
+            bookingId: duplicateBooking._id.toString(),
+            classDate: duplicateBooking.classDate,
+            classTime: duplicateBooking.classTime,
+            status: duplicateBooking.status,
+            paymentStatus: duplicateBooking.paymentStatus,
+          },
+        },
+        { status: 409 }
       );
     }
 
@@ -379,6 +421,28 @@ export async function POST_checkout(request) {
         return NextResponse.json(
           { error: 'Missing required fields for one or more classes' },
           { status: 400 }
+        );
+      }
+
+      const duplicateBooking = await findDuplicateBooking({
+        userEmail: session.user.email,
+        classDate,
+        classTime,
+      });
+
+      if (duplicateBooking) {
+        return NextResponse.json(
+          {
+            error: 'Duplicate booking detected for one or more class sessions.',
+            duplicate: {
+              bookingId: duplicateBooking._id.toString(),
+              classDate: duplicateBooking.classDate,
+              classTime: duplicateBooking.classTime,
+              status: duplicateBooking.status,
+              paymentStatus: duplicateBooking.paymentStatus,
+            },
+          },
+          { status: 409 }
         );
       }
 

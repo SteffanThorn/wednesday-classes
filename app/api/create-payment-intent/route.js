@@ -44,6 +44,26 @@ function validateScheduledClassDates(className, selectedDates, classDate) {
   return { valid: true };
 }
 
+function getDayRange(classDateInput) {
+  const d = new Date(classDateInput);
+  const dayStart = new Date(d);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(d);
+  dayEnd.setHours(23, 59, 59, 999);
+  return { dayStart, dayEnd };
+}
+
+async function findDuplicateBooking({ userEmail, classDate, classTime }) {
+  const { dayStart, dayEnd } = getDayRange(classDate);
+  return Booking.findOne({
+    userEmail: String(userEmail || '').toLowerCase().trim(),
+    classDate: { $gte: dayStart, $lte: dayEnd },
+    classTime,
+    status: { $ne: 'cancelled' },
+    paymentStatus: { $nin: ['failed', 'canceled', 'refunded'] },
+  }).lean();
+}
+
 /**
  * Create Payment Intent Endpoint
  * 
@@ -479,6 +499,29 @@ async function createAdHocBookingAndPaymentIntent({ session, amount, className, 
     }
 
     // Single date booking
+    const duplicateBooking = await findDuplicateBooking({
+      userEmail,
+      classDate: classDate ? new Date(classDate) : new Date(),
+      classTime: classTime || 'TBD',
+    });
+
+    if (duplicateBooking) {
+      return NextResponse.json(
+        {
+          error: 'You already have a booking for this class session.',
+          code: 'DUPLICATE_BOOKING',
+          duplicate: {
+            bookingId: duplicateBooking._id.toString(),
+            classDate: duplicateBooking.classDate,
+            classTime: duplicateBooking.classTime,
+            status: duplicateBooking.status,
+            paymentStatus: duplicateBooking.paymentStatus,
+          },
+        },
+        { status: 409 }
+      );
+    }
+
     // Create a new booking
     const booking = new Booking({
       userId: userId,
@@ -560,6 +603,29 @@ async function createMultiDateBookingAndPaymentIntent({ session, selectedDates, 
   const bookings = [];
   
   for (const date of selectedDates) {
+    const duplicateBooking = await findDuplicateBooking({
+      userEmail,
+      classDate: date,
+      classTime,
+    });
+
+    if (duplicateBooking) {
+      return NextResponse.json(
+        {
+          error: 'One of the selected classes is already booked. Duplicate booking is not allowed.',
+          code: 'DUPLICATE_BOOKING',
+          duplicate: {
+            bookingId: duplicateBooking._id.toString(),
+            classDate: duplicateBooking.classDate,
+            classTime: duplicateBooking.classTime,
+            status: duplicateBooking.status,
+            paymentStatus: duplicateBooking.paymentStatus,
+          },
+        },
+        { status: 409 }
+      );
+    }
+
     const booking = new Booking({
       userId: userId,
       userEmail: userEmail,

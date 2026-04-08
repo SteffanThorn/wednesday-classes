@@ -4,7 +4,8 @@ import dbConnect from '@/lib/mongodb';
 import HealthIntake from '@/lib/models/HealthIntake';
 import mongoose from 'mongoose';
 
-const PACKAGE_TOTAL_CLASSES = 5;
+const DEFAULT_PACKAGE_TOTAL_CLASSES = 5;
+const MAX_PACKAGE_TOTAL_CLASSES = 20;
 
 export async function GET(request) {
   const session = await auth();
@@ -45,13 +46,18 @@ export async function GET(request) {
 
   return NextResponse.json({
     intakes: intakes.map((i) => {
+      const storedTotalClasses = Number.isFinite(Number(i.totalPackageClasses))
+        ? Math.floor(Number(i.totalPackageClasses))
+        : DEFAULT_PACKAGE_TOTAL_CLASSES;
       const fallbackRemaining = Number.isFinite(Number(i.remainingClassCredits))
-        ? Number(i.remainingClassCredits)
-        : PACKAGE_TOTAL_CLASSES;
-      const remainingClassCredits = Math.min(
-        PACKAGE_TOTAL_CLASSES,
-        Math.max(0, i.userId?.classCredits ?? fallbackRemaining)
+        ? Math.floor(Number(i.remainingClassCredits))
+        : storedTotalClasses;
+      const rawRemainingClassCredits = Math.max(0, Math.floor(Number(i.userId?.classCredits ?? fallbackRemaining)));
+      const totalPackageClasses = Math.min(
+        MAX_PACKAGE_TOTAL_CLASSES,
+        Math.max(1, storedTotalClasses, rawRemainingClassCredits)
       );
+      const remainingClassCredits = Math.min(totalPackageClasses, rawRemainingClassCredits);
 
       return {
         id: i._id.toString(),
@@ -66,9 +72,9 @@ export async function GET(request) {
         signatureDataUrl: i.signatureDataUrl,
         signatureName: i.signatureName || '',
         signedAt: i.signedAt,
-        totalPackageClasses: i.totalPackageClasses || PACKAGE_TOTAL_CLASSES,
+        totalPackageClasses,
         remainingClassCredits,
-        usedPackageClasses: Math.max(0, PACKAGE_TOTAL_CLASSES - remainingClassCredits),
+        usedPackageClasses: Math.max(0, totalPackageClasses - remainingClassCredits),
         createdAt: i.createdAt,
       };
     }),

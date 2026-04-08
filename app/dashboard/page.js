@@ -253,6 +253,40 @@ const DashboardPage = () => {
             </div>
           </div>
         </section>
+
+        <section className="px-6 pb-10">
+          <div className="max-w-4xl mx-auto">
+            <div className="p-6 rounded-3xl border border-glow-cyan/20 bg-card/60 backdrop-blur-sm animate-fade-in-up animation-delay-300">
+              <h2 className="font-display text-2xl text-glow-subtle mb-4">已预定课程</h2>
+
+              {upcomingBookings.length > 0 ? (
+                <div className="space-y-3">
+                  {upcomingBookings.slice(0, 3).map((booking) => (
+                    <div key={booking._id} className="p-4 rounded-2xl border border-glow-cyan/10 bg-background/40">
+                      <p className="font-medium text-foreground">{booking.className}</p>
+                      <div className="mt-2 flex flex-wrap gap-4 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-4 h-4" />
+                          {new Date(booking.classDate).toLocaleDateString('en-NZ', {
+                            weekday: 'short',
+                            day: 'numeric',
+                            month: 'short'
+                          })}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-4 h-4" />
+                          {booking.classTime}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground">你还没有已预定课程，点击上方 Book a Class 开始预约。</p>
+              )}
+            </div>
+          </div>
+        </section>
 @@
          <footer className="relative z-10 py-12 px-6 border-t border-border/30">
            <div className="max-w-7xl mx-auto text-center">

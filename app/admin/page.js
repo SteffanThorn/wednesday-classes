@@ -129,7 +129,7 @@ export default function AdminDashboardPage() {
 
             <div className="grid md:grid-cols-4 gap-4">
               <Link
-                href="/admin/bookings"
+                href="/admin/bookings?view=assisted"
                 className="p-6 rounded-3xl border border-glow-cyan/20 bg-card/60 backdrop-blur-sm 
                          hover:border-glow-cyan/40 hover:box-glow transition-all duration-500
                          flex items-center justify-between group"

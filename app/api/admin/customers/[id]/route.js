@@ -5,7 +5,8 @@ import HealthIntake from '@/lib/models/HealthIntake';
 import User from '@/lib/models/User';
 import mongoose from 'mongoose';
 
-const PACKAGE_TOTAL_CLASSES = 5;
+const DEFAULT_PACKAGE_TOTAL_CLASSES = 5;
+const MAX_PACKAGE_TOTAL_CLASSES = 20;
 
 export async function PUT(request, context) {
   const session = await auth();
@@ -42,6 +43,7 @@ export async function PUT(request, context) {
       waiverAccepted,
       comments,
       signatureName,
+      totalPackageClasses,
       remainingClassCredits,
     } = body;
 
@@ -53,8 +55,11 @@ export async function PUT(request, context) {
     }
 
     const normalizedEmail = userEmail.toLowerCase().trim();
+    const parsedTotalPackageClasses = Number.isFinite(Number(totalPackageClasses))
+      ? Math.min(MAX_PACKAGE_TOTAL_CLASSES, Math.max(1, Math.floor(Number(totalPackageClasses))))
+      : DEFAULT_PACKAGE_TOTAL_CLASSES;
     const parsedRemainingClassCredits = Number.isFinite(Number(remainingClassCredits))
-      ? Math.min(PACKAGE_TOTAL_CLASSES, Math.max(0, Math.floor(Number(remainingClassCredits))))
+      ? Math.min(parsedTotalPackageClasses, Math.max(0, Math.floor(Number(remainingClassCredits))))
       : 0;
 
     const intake = await HealthIntake.findById(id);
@@ -119,6 +124,8 @@ export async function PUT(request, context) {
     intake.waiverAccepted = !!waiverAccepted;
     intake.comments = comments?.trim() || '';
     intake.signatureName = signatureName?.trim() || '';
+    intake.totalPackageClasses = parsedTotalPackageClasses;
+    intake.remainingClassCredits = parsedRemainingClassCredits;
     intake.updatedAt = new Date();
     await intake.save();
 
@@ -140,9 +147,9 @@ export async function PUT(request, context) {
         comments: intake.comments || '',
         signatureName: intake.signatureName || '',
         signedAt: intake.signedAt || null,
-        totalPackageClasses: PACKAGE_TOTAL_CLASSES,
+        totalPackageClasses: parsedTotalPackageClasses,
         remainingClassCredits: effectiveRemainingClassCredits,
-        usedPackageClasses: Math.max(0, PACKAGE_TOTAL_CLASSES - effectiveRemainingClassCredits),
+        usedPackageClasses: Math.max(0, parsedTotalPackageClasses - effectiveRemainingClassCredits),
         createdAt: intake.createdAt,
         updatedAt: intake.updatedAt,
       },

@@ -11,6 +11,8 @@ import { Loader2, ChevronRight, ArrowLeft } from 'lucide-react';
 export const dynamic = 'force-dynamic';
 
 const OBJECT_ID_REGEX = /^[a-f\d]{24}$/i;
+const DEFAULT_PACKAGE_TOTAL_CLASSES = 5;
+const MAX_PACKAGE_TOTAL_CLASSES = 20;
 
 export default function EditCustomerPage() {
   const { data: session, status } = useSession();
@@ -34,6 +36,7 @@ export default function EditCustomerPage() {
     waiverAccepted: false,
     comments: '',
     signatureName: '',
+    totalPackageClasses: DEFAULT_PACKAGE_TOTAL_CLASSES,
     remainingClassCredits: 0,
   });
 
@@ -77,6 +80,7 @@ export default function EditCustomerPage() {
           waiverAccepted: customerData.waiverAccepted || false,
           comments: customerData.comments || '',
           signatureName: customerData.signatureName || '',
+          totalPackageClasses: customerData.totalPackageClasses ?? DEFAULT_PACKAGE_TOTAL_CLASSES,
           remainingClassCredits: customerData.remainingClassCredits ?? 0,
         });
       } else {
@@ -91,6 +95,25 @@ export default function EditCustomerPage() {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+    if (name === 'totalPackageClasses') {
+      const parsedTotal = Number.isFinite(Number(value))
+        ? Math.min(MAX_PACKAGE_TOTAL_CLASSES, Math.max(1, Math.floor(Number(value))))
+        : DEFAULT_PACKAGE_TOTAL_CLASSES;
+
+      setFormData((prev) => {
+        const currentRemaining = Number.isFinite(Number(prev.remainingClassCredits))
+          ? Math.max(0, Math.floor(Number(prev.remainingClassCredits)))
+          : 0;
+
+        return {
+          ...prev,
+          totalPackageClasses: parsedTotal,
+          remainingClassCredits: Math.min(parsedTotal, currentRemaining),
+        };
+      });
+      return;
+    }
+
     setFormData((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
@@ -317,13 +340,17 @@ export default function EditCustomerPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-2">
-                      课程包规格 / Package Size
+                      总课次 / Total Classes
                     </label>
                     <input
-                      type="text"
-                      value="5 节 / 5 classes"
-                      readOnly
-                      className="w-full px-3 py-2 rounded-lg bg-card/40 border border-glow-cyan/10 text-muted-foreground cursor-not-allowed"
+                      type="number"
+                      min="1"
+                      max="20"
+                      step="1"
+                      name="totalPackageClasses"
+                      value={formData.totalPackageClasses}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 rounded-lg bg-card/60 border border-glow-cyan/20 focus:border-glow-cyan/50 focus:outline-none text-foreground"
                     />
                   </div>
 
@@ -334,7 +361,7 @@ export default function EditCustomerPage() {
                     <input
                       type="number"
                       min="0"
-                      max="5"
+                      max={Math.min(MAX_PACKAGE_TOTAL_CLASSES, Number(formData.totalPackageClasses) || MAX_PACKAGE_TOTAL_CLASSES)}
                       step="1"
                       name="remainingClassCredits"
                       value={formData.remainingClassCredits}
@@ -345,7 +372,7 @@ export default function EditCustomerPage() {
                 </div>
 
                 <p className="text-xs text-muted-foreground">
-                  该客户课程包总数固定为 5 节；每次上课出勤会自动扣 1 节。/ This customer package always starts with 5 classes. Each attended class automatically deducts 1 remaining class.
+                  总课次可在 1-20 之间调整；每次上课出勤会自动扣 1 节。/ Total classes can be adjusted between 1-20. Each attended class automatically deducts 1 remaining class.
                 </p>
               </div>
 

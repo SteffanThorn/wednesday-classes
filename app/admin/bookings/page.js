@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useLanguage } from '@/hooks/useLanguage';
 import Header from '@/components/Header';
 import FloatingParticles from '@/components/FloatingParticle';
-import { Calendar, Clock, MapPin, Search, Loader2, Download } from 'lucide-react';
+import { Calendar, Clock, MapPin, Search, Loader2, Download, Copy } from 'lucide-react';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -15,6 +15,7 @@ export default function AdminBookingsPage() {
   const { language, mounted } = useLanguage();
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [forceZhMode, setForceZhMode] = useState(false);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +34,9 @@ export default function AdminBookingsPage() {
   const [selectedAttendanceSession, setSelectedAttendanceSession] = useState('');
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [attendanceStudents, setAttendanceStudents] = useState([]);
+  const [attendanceListView, setAttendanceListView] = useState('checked-in');
   const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [bulkCheckInLoading, setBulkCheckInLoading] = useState(false);
   const [attendanceMessage, setAttendanceMessage] = useState('');
   const [attendanceError, setAttendanceError] = useState('');
   const [selectedBookedStudent, setSelectedBookedStudent] = useState('');
@@ -44,6 +47,7 @@ export default function AdminBookingsPage() {
   const [bookingCustomerId, setBookingCustomerId] = useState('');
   const [assistedBookingLoading, setAssistedBookingLoading] = useState(false);
   const [deletingBookingId, setDeletingBookingId] = useState('');
+  const [showActiveBookingsList, setShowActiveBookingsList] = useState(false);
   const [sendingAdminBookingTest, setSendingAdminBookingTest] = useState(false);
   const [assistedConfirmOpen, setAssistedConfirmOpen] = useState(false);
   const [pendingAssistedBooking, setPendingAssistedBooking] = useState(null);
@@ -89,6 +93,15 @@ export default function AdminBookingsPage() {
       fetchCustomerLookupPool();
     }
   }, [status, session]);
+
+  useEffect(() => {
+    const entryView = String(searchParams.get('view') || '').toLowerCase();
+    if (entryView === 'assisted' || entryView === 'attendance') {
+      setShowWeeklyView(false);
+      setShowAttendanceView(true);
+      setShowIntakeView(false);
+    }
+  }, [searchParams]);
 
   const fetchCustomerLookupPool = async () => {
     try {
@@ -218,6 +231,7 @@ export default function AdminBookingsPage() {
       }
 
       setAttendanceMessage(data.message || 'Attendance marked.');
+      setAttendanceListView('checked-in');
       setSelectedBookedStudent('');
       setSelectedWalkInStudent('');
       await fetchAttendanceData(selectedAttendanceSession);
@@ -269,6 +283,95 @@ export default function AdminBookingsPage() {
       console.error('Error marking no-show:', error);
       setAttendanceError(error.message || 'Failed to mark no-show');
     }
+  };
+
+  const handleBulkMarkAttendance = async () => {
+    if (!selectedAttendanceSession || !selectedSessionData) {
+      setAttendanceError(txt('请先选择课程场次。', 'Please select a class session first.'));
+      return;
+    }
+
+    const pendingStudents = (availableBookedStudents || []).filter((student) => student?.userEmail);
+    if (pendingStudents.length === 0) {
+      setAttendanceError('');
+      setAttendanceMessage(txt('当前场次暂无可批量签到的学员。', 'No pending booked students to check in for this session.'));
+      return;
+    }
+
+    const [classDate, classTime] = selectedAttendanceSession.split('|');
+
+    setBulkCheckInLoading(true);
+    setAttendanceMessage('');
+    setAttendanceError('');
+
+    let successCount = 0;
+    let duplicateCount = 0;
+    const failedStudents = [];
+
+    for (const student of pendingStudents) {
+      try {
+        const response = await fetch('/api/admin/attendance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            classDate,
+            classTime,
+            className: selectedSessionData.className,
+            location: selectedSessionData.location,
+            studentEmail: student.userEmail,
+            bookingId: student.bookingId || undefined,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          const errorMessage = String(data?.error || 'Failed to mark attendance');
+          const isDuplicateAttendance =
+            response.status === 400 && errorMessage.toLowerCase().includes('attendance already marked');
+
+          if (isDuplicateAttendance) {
+            duplicateCount += 1;
+            continue;
+          }
+
+          failedStudents.push(student.userName || student.userEmail || txt('未知学员', 'Unknown student'));
+          continue;
+        }
+
+        successCount += 1;
+      } catch (error) {
+        console.error('Bulk attendance mark failed for student:', student?.userEmail, error);
+        failedStudents.push(student.userName || student.userEmail || txt('未知学员', 'Unknown student'));
+      }
+    }
+
+    await fetchAttendanceData(selectedAttendanceSession);
+    await fetchBookings();
+
+    if (failedStudents.length > 0) {
+      setAttendanceError(
+        txt(
+          `批量签到完成：成功 ${successCount} 人，失败 ${failedStudents.length} 人（${failedStudents.join('、')}）。`,
+          `Bulk check-in finished: ${successCount} succeeded, ${failedStudents.length} failed (${failedStudents.join(', ')}).`
+        )
+      );
+    }
+
+    if (successCount > 0 || duplicateCount > 0) {
+      setAttendanceMessage(
+        txt(
+          `批量签到完成：新增签到 ${successCount} 人${duplicateCount > 0 ? `，原已签到 ${duplicateCount} 人` : ''}。`,
+          `Bulk check-in complete: ${successCount} newly checked in${duplicateCount > 0 ? `, ${duplicateCount} already checked in` : ''}.`
+        )
+      );
+    }
+
+    if (successCount === 0 && duplicateCount === 0 && failedStudents.length > 0) {
+      setAttendanceMessage('');
+    }
+
+    setBulkCheckInLoading(false);
   };
 
   const handleDeleteBooked = async ({ bookingId }) => {
@@ -360,16 +463,104 @@ export default function AdminBookingsPage() {
   }
 
   // Stats - show only confirmed (booked) and pending
-  const confirmedBookings = bookings.filter(b => 
-    (b.status === 'confirmed') || 
-    (b.paymentStatus === 'completed' || b.paymentStatus === 'paid')
-  ).length;
+  const parseClassDateTime = (classDate, classTime) => {
+    const date = new Date(classDate);
+    if (Number.isNaN(date.getTime())) return null;
+
+    const normalizedTime = String(classTime || '').trim().toUpperCase();
+    const match = normalizedTime.match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?/);
+    if (!match) return null;
+
+    let hours = Number(match[1] || 0);
+    const minutes = Number(match[2] || 0);
+    const meridiem = match[3] || null;
+
+    if (meridiem === 'AM' && hours === 12) hours = 0;
+    if (meridiem === 'PM' && hours < 12) hours += 12;
+
+    const result = new Date(date);
+    result.setHours(hours, minutes, 0, 0);
+    return result;
+  };
+
+  const now = new Date();
+  const activeBookingMap = new Map();
+  bookings.forEach((booking) => {
+    const status = String(booking?.status || '').toLowerCase();
+    const paymentStatus = String(booking?.paymentStatus || '').toLowerCase();
+    const noShow = Boolean(booking?.noShow);
+
+    if (status === 'cancelled') return;
+
+    const isBookedLike =
+      status === 'booked' ||
+      status === 'confirmed' ||
+      status === 'pending' ||
+      paymentStatus === 'completed' ||
+      paymentStatus === 'paid' ||
+      paymentStatus === 'processing';
+
+    const isSignedIn = status === 'completed';
+    if (!isBookedLike || isSignedIn || noShow) return;
+
+    const classDateTime = parseClassDateTime(booking.classDate, booking.classTime);
+    if (!classDateTime) return;
+
+    // Exclude sessions that have already passed.
+    if (classDateTime < now) return;
+
+    const dedupKey = `${String(booking.userEmail || '').toLowerCase().trim()}|${new Date(booking.classDate).toISOString().split('T')[0]}|${String(booking.classTime || '').trim()}`;
+    if (!activeBookingMap.has(dedupKey)) {
+      activeBookingMap.set(dedupKey, booking);
+    }
+  });
+
+  const confirmedBookings = activeBookingMap.size;
+  const activeBookingsList = Array.from(activeBookingMap.values()).sort((a, b) => {
+    const dateA = parseClassDateTime(a.classDate, a.classTime)?.getTime() || 0;
+    const dateB = parseClassDateTime(b.classDate, b.classTime)?.getTime() || 0;
+    if (dateA !== dateB) return dateA - dateB;
+    return String(a.userName || '').localeCompare(String(b.userName || ''));
+  });
   const pendingBookings = bookings.filter(b => 
     b.status === 'pending' || b.paymentStatus === 'processing'
   ).length;
 
   const selectedSessionData = attendanceSessions.find(s => s.key === selectedAttendanceSession) || null;
   const attendedEmails = new Set((attendanceRecords || []).map(a => a.userEmail));
+  const attendanceRecordByEmail = new Map(
+    (attendanceRecords || []).map((record) => [
+      (record.userEmail || '').toLowerCase().trim(),
+      record,
+    ])
+  );
+  const isActiveBookedStatus = (booking) => {
+    const status = String(booking?.status || '').toLowerCase();
+    const paymentStatus = String(booking?.paymentStatus || '').toLowerCase();
+    return (
+      status === 'booked' ||
+      status === 'confirmed' ||
+      status === 'completed' ||
+      paymentStatus === 'completed' ||
+      paymentStatus === 'paid' ||
+      paymentStatus === 'processing'
+    );
+  };
+  const bookedRoster = (selectedSessionData?.bookings || []).filter(isActiveBookedStatus);
+  const checkedInRoster = (attendanceRecords || []).filter(
+    (record) => String(record?.status || 'attended').toLowerCase() === 'attended'
+  );
+  const selectedSessionCheckedInCount = Number(selectedSessionData?.checkedInCount || 0);
+  const selectedSessionNoShowCount = Number(selectedSessionData?.noShowCount || 0);
+  const preBookedEmailSet = new Set(
+    (selectedSessionData?.bookings || [])
+      .filter((b) => Boolean(b?.bookingId))
+      .map((b) => String(b.userEmail || '').toLowerCase().trim())
+  );
+  const checkedInSummaryNames = checkedInRoster
+    .map((record) => String(record?.userName || record?.userEmail || '').trim())
+    .filter(Boolean);
+  const checkedInSummaryText = checkedInSummaryNames.join('、');
   const availableBookedStudents = (selectedSessionData?.bookings || []).filter(
     b => !attendedEmails.has(b.userEmail)
   );
@@ -462,6 +653,7 @@ export default function AdminBookingsPage() {
       const status = String(booking?.status || '').toLowerCase();
       const paymentStatus = String(booking?.paymentStatus || '').toLowerCase();
       return (
+        status === 'booked' ||
         status === 'confirmed' ||
         status === 'completed' ||
         paymentStatus === 'completed' ||
@@ -659,12 +851,65 @@ export default function AdminBookingsPage() {
               <div className="p-4 rounded-xl bg-card/60 border border-glow-cyan/20">
                 <div className="text-2xl font-bold text-glow-cyan">{confirmedBookings}</div>
                 <div className="text-sm text-muted-foreground">{txt('已预约人数', 'bookings')}</div>
+                <button
+                  type="button"
+                  onClick={() => setShowActiveBookingsList((prev) => !prev)}
+                  className="mt-2 text-xs text-glow-cyan hover:underline"
+                >
+                  {showActiveBookingsList
+                    ? txt('收起名单', 'Hide list')
+                    : txt('查看名单', 'View list')}
+                </button>
               </div>
               <div className="p-4 rounded-xl bg-card/60 border border-yellow-500/20">
                 <div className="text-2xl font-bold text-yellow-400">{pendingBookings}</div>
                 <div className="text-sm text-muted-foreground">{txt('待处理人数', 'pending')}</div>
               </div>
             </div>
+
+            {showActiveBookingsList && (
+              <div className="mb-6 p-4 rounded-xl bg-card/60 border border-glow-cyan/20">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-medium text-foreground">
+                    {txt('已预约有效人数明细', 'Active Booked Details')}
+                  </h3>
+                  <span className="text-xs text-muted-foreground">
+                    {txt(`共 ${activeBookingsList.length} 人`, `${activeBookingsList.length} students`)}
+                  </span>
+                </div>
+                {activeBookingsList.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    {txt('当前没有符合条件的有效预约。', 'No active bookings match the current criteria.')}
+                  </p>
+                ) : (
+                  <div className="max-h-64 overflow-auto space-y-2 pr-1">
+                    {activeBookingsList.map((booking, idx) => {
+                      const dateTime = parseClassDateTime(booking.classDate, booking.classTime);
+                      const displayDate = dateTime
+                        ? dateTime.toLocaleString(isZh ? 'zh-CN' : 'en-NZ', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })
+                        : `${booking.classDate} ${booking.classTime}`;
+                      const itemKey =
+                        booking.id ||
+                        booking._id ||
+                        `${String(booking.userEmail || '').toLowerCase().trim()}-${String(booking.classDate || '')}-${String(booking.classTime || '')}-${idx}`;
+
+                      return (
+                        <div key={`active-booking-${itemKey}`} className="p-2 rounded border border-glow-cyan/10 bg-card/40">
+                          <p className="text-sm text-foreground font-medium">{booking.userName || booking.userEmail}</p>
+                          <p className="text-xs text-muted-foreground">{booking.userEmail}</p>
+                          <p className="text-xs text-muted-foreground">{displayDate}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Filters */}
             <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -949,12 +1194,13 @@ export default function AdminBookingsPage() {
                   )}
 
                   <div className="grid md:grid-cols-2 gap-4 mb-4">
-                    <div>
+                    <div className="space-y-3">
                       <label className="block text-sm text-muted-foreground mb-2">{txt('课程场次', 'Class Session')}</label>
                       <select
                         value={selectedAttendanceSession}
                         onChange={(e) => {
                           setSelectedAttendanceSession(e.target.value);
+                          setAttendanceListView('checked-in');
                           setSelectedBookedStudent('');
                           setSelectedWalkInStudent('');
                           fetchAttendanceData(e.target.value);
@@ -967,143 +1213,209 @@ export default function AdminBookingsPage() {
                           <option key={s.key} value={s.key}>{getAttendanceSessionLabel(s)}</option>
                         ))}
                       </select>
+
+                      <div className="p-3 rounded-lg bg-card/40 border border-glow-cyan/10">
+                        <p className="text-sm text-muted-foreground">{txt('当前选择课程', 'Selected class')}</p>
+                        <p className="text-foreground font-medium">{selectedSessionData?.className || '—'}</p>
+                        <p className="text-xs text-muted-foreground">{getAttendanceSessionLabel(selectedSessionData)}</p>
+                        <p className="text-xs text-muted-foreground">{selectedSessionData?.location || ''}</p>
+                      </div>
                     </div>
 
                     <div className="p-3 rounded-lg bg-card/40 border border-glow-cyan/10">
-                      <p className="text-sm text-muted-foreground">{txt('当前选择课程', 'Selected class')}</p>
-                      <p className="text-foreground font-medium">{selectedSessionData?.className || '—'}</p>
-                      <p className="text-xs text-muted-foreground">{getAttendanceSessionLabel(selectedSessionData)}</p>
-                      <p className="text-xs text-muted-foreground">{selectedSessionData?.location || ''}</p>
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-sm text-muted-foreground">{txt('右侧签到统计', 'Attendance Stats')}</p>
+                        <span className="text-xs text-muted-foreground">{txt('每节课', 'Per class')}</span>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 mb-3">
+                        <div className="p-2 rounded bg-glow-cyan/10 border border-glow-cyan/20 text-center">
+                          <p className="text-[11px] text-muted-foreground">{txt('已预约', 'Booked')}</p>
+                          <p className="text-base font-semibold text-glow-cyan">{bookedRoster.length}</p>
+                        </div>
+                        <div className="p-2 rounded bg-green-500/10 border border-green-500/20 text-center">
+                          <p className="text-[11px] text-muted-foreground">{txt('已签到', 'Checked-in')}</p>
+                          <p className="text-base font-semibold text-green-300">{selectedSessionCheckedInCount}</p>
+                        </div>
+                        <div className="p-2 rounded bg-red-500/10 border border-red-500/20 text-center">
+                          <p className="text-[11px] text-muted-foreground">{txt('未到场', 'No-show')}</p>
+                          <p className="text-base font-semibold text-red-300">{selectedSessionNoShowCount}</p>
+                        </div>
+                      </div>
+
+                      <div className="max-h-40 overflow-auto space-y-1 pr-1">
+                        {attendanceSessions.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">{txt('暂无场次统计。', 'No session stats yet.')}</p>
+                        ) : (
+                          attendanceSessions.map((sessionItem) => {
+                            const isSelected = sessionItem.key === selectedAttendanceSession;
+                            return (
+                              <button
+                                key={`stat-${sessionItem.key}`}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedAttendanceSession(sessionItem.key);
+                                  setAttendanceListView('checked-in');
+                                  setSelectedBookedStudent('');
+                                  setSelectedWalkInStudent('');
+                                  fetchAttendanceData(sessionItem.key);
+                                }}
+                                className={`w-full text-left px-2 py-1.5 rounded border text-xs transition-colors ${
+                                  isSelected
+                                    ? 'bg-glow-cyan/15 border-glow-cyan/40 text-foreground'
+                                    : 'bg-card/50 border-glow-cyan/10 text-muted-foreground hover:text-foreground'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="truncate">{getAttendanceSessionLabel(sessionItem)}</span>
+                                  <span className="whitespace-nowrap text-green-300">
+                                    {txt('签到', 'In')}: {Number(sessionItem.checkedInCount || 0)}
+                                  </span>
+                                </div>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  <div id="quick-customer-lookup-panel" className="mb-4 p-4 rounded-lg bg-card/40 border border-glow-cyan/10">
-                    <h3 className="text-sm font-medium text-foreground mb-2">{txt('快速定位客户', 'Quick Customer Lookup')}</h3>
-                    <p className="text-xs text-muted-foreground mb-3">
-                      {txt('输入姓名、电话或邮箱，可直接跳转客户详情，或代客预约本次课程并自动发送确认邮件。', 'Search by name, phone, or email. Jump to customer profile or create an assisted booking with auto confirmation email.')}
-                    </p>
-                    <div className="mb-3 flex flex-wrap gap-2">
+                  <div className="mb-4 p-4 rounded-lg bg-card/40 border border-glow-cyan/10">
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                      <h3 className="text-sm font-medium text-foreground">{txt('课程名单', 'Class Roster')}</h3>
+                      <p className="text-xs text-muted-foreground">
+                        {txt(`已预约 ${bookedRoster.length} 人 · 已签到 ${selectedSessionCheckedInCount} 人 · 未到场 ${selectedSessionNoShowCount} 人`, `${bookedRoster.length} booked · ${selectedSessionCheckedInCount} checked in · ${selectedSessionNoShowCount} no-show`)}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 mb-3">
                       <button
                         type="button"
-                        onClick={handleOpenBookingHomepage}
-                        className="px-3 py-2 rounded-lg bg-glow-cyan/10 border border-glow-cyan/30 text-glow-cyan hover:bg-glow-cyan/20 transition-colors text-xs"
+                        onClick={() => setAttendanceListView('booked')}
+                        className={`px-3 py-1 rounded-lg border text-xs transition-colors ${
+                          attendanceListView === 'booked'
+                            ? 'bg-glow-cyan/20 border-glow-cyan/50 text-glow-cyan'
+                            : 'bg-card/60 border-glow-cyan/20 text-muted-foreground hover:text-foreground'
+                        }`}
                       >
-                        {txt('打开预约首页（现场协助）', 'Open Booking Homepage (Assist On-site)')}
+                        {txt('已预约客户名单', 'Booked Students List')}
                       </button>
                       <button
                         type="button"
-                        onClick={handleSendAdminBookingTestEmail}
-                        disabled={!selectedAttendanceSession || sendingAdminBookingTest}
-                        className="px-3 py-2 rounded-lg bg-violet-500/10 border border-violet-500/30 text-violet-300 hover:bg-violet-500/20 transition-colors text-xs disabled:opacity-50"
+                        onClick={() => setAttendanceListView('checked-in')}
+                        className={`px-3 py-1 rounded-lg border text-xs transition-colors ${
+                          attendanceListView === 'checked-in'
+                            ? 'bg-green-500/20 border-green-500/50 text-green-300'
+                            : 'bg-card/60 border-glow-cyan/20 text-muted-foreground hover:text-foreground'
+                        }`}
                       >
-                        {sendingAdminBookingTest
-                          ? txt('发送测试中...', 'Sending test...')
-                          : txt('发送预约测试邮件给我', 'Send Booking Test Email to Me')}
+                        {txt('签到客户名单', 'Checked-in Students List')}
                       </button>
                     </div>
-                    <input
-                      type="text"
-                      value={customerLookupTerm}
-                      onChange={(e) => setCustomerLookupTerm(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && filteredCustomerLookup.length > 0) {
-                          e.preventDefault();
-                          handleOpenCustomerProfile(filteredCustomerLookup[0]);
-                        }
-                      }}
-                      placeholder={txt('按姓名 / 电话 / 邮箱搜索', 'Search by name / phone / email')}
-                      className="w-full px-3 py-2 rounded-lg bg-card/60 border border-glow-cyan/20 focus:border-glow-cyan/50 focus:outline-none"
-                    />
 
-                    {customerLookupLoading && (
-                      <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                        {txt('加载客户中...', 'Loading customers...')}
-                      </div>
-                    )}
-
-                    {customerLookupTerm.trim() && !customerLookupLoading && (
-                      <div className="mt-3 space-y-2">
-                        {filteredCustomerLookup.length === 0 ? (
-                          <p className="text-xs text-muted-foreground">{txt('未找到匹配客户。', 'No matched customer.')}</p>
+                    <div className="max-h-56 overflow-auto space-y-2 pr-1">
+                      {attendanceListView === 'booked' ? (
+                        bookedRoster.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">{txt('当前场次暂无已预约客户。', 'No booked students for this class session yet.')}</p>
                         ) : (
-                          filteredCustomerLookup.map((customer) => {
-                            const isAlreadyBooked = (selectedSessionData?.bookings || []).some((b) => {
-                              const status = String(b?.status || '').toLowerCase();
-                              const paymentStatus = String(b?.paymentStatus || '').toLowerCase();
-                              const isActiveBooked =
-                                status === 'confirmed' ||
-                                status === 'completed' ||
-                                paymentStatus === 'completed' ||
-                                paymentStatus === 'paid' ||
-                                paymentStatus === 'processing';
-                              return (
-                                isActiveBooked &&
-                                (b.userEmail || '').toLowerCase().trim() === (customer.userEmail || '').toLowerCase().trim()
-                              );
-                            });
+                          bookedRoster.map((student, idx) => {
+                            const record = attendanceRecordByEmail.get((student.userEmail || '').toLowerCase().trim());
+                            const attendanceStatus = String(record?.status || '').toLowerCase();
+                            const isCheckedIn = attendanceStatus === 'attended';
+                            const isNoShow = attendanceStatus === 'no-show';
+                            const rosterKey =
+                              student.bookingId ||
+                              `${String(student.userEmail || '').toLowerCase().trim()}-${String(student.classTime || '')}-${idx}`;
 
                             return (
-                              <div
-                                key={customer.id}
-                                onClick={() => handleOpenCustomerProfile(customer)}
-                                className="w-full text-left p-3 rounded-lg border border-glow-cyan/20 bg-card/50 hover:bg-glow-cyan/5 cursor-pointer"
-                              >
-                                <p className="text-sm text-foreground font-medium">{customer.userName}</p>
-                                <p className="text-xs text-muted-foreground">{customer.userEmail}</p>
-                                <p className="text-xs text-muted-foreground">{customer.phone || '—'}</p>
-                                {isAlreadyBooked && (
-                                  <p className="mt-1 text-xs text-green-400">
-                                    {txt('该会员本场次已预约，请在下方“已预约学员”中点击“确认到课”。', 'Already booked for this session. Use Confirm Attended below under Booked Students.')}
-                                  </p>
-                                )}
-                                {!selectedAttendanceSession && (
-                                  <p className="mt-1 text-xs text-yellow-300">
-                                    {txt('请先在上方选择课程场次后再代客预约。', 'Please select a class session above before creating assisted bookings.')}
-                                  </p>
-                                )}
-                                <div className="mt-2 flex flex-wrap gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleOpenCustomerProfile(customer);
-                                    }}
-                                    className="px-3 py-1 rounded bg-glow-cyan/10 border border-glow-cyan/30 text-glow-cyan hover:bg-glow-cyan/20 transition-colors text-xs"
+                              <div key={`booked-roster-${rosterKey}`} className="p-2 rounded border border-glow-cyan/15 bg-card/50">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div>
+                                    <p className="text-sm text-foreground font-medium">{student.userName}</p>
+                                    <p className="text-xs text-muted-foreground">{student.userEmail}</p>
+                                  </div>
+                                  <span
+                                    className={`px-2 py-0.5 rounded-full text-[11px] ${
+                                      isCheckedIn
+                                        ? 'bg-green-500/20 text-green-300'
+                                        : isNoShow
+                                          ? 'bg-red-500/20 text-red-300'
+                                          : 'bg-slate-500/20 text-slate-300'
+                                    }`}
                                   >
-                                    {txt('查看客户信息', 'Open Customer Profile')}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleCreateAssistedBooking(customer, { sendEmail: true });
-                                    }}
-                                    disabled={!selectedAttendanceSession || !selectedSessionData || isAlreadyBooked || (assistedBookingLoading && bookingCustomerId === customer.id)}
-                                    className="px-3 py-1 rounded bg-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500/20 transition-colors text-xs disabled:opacity-50"
-                                  >
-                                    {(assistedBookingLoading && bookingCustomerId === customer.id)
-                                      ? txt('预约中...', 'Booking...')
-                                      : txt('预约课程（发送邮件）', 'Book Class (Send Email)')}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleCreateAssistedBooking(customer, { sendEmail: false });
-                                    }}
-                                    disabled={!selectedAttendanceSession || !selectedSessionData || isAlreadyBooked || (assistedBookingLoading && bookingCustomerId === customer.id)}
-                                    className="px-3 py-1 rounded bg-yellow-500/10 border border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/20 transition-colors text-xs disabled:opacity-50"
-                                  >
-                                    {(assistedBookingLoading && bookingCustomerId === customer.id)
-                                      ? txt('预约中...', 'Booking...')
-                                      : txt('预约课程（不发送预约邮件）', 'Book Class (No Email)')}
-                                  </button>
+                                    {isCheckedIn
+                                      ? txt('已签到', 'Checked in')
+                                      : isNoShow
+                                        ? txt('未到场', 'No-show')
+                                        : txt('未签到', 'Not checked in')}
+                                  </span>
                                 </div>
                               </div>
                             );
                           })
-                        )}
+                        )
+                      ) : checkedInRoster.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">{txt('当前场次暂无签到记录。', 'No checked-in students for this class session yet.')}</p>
+                      ) : (
+                        checkedInRoster.map((record) => (
+                          <div key={`checked-in-${record.id}`} className="p-2 rounded border border-green-500/20 bg-green-500/5">
+                            <div className="flex items-center justify-between gap-2">
+                              <div>
+                                <p className="text-sm text-foreground font-medium">{record.userName || record.userEmail}</p>
+                                <p className="text-xs text-muted-foreground">{record.userEmail}</p>
+                                {!record.bookingId && !preBookedEmailSet.has(String(record.userEmail || '').toLowerCase().trim()) && (
+                                  <span className="inline-flex mt-1 px-2 py-0.5 rounded-full text-[11px] bg-yellow-500/15 text-yellow-300 border border-yellow-500/30">
+                                    {txt('临时到场', 'Walk-in')}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-[11px] text-green-300 whitespace-nowrap">
+                                {record.createdAt
+                                  ? new Date(record.createdAt).toLocaleTimeString(isZh ? 'zh-CN' : 'en-NZ', { hour: '2-digit', minute: '2-digit' })
+                                  : txt('已签到', 'Checked in')}
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {attendanceListView === 'checked-in' && checkedInRoster.length > 0 && (
+                      <div className="mt-3 p-3 rounded-lg bg-card/60 border border-glow-cyan/20">
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <p className="text-sm text-foreground font-medium">
+                            {txt('课后到场汇总', 'Post-class Attendance Summary')}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+                                  const summary = txt(
+                                    `到场共 ${checkedInSummaryNames.length} 人：${checkedInSummaryText}`,
+                                    `Total attended: ${checkedInSummaryNames.length}. Names: ${checkedInSummaryNames.join(', ')}`
+                                  );
+                                  await navigator.clipboard.writeText(summary);
+                                  setAttendanceError('');
+                                  setAttendanceMessage(txt('已复制到场汇总。', 'Attendance summary copied.'));
+                                }
+                              } catch (copyError) {
+                                console.error('Failed to copy attendance summary:', copyError);
+                                setAttendanceError(txt('复制失败，请手动复制。', 'Copy failed, please copy manually.'));
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded border border-glow-cyan/30 text-glow-cyan hover:bg-glow-cyan/10 text-xs"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                            {txt('复制汇总', 'Copy Summary')}
+                          </button>
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-1">
+                          {txt(`已到场 ${checkedInSummaryNames.length} 人`, `${checkedInSummaryNames.length} students attended`)}
+                        </p>
+                        <p className="text-sm text-foreground leading-relaxed break-words">
+                          {checkedInSummaryText}
+                        </p>
                       </div>
                     )}
                   </div>
@@ -1112,17 +1424,30 @@ export default function AdminBookingsPage() {
                     <div className="p-4 rounded-lg bg-card/40 border border-glow-cyan/10">
                       <h3 className="text-sm font-medium text-foreground mb-2">{txt('已预约学员', 'Booked Students')}</h3>
                       <div className="space-y-2">
+                        <button
+                          onClick={handleBulkMarkAttendance}
+                          disabled={!selectedAttendanceSession || availableBookedStudents.length === 0 || bulkCheckInLoading}
+                          className="w-full px-3 py-2 rounded-lg bg-green-500/15 border border-green-500/40 text-green-300 hover:bg-green-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {bulkCheckInLoading
+                            ? txt('批量签到中...', 'Bulk Check-in...')
+                            : txt(`一键全部签到（${availableBookedStudents.length}人）`, `Check In All (${availableBookedStudents.length})`)}
+                        </button>
                         <select
                           value={selectedBookedStudent}
                           onChange={(e) => setSelectedBookedStudent(e.target.value)}
                           className="w-full px-3 py-2 rounded-lg bg-card/60 border border-glow-cyan/20 focus:border-glow-cyan/50 focus:outline-none"
                         >
                           <option value="">{txt('请选择已预约学员', 'Select a booked student')}</option>
-                          {availableBookedStudents.map((b) => (
-                            <option key={b.bookingId} value={`${b.userEmail}|${b.bookingId}`}>
+                          {availableBookedStudents.map((b, idx) => {
+                            const optionKey =
+                              b.bookingId || `${String(b.userEmail || '').toLowerCase().trim()}-${idx}`;
+                            return (
+                            <option key={optionKey} value={`${b.userEmail}|${b.bookingId || ''}`}>
                               {b.userName} ({b.userEmail})
                             </option>
-                          ))}
+                            );
+                          })}
                         </select>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <button
@@ -1191,48 +1516,49 @@ export default function AdminBookingsPage() {
                         </button>
                       </div>
                     </div>
+
+                    {assistedConfirmOpen && pendingAssistedBooking && (
+                      <div className="mt-4 p-4 rounded-lg bg-red-500/10 border border-red-500/30">
+                        <p className="text-sm text-red-300 mb-3">
+                          {txt(
+                            `确认给该会员预约此课程${pendingAssistedBooking.sendEmail ? '并发送预约邮件' : '，且不发送预约邮件'}？`,
+                            `Confirm assisted booking${pendingAssistedBooking.sendEmail ? ' and send confirmation email' : ' without sending confirmation email'}?`
+                          )}
+                        </p>
+                        <p className="text-xs text-muted-foreground mb-3">
+                          {pendingAssistedBooking.customer.userName} ({pendingAssistedBooking.customer.userEmail})
+                          {' · '}
+                          {pendingAssistedBooking.className}
+                          {' · '}
+                          {pendingAssistedBooking.classDate} {pendingAssistedBooking.classTime}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleCreateAssistedBooking(pendingAssistedBooking.customer, {
+                              sendEmail: pendingAssistedBooking.sendEmail,
+                              skipConfirm: true,
+                            })}
+                            disabled={assistedBookingLoading}
+                            className="px-3 py-2 rounded bg-red-600 text-white hover:bg-red-500 disabled:opacity-50 text-xs"
+                          >
+                            {assistedBookingLoading
+                              ? txt('预约中...', 'Booking...')
+                              : txt('确认预约', 'Confirm Booking')}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleCancelAssistedBookingConfirm}
+                            disabled={assistedBookingLoading}
+                            className="px-3 py-2 rounded border border-white/20 text-muted-foreground hover:text-foreground text-xs"
+                          >
+                            {txt('取消', 'Cancel')}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  {assistedConfirmOpen && pendingAssistedBooking && (
-                    <div className="mt-4 p-4 rounded-lg bg-red-500/10 border border-red-500/30">
-                      <p className="text-sm text-red-300 mb-3">
-                        {txt(
-                          `确认给该会员预约此课程${pendingAssistedBooking.sendEmail ? '并发送预约邮件' : '，且不发送预约邮件'}？`,
-                          `Confirm assisted booking${pendingAssistedBooking.sendEmail ? ' and send confirmation email' : ' without sending confirmation email'}?`
-                        )}
-                      </p>
-                      <p className="text-xs text-muted-foreground mb-3">
-                        {pendingAssistedBooking.customer.userName} ({pendingAssistedBooking.customer.userEmail})
-                        {' · '}
-                        {pendingAssistedBooking.className}
-                        {' · '}
-                        {pendingAssistedBooking.classDate} {pendingAssistedBooking.classTime}
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleCreateAssistedBooking(pendingAssistedBooking.customer, {
-                            sendEmail: pendingAssistedBooking.sendEmail,
-                            skipConfirm: true,
-                          })}
-                          disabled={assistedBookingLoading}
-                          className="px-3 py-2 rounded bg-red-600 text-white hover:bg-red-500 disabled:opacity-50 text-xs"
-                        >
-                          {assistedBookingLoading
-                            ? txt('预约中...', 'Booking...')
-                            : txt('确认预约', 'Confirm Booking')}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleCancelAssistedBookingConfirm}
-                          disabled={assistedBookingLoading}
-                          className="px-3 py-2 rounded border border-white/20 text-muted-foreground hover:text-foreground text-xs"
-                        >
-                          {txt('取消', 'Cancel')}
-                        </button>
-                      </div>
-                    </div>
-                  )}
                 </div>
 
               </div>

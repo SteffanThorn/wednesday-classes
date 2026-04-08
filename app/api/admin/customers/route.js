@@ -3,7 +3,8 @@ import { auth } from '@/auth';
 import dbConnect from '@/lib/mongodb';
 import HealthIntake from '@/lib/models/HealthIntake';
 
-const PACKAGE_TOTAL_CLASSES = 5;
+const DEFAULT_PACKAGE_TOTAL_CLASSES = 5;
+const MAX_PACKAGE_TOTAL_CLASSES = 20;
 
 export async function GET(request) {
   const session = await auth();
@@ -23,13 +24,18 @@ export async function GET(request) {
       .lean();
 
     const customers = intakes.map((intake) => {
+      const storedTotalClasses = Number.isFinite(Number(intake.totalPackageClasses))
+        ? Math.floor(Number(intake.totalPackageClasses))
+        : DEFAULT_PACKAGE_TOTAL_CLASSES;
       const fallbackRemaining = Number.isFinite(Number(intake.remainingClassCredits))
-        ? Number(intake.remainingClassCredits)
-        : PACKAGE_TOTAL_CLASSES;
-      const remainingClassCredits = Math.min(
-        PACKAGE_TOTAL_CLASSES,
-        Math.max(0, intake.userId?.classCredits ?? fallbackRemaining)
+        ? Math.floor(Number(intake.remainingClassCredits))
+        : storedTotalClasses;
+      const rawRemainingClassCredits = Math.max(0, Math.floor(Number(intake.userId?.classCredits ?? fallbackRemaining)));
+      const totalPackageClasses = Math.min(
+        MAX_PACKAGE_TOTAL_CLASSES,
+        Math.max(1, storedTotalClasses, rawRemainingClassCredits)
       );
+      const remainingClassCredits = Math.min(totalPackageClasses, rawRemainingClassCredits);
 
       return {
         id: intake._id.toString(),
@@ -44,9 +50,9 @@ export async function GET(request) {
         comments: intake.comments || '',
         signatureName: intake.signatureName || '',
         signedAt: intake.signedAt || null,
-        totalPackageClasses: PACKAGE_TOTAL_CLASSES,
+        totalPackageClasses,
         remainingClassCredits,
-        usedPackageClasses: Math.max(0, PACKAGE_TOTAL_CLASSES - remainingClassCredits),
+        usedPackageClasses: Math.max(0, totalPackageClasses - remainingClassCredits),
         createdAt: intake.createdAt,
         updatedAt: intake.updatedAt,
       };
