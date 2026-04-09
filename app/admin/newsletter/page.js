@@ -998,7 +998,7 @@ export default function NewsletterAdminPage() {
                         邮件主题 <span className="text-red-400">*</span>
                       </label>
                       <p className="text-xs text-muted-foreground mb-2">
-                        可用变量：/name/（全名）或 /firstName/（名字）
+                        可用变量：/name/（全名）、/firstName/（名字）、/remainingClasses/（剩余课程）或关键词“剩余课程”
                       </p>
                       <input
                         type="text"
@@ -1016,7 +1016,7 @@ export default function NewsletterAdminPage() {
                         邮件正文 <span className="text-red-400">*</span>
                       </label>
                       <p className="text-xs text-muted-foreground mb-2">
-                        支持个性化变量：/name/、/firstName/、/first name/。也可直接写 "Hi Yuki,"，发送时会自动替换为每位客户的名字。
+                        支持个性化变量：/name/、/firstName/、/first name/、/remainingClasses/（或关键词“剩余课程”）。也可直接写 "Hi Yuki,"，发送时会自动替换为每位客户的名字。
                       </p>
                       <textarea
                         value={customForm.content}
@@ -1393,7 +1393,7 @@ export default function NewsletterAdminPage() {
                     邮件主题 <span className="text-red-400">*</span>
                   </label>
                   <p className="text-xs text-muted-foreground mb-2">
-                    可用变量：/name/（全名）或 /firstName/（名字）
+                    可用变量：/name/（全名）、/firstName/（名字）、/remainingClasses/（剩余课程）或关键词“剩余课程”
                   </p>
                   <input
                     type="text"

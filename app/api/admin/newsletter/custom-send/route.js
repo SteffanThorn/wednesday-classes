@@ -125,6 +125,12 @@ function normalizeSelectedRecipients(selectedRecipients) {
   return [...new Set(selectedRecipients.map((email) => String(email || '').trim().toLowerCase()).filter(Boolean))];
 }
 
+function normalizeRemainingClasses(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.max(0, Math.floor(parsed));
+}
+
 function buildCustomEmailHtml({ userName, content, logoUrl, inlineImages = [], fileAttachments = [] }) {
   const firstName = userName?.split(' ')[0] || 'Friend';
   const paragraphs = content
@@ -270,13 +276,17 @@ export async function POST(request) {
     if (testEmail) {
       recipients = normalizeTestRecipients(testEmail, session.user.name || 'Test User');
     } else if (selectedRecipientEmails.length > 0) {
-      const users = await User.find({ role: 'student', email: { $in: selectedRecipientEmails } }).select('email name').lean();
-      const intakes = await HealthIntake.find({ userEmail: { $in: selectedRecipientEmails } }).select('userEmail userName').lean();
+      const users = await User.find({ role: 'student', email: { $in: selectedRecipientEmails } }).select('email name classCredits').lean();
+      const intakes = await HealthIntake.find({ userEmail: { $in: selectedRecipientEmails } }).select('userEmail userName remainingClassCredits').lean();
 
       const emailMap = new Map();
       users.forEach((u) => {
         if (u.email) {
-          emailMap.set(u.email.toLowerCase(), { email: u.email, name: u.name || 'Student' });
+          emailMap.set(u.email.toLowerCase(), {
+            email: u.email,
+            name: u.name || 'Student',
+            remainingClasses: normalizeRemainingClasses(u.classCredits),
+          });
         }
       });
 
@@ -284,7 +294,11 @@ export async function POST(request) {
         if (i.userEmail) {
           const key = i.userEmail.toLowerCase();
           if (!emailMap.has(key)) {
-            emailMap.set(key, { email: i.userEmail, name: i.userName || 'Student' });
+            emailMap.set(key, {
+              email: i.userEmail,
+              name: i.userName || 'Student',
+              remainingClasses: normalizeRemainingClasses(i.remainingClassCredits),
+            });
           }
         }
       });
@@ -297,13 +311,17 @@ export async function POST(request) {
         return NextResponse.json({ error: 'No valid selected recipients found' }, { status: 400 });
       }
     } else {
-      const users = await User.find({ role: 'student' }).select('email name').lean();
-      const intakes = await HealthIntake.find({}).select('userEmail userName').lean();
+      const users = await User.find({ role: 'student' }).select('email name classCredits').lean();
+      const intakes = await HealthIntake.find({}).select('userEmail userName remainingClassCredits').lean();
 
       const emailMap = new Map();
       users.forEach((u) => {
         if (u.email) {
-          emailMap.set(u.email.toLowerCase(), { email: u.email, name: u.name || 'Student' });
+          emailMap.set(u.email.toLowerCase(), {
+            email: u.email,
+            name: u.name || 'Student',
+            remainingClasses: normalizeRemainingClasses(u.classCredits),
+          });
         }
       });
 
@@ -311,7 +329,11 @@ export async function POST(request) {
         if (i.userEmail) {
           const key = i.userEmail.toLowerCase();
           if (!emailMap.has(key)) {
-            emailMap.set(key, { email: i.userEmail, name: i.userName || 'Student' });
+            emailMap.set(key, {
+              email: i.userEmail,
+              name: i.userName || 'Student',
+              remainingClasses: normalizeRemainingClasses(i.remainingClassCredits),
+            });
           }
         }
       });
@@ -334,8 +356,12 @@ export async function POST(request) {
     const fileAttachments = attachments.filter((f) => !isInlineImage(f));
 
     const emailBatch = recipients.map((recipient) => {
-      const personalizedSubject = personalizeTextForRecipient(subject.trim(), recipient.name);
-      const personalizedContent = personalizeTextForRecipient(content.trim(), recipient.name);
+      const personalizedSubject = personalizeTextForRecipient(subject.trim(), recipient.name, {
+        remainingClasses: recipient.remainingClasses,
+      });
+      const personalizedContent = personalizeTextForRecipient(content.trim(), recipient.name, {
+        remainingClasses: recipient.remainingClasses,
+      });
 
       // Combine inline images and file attachments for Resend
       const allAttachments = [

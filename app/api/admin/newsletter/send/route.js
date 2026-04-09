@@ -93,6 +93,12 @@ function stripChinese(text = '') {
     .trim();
 }
 
+function normalizeRemainingClasses(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.max(0, Math.floor(parsed));
+}
+
 /**
  * POST /api/admin/newsletter/send
  * Send a newsletter campaign to all known students.
@@ -153,23 +159,31 @@ export async function POST(request) {
     } else {
       // Collect from User model (students with accounts)
       const users = await User.find({ role: 'student' })
-        .select('email name')
+        .select('email name classCredits')
         .lean();
 
       // Collect from HealthIntake (may include students without accounts)
       const intakes = await HealthIntake.find({})
-        .select('userEmail userName')
+        .select('userEmail userName remainingClassCredits')
         .lean();
 
       // Merge & deduplicate by email (case-insensitive)
       const emailMap = new Map();
       users.forEach((u) => {
-        emailMap.set(u.email.toLowerCase(), { email: u.email, name: u.name });
+        emailMap.set(u.email.toLowerCase(), {
+          email: u.email,
+          name: u.name,
+          remainingClasses: normalizeRemainingClasses(u.classCredits),
+        });
       });
       intakes.forEach((i) => {
         const key = i.userEmail.toLowerCase();
         if (!emailMap.has(key)) {
-          emailMap.set(key, { email: i.userEmail, name: i.userName });
+          emailMap.set(key, {
+            email: i.userEmail,
+            name: i.userName,
+            remainingClasses: normalizeRemainingClasses(i.remainingClassCredits),
+          });
         }
       });
 
@@ -205,9 +219,15 @@ export async function POST(request) {
 
     // ── Build email batch ────────────────────────────────────────────────────
     const emailBatch = recipients.map((recipient) => {
-      const personalizedSubject = personalizeTextForRecipient(campaign.subject, recipient.name);
-      const personalizedMainContent = personalizeTextForRecipient(campaign.mainContent, recipient.name);
-      const personalizedInstructorNote = personalizeTextForRecipient(campaign.instructorNote, recipient.name);
+      const personalizedSubject = personalizeTextForRecipient(campaign.subject, recipient.name, {
+        remainingClasses: recipient.remainingClasses,
+      });
+      const personalizedMainContent = personalizeTextForRecipient(campaign.mainContent, recipient.name, {
+        remainingClasses: recipient.remainingClasses,
+      });
+      const personalizedInstructorNote = personalizeTextForRecipient(campaign.instructorNote, recipient.name, {
+        remainingClasses: recipient.remainingClasses,
+      });
 
       const newsletterHtml = buildNewsletterHtml({
         userName: recipient.name,
