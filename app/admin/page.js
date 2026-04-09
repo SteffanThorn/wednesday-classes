@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { useLanguage } from '@/hooks/useLanguage';
 import Header from '@/components/Header';
 import FloatingParticles from '@/components/FloatingParticle';
-import { Loader2, CalendarCheck2, TicketPercent, UserPlus, ChevronRight, Users, Mail } from 'lucide-react';
+import { Loader2, CalendarCheck2, TicketPercent, UserPlus, ChevronRight, Users, Mail, UserCog } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -127,7 +127,7 @@ export default function AdminDashboardPage() {
               </p>
             </div>
 
-            <div className="grid md:grid-cols-4 gap-4">
+            <div className="grid md:grid-cols-3 gap-4">
               <Link
                 href="/admin/bookings?view=assisted"
                 className="p-6 rounded-3xl border border-glow-cyan/20 bg-card/60 backdrop-blur-sm 
@@ -189,6 +189,19 @@ export default function AdminDashboardPage() {
                 <div className="flex items-center gap-3">
                   <Mail className="w-5 h-5 text-glow-cyan" />
                   <span className="font-medium">{txt('邮件通讯', 'Newsletter')}</span>
+                </div>
+                <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-glow-cyan transition-colors" />
+              </Link>
+
+              <Link
+                href="/admin/future-customers"
+                className="p-6 rounded-3xl border border-glow-cyan/20 bg-card/60 backdrop-blur-sm 
+                         hover:border-glow-cyan/40 hover:box-glow transition-all duration-500
+                         flex items-center justify-between group"
+              >
+                <div className="flex items-center gap-3">
+                  <UserCog className="w-5 h-5 text-glow-cyan" />
+                  <span className="font-medium">{txt('未来客户名单', 'Future Customer List')}</span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-glow-cyan transition-colors" />
               </Link>

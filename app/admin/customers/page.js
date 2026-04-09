@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import FloatingParticles from '@/components/FloatingParticle';
-import { Loader2, ChevronRight, Eye, Download, UserPlus } from 'lucide-react';
+import { Loader2, ChevronRight, Eye, Download, UserPlus, UserCog } from 'lucide-react';
 
 const PACKAGE_TOTAL_CLASSES = 5;
 
@@ -209,6 +209,13 @@ function AdminCustomersPageContent() {
 							>
 								<UserPlus className="w-4 h-4" />
 								添加客户 / Add Customer
+							</Link>
+							<Link
+								href="/admin/future-customers"
+								className="px-4 py-2 rounded-lg bg-glow-cyan/10 border border-glow-cyan/30 text-glow-cyan hover:bg-glow-cyan/20 flex items-center gap-2 justify-center transition-colors text-sm"
+							>
+								<UserCog className="w-4 h-4" />
+								未来名单 / Future List
 							</Link>
 							<button
 								onClick={downloadCSV}
