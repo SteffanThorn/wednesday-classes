@@ -8,6 +8,17 @@ import FloatingParticles from '@/components/FloatingParticle';
 import Header from '@/components/Header';
 import { Mail, Lock, User, Phone, ArrowRight, AlertCircle, CheckCircle } from 'lucide-react';
 
+const getSigninErrorMessage = (error) => {
+  switch (error) {
+    case 'CredentialsSignin':
+      return 'Account created, but the sign-in details were not accepted. Please try signing in manually.';
+    case 'Configuration':
+      return 'Account created, but sign-in is temporarily unavailable. Please try again shortly.';
+    default:
+      return error || 'Auto login failed, please sign in manually.';
+  }
+};
+
 const SignupPage = () => {
   const router = useRouter();
   const [formData, setFormData] = useState({
@@ -81,7 +92,7 @@ const SignupPage = () => {
       router.push('/');
       router.refresh();
     } catch (err) {
-      setError(err.message || 'Auto login failed, please sign in manually.');
+      setError(getSigninErrorMessage(err.message));
       setAutoLoginLoading(false);
     }
   };

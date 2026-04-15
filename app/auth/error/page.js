@@ -59,8 +59,8 @@ const ErrorContent = () => {
                     Please ensure the following environment variables are set:
                   </p>
                   <ul className="text-yellow-300 text-sm mt-2 ml-4 list-disc">
-                    <li>NEXTAUTH_SECRET</li>
-                    <li>NEXTAUTH_URL</li>
+                    <li>AUTH_SECRET or NEXTAUTH_SECRET</li>
+                    <li>AUTH_URL or NEXTAUTH_URL</li>
                     <li>MONGODB_URI</li>
                   </ul>
                 </div>

@@ -3,8 +3,13 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import dbConnect from '@/lib/mongodb';
 import User from '@/lib/models/User';
 
+const authSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+
 // Get the base URL from environment or use a default for production
 const getBaseUrl = () => {
+  if (process.env.AUTH_URL) {
+    return process.env.AUTH_URL;
+  }
   if (process.env.NEXTAUTH_URL) {
     return process.env.NEXTAUTH_URL;
   }
@@ -18,15 +23,8 @@ const getBaseUrl = () => {
   return 'https://www.innerlight.co.nz';
 };
 
-// Check if required environment variables are set
-const isConfigured = () => {
-  return !!(
-    process.env.NEXTAUTH_SECRET &&
-    (process.env.NEXTAUTH_URL || process.env.VERCEL_URL || process.env.NODE_ENV === 'development')
-  );
-};
-
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  secret: authSecret,
   baseURL: getBaseUrl(),
   providers: [
     CredentialsProvider({
@@ -36,30 +34,35 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          throw new Error('Please enter email and password');
+        try {
+          if (!credentials?.email || !credentials?.password) {
+            return null;
+          }
+
+          await dbConnect();
+
+          const user = await User.findOne({ email: credentials.email.toLowerCase() });
+
+          if (!user?.password) {
+            return null;
+          }
+
+          const isPasswordValid = await user.comparePassword(credentials.password);
+
+          if (!isPasswordValid) {
+            return null;
+          }
+
+          return {
+            id: user._id.toString(),
+            email: user.email,
+            name: user.name,
+            role: user.role,
+          };
+        } catch (error) {
+          console.error('Auth authorize error:', error);
+          return null;
         }
-
-        await dbConnect();
-
-        const user = await User.findOne({ email: credentials.email.toLowerCase() });
-
-        if (!user) {
-          throw new Error('No user found with this email');
-        }
-
-        const isPasswordValid = await user.comparePassword(credentials.password);
-
-        if (!isPasswordValid) {
-          throw new Error('Invalid password');
-        }
-
-        return {
-          id: user._id.toString(),
-          email: user.email,
-          name: user.name,
-          role: user.role,
-        };
       },
     }),
   ],

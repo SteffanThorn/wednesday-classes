@@ -8,6 +8,17 @@ import FloatingParticles from '@/components/FloatingParticle';
 import Header from '@/components/Header';
 import { Mail, Lock, ArrowRight, AlertCircle, CheckCircle } from 'lucide-react';
 
+const getSigninErrorMessage = (error) => {
+  switch (error) {
+    case 'CredentialsSignin':
+      return 'Invalid email or password. Please try again.';
+    case 'Configuration':
+      return 'Sign-in is temporarily unavailable. Please try again shortly.';
+    default:
+      return error || 'Invalid email or password';
+  }
+};
+
 const SigninPage = () => {
   const router = useRouter();
   const [callbackUrl, setCallbackUrl] = useState('/dashboard');
@@ -54,7 +65,7 @@ const SigninPage = () => {
       router.push(destination);
       router.refresh();
     } catch (err) {
-      setError(err.message || 'Invalid email or password');
+      setError(getSigninErrorMessage(err.message));
     } finally {
       setLoading(false);
     }
