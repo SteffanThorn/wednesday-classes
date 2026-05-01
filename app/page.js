@@ -12,6 +12,7 @@ import Header from '@/components/Header';
 import BookingModal from '@/components/BookingModal';
 import YogaBenefitsColumn from '@/components/YogaBenefitsColumn';
 import TeacherStoryColumn from '@/components/TeacherStoryColumn';
+import ArticleSection from '@/components/ArticleSection';
 // import TestimonialsColumn from '@/components/TestimonialsColumn'; // Temporarily disabled - confirming with students
 import { useLanguage } from '@/hooks/useLanguage';
 
@@ -82,7 +83,7 @@ const Index = () => {
             </div>
 
             {/* Book a Class CTA - opens booking modal with day selection */}
-            <div className="mt-8 flex items-center justify-center animate-fade-in-up animation-delay-500">
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-4 animate-fade-in-up animation-delay-500">
               <button
                 type="button"
                 onClick={() => setIsBookingModalOpen(true)}
@@ -94,6 +95,14 @@ const Index = () => {
               >
                 Book a Class
               </button>
+
+              <Link
+                href="/blog"
+                className="px-8 py-3 rounded-full border border-glow-purple/30 text-glow-subtle
+                           hover:bg-glow-purple/10 hover:border-glow-purple/50 transition-all duration-300"
+              >
+                {language === 'zh' ? '阅读 Blog' : 'Read the Blog'}
+              </Link>
             </div>
           </div>
         </section>
@@ -124,6 +133,37 @@ const Index = () => {
 
         {/* Testimonials Section - Temporarily disabled */}
         {/* <TestimonialsColumn /> */}
+
+        {/* Blog Section */}
+        <section id="blog" className="px-6 py-8 md:py-16">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-4 animate-fade-in-up">
+              <h2 className="font-display text-3xl md:text-4xl text-glow-subtle mb-3">
+                {language === 'zh' ? 'Blog 博客' : 'Blog'}
+              </h2>
+              <p className="text-muted-foreground max-w-2xl mx-auto">
+                {language === 'zh'
+                  ? '阅读最新的瑜伽、疗愈与身心平衡文章。'
+                  : 'Read the latest reflections on yoga, healing, and mindful living.'}
+              </p>
+            </div>
+
+            <ArticleSection
+              title={language === 'zh' ? '最新文章' : 'Latest Posts'}
+              maxItems={3}
+              showEmptyState={true}
+            />
+
+            <div className="text-center mt-2">
+              <Link
+                href="/blog"
+                className="inline-flex items-center px-6 py-3 rounded-full bg-glow-cyan/10 border border-glow-cyan/30 text-glow-cyan hover:bg-glow-cyan/20 transition-all duration-300"
+              >
+                {language === 'zh' ? '查看全部文章' : 'View all posts'}
+              </Link>
+            </div>
+          </div>
+        </section>
 
         {/* CTA Section */}
         <section className="px-6 py-16">

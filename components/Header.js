@@ -65,6 +65,15 @@ const Header = () => {
             {mounted ? (t('classes') || 'Classes') : 'Classes'}
           </Link>
 
+          {/* Blog Link */}
+          <Link
+            href="/blog"
+            className="text-sm text-muted-foreground hover:text-glow-cyan 
+                     transition-colors duration-300 tracking-wide"
+          >
+            Blog
+          </Link>
+
           {/* Privacy Policy Link */}
           <Link
             href="/privacy"
@@ -99,6 +108,14 @@ const Header = () => {
                     onClick={() => setIsAdminDropdownOpen(false)}
                   >
                     Admin Dashboard
+                  </Link>
+                  <Link
+                    href="/admin/articles?new=true"
+                    className="block px-4 py-2 text-sm text-foreground hover:bg-glow-cyan/10 
+                             transition-colors"
+                    onClick={() => setIsAdminDropdownOpen(false)}
+                  >
+                    Write New Blog
                   </Link>
                 </div>
               )}

@@ -1,9 +1,10 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useLanguage } from '@/hooks/useLanguage';
-import { Plus, Trash2, Edit2, Save, X, Lock, Loader2, BookOpen } from 'lucide-react';
+import { Plus, Trash2, Edit2, Save, X, Lock, Loader2, BookOpen, Archive, Clock3, FilePenLine } from 'lucide-react';
 
 const ADMIN_PASSWORD = 'yuki123';
 
@@ -22,12 +23,15 @@ const AVAILABLE_TAGS = [
 
 export default function AdminArticlesPage() {
   const { t, mounted, language } = useLanguage();
+  const searchParams = useSearchParams();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
   const [articles, setArticles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [viewMode, setViewMode] = useState('all');
+  const [sortOrder, setSortOrder] = useState('oldest');
   
   // Form state
   const [showForm, setShowForm] = useState(false);
@@ -38,7 +42,8 @@ export default function AdminArticlesPage() {
     contentEn: '',
     contentZh: '',
     tags: [],
-    category: 'general'
+    category: 'general',
+    status: 'draft'
   });
 
   // Load articles on mount
@@ -69,11 +74,13 @@ export default function AdminArticlesPage() {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (e, status = 'published') => {
+    if (e) e.preventDefault();
     setIsSaving(true);
 
     try {
+      const originalArticle = editingId ? articles.find(a => a.id === editingId) : null;
+
       const newArticle = {
         id: editingId || Date.now().toString(),
         title: {
@@ -86,9 +93,9 @@ export default function AdminArticlesPage() {
         },
         tags: formData.tags,
         category: formData.category,
-        createdAt: editingId 
-          ? articles.find(a => a.id === editingId)?.createdAt 
-          : new Date().toISOString(),
+        status,
+        createdAt: originalArticle?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         author: 'Yuki'
       };
 
@@ -96,7 +103,7 @@ export default function AdminArticlesPage() {
       if (editingId) {
         updatedArticles = articles.map(a => a.id === editingId ? newArticle : a);
       } else {
-        updatedArticles = [newArticle, ...articles];
+        updatedArticles = [...articles, newArticle];
       }
 
       const saveResponse = await fetch('/api/admin/articles', {
@@ -107,7 +114,10 @@ export default function AdminArticlesPage() {
 
       if (saveResponse.ok) {
         setArticles(updatedArticles);
-        setMessage({ type: 'success', text: 'Article saved successfully!' });
+        setMessage({
+          type: 'success',
+          text: status === 'draft' ? 'Draft saved successfully!' : 'Blog published successfully!'
+        });
         resetForm();
       } else {
         throw new Error('Failed to save');
@@ -152,7 +162,8 @@ export default function AdminArticlesPage() {
       contentEn: article.content?.en || '',
       contentZh: article.content?.zh || '',
       tags: article.tags || [],
-      category: article.category || 'general'
+      category: article.category || 'general',
+      status: article.status || 'published'
     });
     setEditingId(article.id);
     setShowForm(true);
@@ -165,7 +176,8 @@ export default function AdminArticlesPage() {
       contentEn: '',
       contentZh: '',
       tags: [],
-      category: 'general'
+      category: 'general',
+      status: 'draft'
     });
     setEditingId(null);
     setShowForm(false);
@@ -179,6 +191,51 @@ export default function AdminArticlesPage() {
         : [...prev.tags, tagValue]
     }));
   };
+
+  const getStatus = (article) => article.status || 'published';
+
+  const displayedArticles = useMemo(() => {
+    const filtered = articles.filter((article) => {
+      const status = getStatus(article);
+      if (viewMode === 'drafts') return status === 'draft';
+      if (viewMode === 'published') return status === 'published';
+      return true;
+    });
+
+    return filtered.sort((a, b) => {
+      const aTime = new Date(a.createdAt || 0).getTime();
+      const bTime = new Date(b.createdAt || 0).getTime();
+      return sortOrder === 'oldest' ? aTime - bTime : bTime - aTime;
+    });
+  }, [articles, sortOrder, viewMode]);
+
+  const draftCount = articles.filter((article) => getStatus(article) === 'draft').length;
+
+  useEffect(() => {
+    if (!isAuthenticated || isLoading) return;
+
+    const requestedView = searchParams.get('view');
+    const newFlag = searchParams.get('new');
+    const editId = searchParams.get('edit');
+
+    if (requestedView === 'drafts') {
+      setViewMode('drafts');
+    } else if (requestedView === 'published') {
+      setViewMode('published');
+    }
+
+    if (newFlag === 'true' && !showForm) {
+      resetForm();
+      setShowForm(true);
+    }
+
+    if (editId) {
+      const articleToEdit = articles.find((article) => String(article.id) === String(editId));
+      if (articleToEdit && editingId !== articleToEdit.id) {
+        handleEdit(articleToEdit);
+      }
+    }
+  }, [searchParams, articles, isAuthenticated, isLoading, showForm, editingId]);
 
   // Login screen
   if (!isAuthenticated) {
@@ -251,10 +308,10 @@ export default function AdminArticlesPage() {
           </div>
           <div className="flex items-center gap-4">
             <a 
-              href="/ayurveda" 
+              href="/blog" 
               className="text-sm text-muted-foreground hover:text-glow-cyan transition-colors"
             >
-              {mounted ? '查看前台' : 'View Site'}
+              {mounted ? '查看博客前台' : 'View Blog'}
             </a>
             <button
               onClick={() => setIsAuthenticated(false)}
@@ -275,18 +332,44 @@ export default function AdminArticlesPage() {
         )}
 
         {/* Actions */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
           <p className="text-muted-foreground">
-            {articles.length} {mounted ? '篇文章' : 'articles'}
+            {displayedArticles.length} {mounted ? '篇内容' : 'items'}
           </p>
-          <button
-            onClick={() => { resetForm(); setShowForm(true); }}
-            className="flex items-center gap-2 px-6 py-3 rounded-full bg-glow-cyan/10 border border-glow-cyan/30 
-                     text-glow-cyan hover:bg-glow-cyan/20 hover:box-glow transition-all duration-300"
-          >
-            <Plus className="w-4 h-4" />
-            {mounted ? '添加文章' : 'Add Article'}
-          </button>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => { resetForm(); setShowForm(true); }}
+              className="flex items-center gap-2 px-6 py-3 rounded-full bg-glow-cyan/10 border border-glow-cyan/30 
+                       text-glow-cyan hover:bg-glow-cyan/20 hover:box-glow transition-all duration-300"
+            >
+              <FilePenLine className="w-4 h-4" />
+              {mounted ? '写新的Blog' : 'Write New Blog'}
+            </button>
+
+            <button
+              onClick={() => setViewMode(viewMode === 'drafts' ? 'all' : 'drafts')}
+              className={`flex items-center gap-2 px-5 py-3 rounded-full border transition-all duration-300 ${
+                viewMode === 'drafts'
+                  ? 'bg-glow-purple/20 border-glow-purple/40 text-glow-subtle'
+                  : 'bg-muted/20 border-border/30 text-muted-foreground hover:border-glow-purple/30'
+              }`}
+            >
+              <Archive className="w-4 h-4" />
+              {mounted ? `草稿箱 (${draftCount})` : `Draft Box (${draftCount})`}
+            </button>
+
+            <button
+              onClick={() => setSortOrder(sortOrder === 'oldest' ? 'newest' : 'oldest')}
+              className="flex items-center gap-2 px-5 py-3 rounded-full bg-muted/20 border border-border/30 
+                       text-muted-foreground hover:border-glow-cyan/30 transition-all duration-300"
+            >
+              <Clock3 className="w-4 h-4" />
+              {sortOrder === 'oldest'
+                ? (mounted ? '日期：从远到近' : 'Date: Oldest to Newest')
+                : (mounted ? '日期：从近到远' : 'Date: Newest to Oldest')}
+            </button>
+          </div>
         </div>
 
         {/* Form */}
@@ -301,7 +384,7 @@ export default function AdminArticlesPage() {
               </button>
             </div>
             
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={(e) => handleSubmit(e, 'published')} className="space-y-4">
               {/* Title */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -409,7 +492,27 @@ export default function AdminArticlesPage() {
               </div>
               
               {/* Buttons */}
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={(e) => handleSubmit(e, 'draft')}
+                  className="flex items-center gap-2 px-6 py-3 rounded-full bg-glow-purple/10 border border-glow-purple/30 
+                           text-glow-subtle hover:bg-glow-purple/20 transition-all duration-300 disabled:opacity-50"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      {mounted ? '保存中...' : 'Saving...'}
+                    </>
+                  ) : (
+                    <>
+                      <Archive className="w-4 h-4" />
+                      {mounted ? '存入草稿箱' : 'Save to Drafts'}
+                    </>
+                  )}
+                </button>
+
                 <button
                   type="submit"
                   disabled={isSaving}
@@ -420,15 +523,16 @@ export default function AdminArticlesPage() {
                   {isSaving ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      {mounted ? '保存中...' : 'Saving...'}
+                      {mounted ? '发布中...' : 'Publishing...'}
                     </>
                   ) : (
                     <>
                       <Save className="w-4 h-4" />
-                      {mounted ? '保存文章' : 'Save Article'}
+                      {mounted ? '发布Blog' : 'Publish Blog'}
                     </>
                   )}
                 </button>
+
                 <button
                   type="button"
                   onClick={resetForm}
@@ -444,21 +548,28 @@ export default function AdminArticlesPage() {
 
         {/* Articles List */}
         <div className="space-y-4">
-          {articles.length === 0 ? (
+          {displayedArticles.length === 0 ? (
             <div className="text-center py-16 px-6 rounded-2xl bg-card/40 border border-dashed border-border/40">
               <p className="text-muted-foreground">
-                {mounted ? '暂无文章，点击添加文章' : 'No articles yet. Click "Add Article" to create one.'}
+                {viewMode === 'drafts'
+                  ? (mounted ? '草稿箱目前为空' : 'The draft box is currently empty.')
+                  : (mounted ? '暂无Blog，点击“写新的Blog”开始' : 'No blog posts yet. Click “Write New Blog” to begin.')}
               </p>
             </div>
           ) : (
-            articles.map((article) => (
+            displayedArticles.map((article) => (
               <div
                 key={article.id}
                 className="p-4 rounded-xl bg-card border border-border/40 flex items-start justify-between gap-4"
               >
                 <div className="flex-1 min-w-0">
-                  {/* Tags */}
-                  <div className="flex flex-wrap gap-1 mb-2">
+                  <div className="flex flex-wrap gap-2 mb-2 items-center">
+                    <span className={`px-2 py-0.5 rounded text-xs ${getStatus(article) === 'draft' ? 'bg-glow-purple/10 text-glow-subtle' : 'bg-green-500/10 text-green-400'}`}>
+                      {getStatus(article) === 'draft'
+                        ? (mounted ? '草稿' : 'Draft')
+                        : (mounted ? '已发布' : 'Published')}
+                    </span>
+
                     {article.tags?.map(tag => {
                       const tagInfo = AVAILABLE_TAGS.find(t => t.value === tag);
                       return (
@@ -475,6 +586,9 @@ export default function AdminArticlesPage() {
                   <h3 className="font-display text-lg text-glow-subtle mb-1">
                     {language === 'zh' ? (article.title?.zh || article.title?.en) : (article.title?.en || article.title?.zh)}
                   </h3>
+                  <p className="text-xs text-muted-foreground/70 mb-2">
+                    {mounted ? '日期' : 'Date'}: {article.createdAt ? new Date(article.createdAt).toLocaleDateString(language === 'zh' ? 'zh-CN' : 'en-US') : '-'}
+                  </p>
                   <p className="text-sm text-muted-foreground truncate">
                     {language === 'zh' ? (article.content?.zh || article.content?.en) : (article.content?.en || article.content?.zh)}
                   </p>

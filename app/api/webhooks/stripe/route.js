@@ -4,7 +4,12 @@ import Stripe from 'stripe';
 import dbConnect from '@/lib/mongodb';
 import Booking from '@/lib/models/Booking';
 import User from '@/lib/models/User';
-import { sendBookingConfirmationEmail, sendPaymentFailedEmail, sendRefundEmail } from '@/lib/email';
+import {
+  sendAdminNewBookingNotification,
+  sendBookingConfirmationEmail,
+  sendPaymentFailedEmail,
+  sendRefundEmail,
+} from '@/lib/email';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -445,6 +450,16 @@ async function handleCheckoutSessionCompleted(session) {
         preferredLanguage: bookingUser?.preferredLanguage || 'en',
       }))
       .catch(err => console.error('Failed to send booking confirmation email:', err));
+
+    sendAdminNewBookingNotification({
+      bookingId: booking._id.toString(),
+      userName: booking.userName,
+      userEmail: booking.userEmail,
+      className: booking.className,
+      classDate: formattedDate,
+      classTime: booking.classTime,
+      amount: booking.amount,
+    }).catch(err => console.error('Failed to send admin booking notification email:', err));
     
     console.log(`   Booking ${booking._id} confirmed`);
   }
