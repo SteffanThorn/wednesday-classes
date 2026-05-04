@@ -9,12 +9,11 @@ import { inferDayFromClassName, getClassNameForDay, getClassTimeForDay } from '@
 const DEFAULT_CLASS_LOCATION = 'Village Valley Centre, Ashhurst';
 const SLOT_ORDER = {
   'wednesday-morning': 1,
-  'wednesday-evening': 2,
-  'thursday-evening': 3,
+  'thursday-evening': 2,
 };
 
 function getScheduleKeysForWeekday(weekday) {
-  if (weekday === 3) return ['wednesday-morning', 'wednesday-evening'];
+  if (weekday === 3) return ['wednesday-morning'];
   if (weekday === 4) return ['thursday-evening'];
   return [];
 }
@@ -87,19 +86,6 @@ function getScheduleKey(booking) {
   }
 
   if (
-    weekday === 3 &&
-    (
-      classTime.includes('6:00') ||
-      classTime.includes('18:00') ||
-      compactTime.includes('6pm') ||
-      compactTime.includes('6:00pm') ||
-      compactTime.includes('18:00')
-    )
-  ) {
-    return 'wednesday-evening';
-  }
-
-  if (
     weekday === 4 &&
     (
       classTime.includes('5:30') ||
@@ -146,10 +132,6 @@ function getSlotLabels(scheduleKey, classDate, fallbackTime) {
     'wednesday-morning': {
       zh: `${weekDayZhMap[weekDayIndex]}${toZhTime(getClassTimeForDay('wednesday-morning'))}`,
       en: `${weekDayEnMap[weekDayIndex]} ${getClassTimeForDay('wednesday-morning')}`,
-    },
-    'wednesday-evening': {
-      zh: `${weekDayZhMap[weekDayIndex]}${toZhTime(getClassTimeForDay('wednesday-evening'))}`,
-      en: `${weekDayEnMap[weekDayIndex]} ${getClassTimeForDay('wednesday-evening')}`,
     },
     'thursday-evening': {
       zh: `${weekDayZhMap[weekDayIndex]}${toZhTime(getClassTimeForDay('thursday-evening'))}`,
