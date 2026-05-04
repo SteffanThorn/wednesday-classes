@@ -1281,7 +1281,6 @@ export default function NewsletterAdminPage() {
                             {week.classSummaries.slice(0, 3).map((item, idx) => {
                               const dotColor =
                                 item.slot === 'Wed 9:15'  ? 'bg-orange-400' :
-                                item.slot === 'Wed 18:00' ? 'bg-glow-purple' :
                                 item.slot === 'Thu 17:30' ? 'bg-glow-teal' : 'bg-white/30';
                               return (
                                 <p key={`${week.week}-${item.slot}-${idx}`} className="flex items-center gap-1.5 text-[11px] text-muted-foreground/75 leading-snug">
@@ -1354,7 +1353,6 @@ export default function NewsletterAdminPage() {
                         {selectedWeek.classSummaries.map((item, idx) => {
                           const accentColor =
                             item.slot === 'Wed 9:15'  ? 'text-orange-400 border-orange-400/40 bg-orange-400/10' :
-                            item.slot === 'Wed 18:00' ? 'text-glow-purple border-glow-purple/40 bg-glow-purple/10' :
                             item.slot === 'Thu 17:30' ? 'text-glow-teal border-glow-teal/40 bg-glow-teal/10' : 'text-muted-foreground';
                           return (
                             <div key={`summary-${selectedWeek.week}-${item.slot}-${idx}`}

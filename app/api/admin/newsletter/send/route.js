@@ -397,7 +397,6 @@ function buildNewsletterHtml({
   // Color config per slot
   const SLOT_STYLES = {
     'Wed 9:15':  { icon: '☀️', accent: '#f97316', bg: '#fff7ed', border: '#fed7aa', label: 'Morning · Pain Relief',   labelColor: '#c2410c' },
-    'Wed 18:00': { icon: '🌙', accent: '#9333ea', bg: '#faf5ff', border: '#e9d5ff', label: 'Evening · Breathwork',     labelColor: '#7e22ce' },
     'Thu 17:30': { icon: '🌿', accent: '#0d9488', bg: '#f0fdfa', border: '#99f6e4', label: 'Thursday · Alignment',     labelColor: '#0f766e' },
   };
 
@@ -407,7 +406,7 @@ function buildNewsletterHtml({
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 28px;">
       <tr><td style="padding-bottom: 10px;">
         <p style="margin: 0; color: #374151; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700;">
-          This Week · All Three Classes
+          This Week · Both Classes
         </p>
       </td></tr>
       ${classSummaries
