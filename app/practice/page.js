@@ -148,7 +148,7 @@ const PracticePage = () => {
             name: 'Functional Integrative Yoga',
             location: 'Village Valley Centre, Ashhurst',
             price: 15,
-            time: '6:00 PM'
+            time: '9:15 AM'
           }}
           selectedDates={[(() => {
             const next = new Date();

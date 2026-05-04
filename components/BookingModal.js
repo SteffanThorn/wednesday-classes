@@ -277,7 +277,7 @@ export default function BookingModal({
   isOpen, 
   onClose, 
   classDetails,
-  dayOfWeek = null, // null means allow user to select: 'wednesday-morning', 'wednesday-evening', or 'thursday-evening'
+  dayOfWeek = null, // null means allow user to select: 'wednesday-morning' or 'thursday-evening'
   preselectedDate = '',
   language = 'en' 
 }) {
@@ -305,7 +305,7 @@ export default function BookingModal({
   const DATES_PER_PAGE = 4;
   
   // Day selection state (for homepage)
-  const [selectedDay, setSelectedDay] = useState(dayOfWeek || 'wednesday-evening');
+  const [selectedDay, setSelectedDay] = useState(dayOfWeek || 'wednesday-morning');
 
   // Health intake gate
   const [showIntakeForm, setShowIntakeForm] = useState(false);
@@ -807,13 +807,6 @@ export default function BookingModal({
                   timeZh: '9:15AM',
                   dayEn: 'Wednesday',
                   timeEn: '9:15 AM',
-                },
-                {
-                  key: 'wednesday-evening',
-                  dayZh: '周三',
-                  timeZh: '6PM',
-                  dayEn: 'Wednesday',
-                  timeEn: '6:00 PM',
                 },
                 {
                   key: 'thursday-evening',

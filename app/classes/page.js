@@ -16,13 +16,6 @@ const WED_MORNING_CLASS = {
   price: 15
 };
 
-const WED_EVENING_CLASS = {
-  name: 'Functional Integrative Yoga',
-  time: '6:00 PM',
-  location: 'Village Valley Centre, Ashhurst',
-  price: 15
-};
-
 const THU_EVENING_CLASS = {
   name: 'Functional Integrative Yoga',
   time: '5:30 PM',
@@ -33,7 +26,6 @@ const THU_EVENING_CLASS = {
 const ClassesPage = () => {
   const { t, mounted } = useLanguage();
   const [isWedMorningModalOpen, setIsWedMorningModalOpen] = useState(false);
-  const [isWedEveningModalOpen, setIsWedEveningModalOpen] = useState(false);
   const [isThuEveningModalOpen, setIsThuEveningModalOpen] = useState(false);
   
   // Motherscope waitlist state
@@ -135,26 +127,6 @@ const ClassesPage = () => {
                   onClick={(e) => {
                     e.preventDefault();
                     setIsWedMorningModalOpen(true);
-                  }}
-                />
-              </div>
-
-              {/* Wednesday 6 PM */}
-              <div className="relative group cursor-pointer" onClick={() => setIsWedEveningModalOpen(true)}>
-                <ClassCard
-                  icon={Zap}
-                  titleEn="Nervous System Reset & Breathwork Series"
-                  titleZh="Nervous System Reset & Breathwork Series"
-                  descriptionEn={'Wednesday 6:00 PM\nNervous System Reset & Breathwork Series'}
-                  descriptionZh={'每周三晚上6点\nNervous System Reset & Breathwork Series'}
-                  duration="60 min"
-                  level="Beginner"
-                  price="$15/class · 5 for $65"
-                  additionalInfo="B.Y.O mat"
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setIsWedEveningModalOpen(true);
                   }}
                 />
               </div>
@@ -302,14 +274,6 @@ const ClassesPage = () => {
         onClose={() => setIsWedMorningModalOpen(false)}
         classDetails={WED_MORNING_CLASS}
         dayOfWeek="wednesday-morning"
-      />
-
-      {/* Wednesday 6 PM Booking Modal */}
-      <BookingModal
-        isOpen={isWedEveningModalOpen}
-        onClose={() => setIsWedEveningModalOpen(false)}
-        classDetails={WED_EVENING_CLASS}
-        dayOfWeek="wednesday-evening"
       />
 
       {/* Thursday 5:30 PM Booking Modal */}

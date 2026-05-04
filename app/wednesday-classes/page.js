@@ -26,7 +26,7 @@ function getNextWednesday() {
 const WEDNESDAY_CLASS = {
   name: 'Functional Integrative Yoga',
   date: getNextWednesday(), // Dynamically calculated
-  time: '6:00 PM',
+  time: '9:15 AM',
   location: 'Village Valley Centre, Ashhurst',
   price: 15
 };
@@ -86,7 +86,7 @@ function WednesdayClassesPageContent() {
 
     if (day === 3) {
       if (adminClassTime.includes('9:15')) return 'wednesday-morning';
-      return 'wednesday-evening';
+      return 'wednesday-morning';
     }
 
     if (day === 4) {
@@ -175,7 +175,6 @@ function WednesdayClassesPageContent() {
                 <Calendar className="w-4 h-4 text-glow-cyan" />
                 <div className="text-sm leading-tight">
                   <div>Wed · 9:15 AM · Functional Pain Relief Series</div>
-                  <div>Wed · 6:00 PM · Nervous System Reset &amp; Breathwork Series</div>
                   <div>Thu · 5:30 PM · Structural Alignment &amp; Deep Mobility Series</div>
                 </div>
               </div>
@@ -198,7 +197,7 @@ function WednesdayClassesPageContent() {
               <p className="text-center text-sm text-muted-foreground mb-6">
                 {mounted ? (language === 'zh' ? '选择你喜欢的课程时段' : 'Choose your preferred class time') : 'Choose your preferred class time'}
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
                 {/* ── Wednesday 9:15 AM — Warm Coral (Pain Relief) ── */}
                 <button
@@ -223,33 +222,6 @@ function WednesdayClassesPageContent() {
                   </div>
                   <div className="pt-3 border-t border-warm-coral/20 flex items-center justify-between">
                     <span className="text-[11px] text-warm-coral/60">{mounted ? (language === 'zh' ? '点击预约 →' : 'Book →') : 'Book →'}</span>
-                    <span className="text-[11px] text-muted-foreground/50">60 min</span>
-                  </div>
-                </button>
-
-                {/* ── Wednesday 6:00 PM — Purple (Breathwork) ── */}
-                <button
-                  onClick={() => { setSelectedDay('wednesday-evening'); setIsBookingModalOpen(true); }}
-                  className="group relative p-6 rounded-2xl border-2 border-glow-purple/30 bg-card/60 hover:bg-glow-purple/5 hover:border-glow-purple/60 transition-all duration-300 text-left overflow-hidden"
-                >
-                  {/* Top accent bar */}
-                  <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl bg-gradient-to-r from-glow-purple/60 to-glow-purple/20" />
-                  <div className="flex items-start justify-between mb-4 mt-1">
-                    <span className="text-2xl">🌙</span>
-                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-glow-purple/15 text-glow-purple border border-glow-purple/30 font-medium">
-                      {mounted ? (language === 'zh' ? '晚课' : 'Evening') : 'Evening'}
-                    </span>
-                  </div>
-                  <div className="mb-3">
-                    <p className="text-xs font-medium text-glow-purple/70 mb-0.5">Wednesday</p>
-                    <p className="text-3xl font-display text-glow-purple font-light">6:00 PM</p>
-                  </div>
-                  <div className="space-y-1.5 mb-4">
-                    <p className="text-xs font-semibold text-foreground">Nervous System Reset</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed">Calm the mind · Regulate stress · Breathwork</p>
-                  </div>
-                  <div className="pt-3 border-t border-glow-purple/20 flex items-center justify-between">
-                    <span className="text-[11px] text-glow-purple/60">{mounted ? (language === 'zh' ? '点击预约 →' : 'Book →') : 'Book →'}</span>
                     <span className="text-[11px] text-muted-foreground/50">60 min</span>
                   </div>
                 </button>
@@ -379,10 +351,6 @@ function WednesdayClassesPageContent() {
                     <div className="mb-2">
                       <p className="text-muted-foreground">Wednesdays · 9:15 AM · 60 minutes</p>
                       <p className="text-xs text-glow-purple">Functional Pain Relief Series</p>
-                    </div>
-                    <div className="mb-2">
-                      <p className="text-muted-foreground">Wednesdays · 6:00 PM · 60 minutes</p>
-                      <p className="text-xs text-glow-purple">Nervous System Reset &amp; Breathwork Series</p>
                     </div>
                   <div className="mt-2">
                     <p className="text-muted-foreground">Thursdays · 5:30 PM · 60 minutes</p>
@@ -518,7 +486,7 @@ function WednesdayClassesPageContent() {
           isOpen={isBookingModalOpen}
           onClose={() => setIsBookingModalOpen(false)}
           classDetails={WEDNESDAY_CLASS}
-          dayOfWeek={adminPreferredDayOfWeek || selectedDay || 'wednesday-evening'}
+          dayOfWeek={adminPreferredDayOfWeek || selectedDay || 'wednesday-morning'}
           preselectedDate={adminClassDate || ''}
           language={mounted ? language : 'en'}
         />
