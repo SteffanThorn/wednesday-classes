@@ -87,14 +87,22 @@ const Index = () => {
               <button
                 type="button"
                 onClick={() => setIsBookingModalOpen(true)}
-                className="px-8 py-3 bg-gradient-to-r from-glow-cyan/20 to-glow-purple/20 
+                className="px-8 py-3 bg-gradient-to-r from-glow-cyan/20 to-glow-purple/20
                              border border-glow-cyan/30 rounded-full text-foreground
-                             hover:from-glow-cyan/30 hover:to-glow-purple/30 
+                             hover:from-glow-cyan/30 hover:to-glow-purple/30
                              hover:border-glow-cyan/50 transition-all duration-300
                              hover:shadow-lg hover:shadow-glow-cyan/20"
               >
                 Book a Class
               </button>
+
+              <Link
+                href="/survey"
+                className="px-8 py-3 rounded-full border border-glow-purple/30 text-glow-subtle
+                           hover:bg-glow-purple/10 hover:border-glow-purple/50 transition-all duration-300"
+              >
+                {language === 'zh' ? '新学员问卷' : 'New Student Survey'}
+              </Link>
 
               <Link
                 href="/blog"
