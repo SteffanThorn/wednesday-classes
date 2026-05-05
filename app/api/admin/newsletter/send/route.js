@@ -1,6 +1,4 @@
 import { NextResponse } from 'next/server';
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
 import { auth } from '@/auth';
 import { Resend } from 'resend';
 import dbConnect from '@/lib/mongodb';
@@ -49,21 +47,6 @@ function withResendGuidance(message) {
     return `${message} Current sender: ${SENDER_EMAIL}. Please verify this sender domain in Resend and set EMAIL_FROM_PRODUCTION to that verified domain sender.`;
   }
   return message;
-}
-
-async function loadCompanyLogoAttachment() {
-  try {
-    const logoPath = path.join(process.cwd(), 'public', 'innerlight-logo.png');
-    const logoBuffer = await readFile(logoPath);
-    return {
-      filename: 'innerlight-logo.png',
-      content: logoBuffer,
-      contentId: COMPANY_LOGO_CID,
-    };
-  } catch (error) {
-    console.warn('Newsletter logo attachment not loaded, fallback to URL logo:', error?.message || error);
-    return null;
-  }
 }
 
 function normalizeTestRecipients(testEmail, fallbackName) {
@@ -215,8 +198,6 @@ export async function POST(request) {
       );
     }
 
-    const logoAttachment = await loadCompanyLogoAttachment();
-
     // ── Build email batch ────────────────────────────────────────────────────
     const emailBatch = recipients.map((recipient) => {
       const personalizedSubject = personalizeTextForRecipient(campaign.subject, recipient.name, {
@@ -250,7 +231,6 @@ export async function POST(request) {
         subject: personalizedSubject,
         html: appendBrandLogo(newsletterHtml),
         replyTo: COMPANY_EMAIL,
-        attachments: logoAttachment ? [logoAttachment] : undefined,
       };
     });
 
