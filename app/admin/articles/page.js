@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { Suspense, useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useLanguage } from '@/hooks/useLanguage';
 import { Plus, Trash2, Edit2, Save, X, Lock, Loader2, BookOpen, Archive, Clock3, FilePenLine } from 'lucide-react';
@@ -21,7 +21,7 @@ const AVAILABLE_TAGS = [
   { value: 'wellness', label: 'Wellness', labelZh: '养生' },
 ];
 
-export default function AdminArticlesPage() {
+function AdminArticlesContent() {
   const { t, mounted, language } = useLanguage();
   const searchParams = useSearchParams();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -615,6 +615,14 @@ export default function AdminArticlesPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function AdminArticlesPage() {
+  return (
+    <Suspense>
+      <AdminArticlesContent />
+    </Suspense>
   );
 }
 
