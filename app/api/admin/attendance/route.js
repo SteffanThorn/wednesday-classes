@@ -18,6 +18,17 @@ function getScheduleKeysForWeekday(weekday) {
   return [];
 }
 
+function getCurrentMonthRange() {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  monthStart.setHours(0, 0, 0, 0);
+
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  monthEnd.setHours(23, 59, 59, 999);
+
+  return { monthStart, monthEnd };
+}
+
 function getBookingPriority(booking = {}) {
   const status = String(booking.status || '').toLowerCase();
   const paymentStatus = String(booking.paymentStatus || '').toLowerCase();
@@ -281,9 +292,26 @@ export async function GET(request) {
       existing.labelEn = existing.labelEn || labelEn;
     });
 
-    const todayKey = toDateKey(new Date());
+    const today = new Date();
+    const todayKey = toDateKey(today);
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth() + 1;
+
+    const getYearMonth = (dateKey = '') => {
+      const [year, month] = String(dateKey).split('-').map(Number);
+      return { year, month };
+    };
 
     const sortSessions = (a, b) => {
+      const aYM = getYearMonth(a.classDate);
+      const bYM = getYearMonth(b.classDate);
+      const aIsCurrentMonth = aYM.year === currentYear && aYM.month === currentMonth;
+      const bIsCurrentMonth = bYM.year === currentYear && bYM.month === currentMonth;
+
+      if (aIsCurrentMonth !== bIsCurrentMonth) {
+        return aIsCurrentMonth ? -1 : 1;
+      }
+
       const aIsUpcoming = a.classDate >= todayKey;
       const bIsUpcoming = b.classDate >= todayKey;
 
@@ -444,7 +472,6 @@ export async function GET(request) {
 
     // Keep today's standard class slots visible so on-site staff can take attendance
     // even when there are no pre-bookings yet (e.g. walk-in heavy sessions).
-    const today = new Date();
     const todayDateKey = toDateKey(today);
     const todayWeekday = today.getDay();
     const todayScheduleKeys = getScheduleKeysForWeekday(todayWeekday);
@@ -471,6 +498,42 @@ export async function GET(request) {
         noShowCount: 0,
       });
     });
+
+    // Keep all regular class slots in the current month visible in the picker,
+    // even if there are no bookings for those dates yet.
+    const { monthStart, monthEnd } = getCurrentMonthRange();
+    const cursor = new Date(monthStart);
+
+    while (cursor <= monthEnd) {
+      const weekday = cursor.getDay();
+      const scheduleKeys = getScheduleKeysForWeekday(weekday);
+
+      scheduleKeys.forEach((scheduleKey) => {
+        const classDate = toDateKey(cursor);
+        const classTime = getClassTimeForDay(scheduleKey);
+        const key = `${classDate}|${classTime}`;
+        if (sessionsByKey.has(key)) return;
+
+        const { labelZh, labelEn } = getSlotLabels(scheduleKey, classDate, classTime);
+
+        sessionsByKey.set(key, {
+          key,
+          classDate,
+          classTime,
+          className: getClassNameForDay(scheduleKey),
+          scheduleKey,
+          location: DEFAULT_CLASS_LOCATION,
+          label: `${classDate} · ${classTime}`,
+          labelZh,
+          labelEn,
+          bookings: [],
+          checkedInCount: 0,
+          noShowCount: 0,
+        });
+      });
+
+      cursor.setDate(cursor.getDate() + 1);
+    }
 
     const finalSessions = Array.from(sessionsByKey.values()).sort(sortSessions);
 

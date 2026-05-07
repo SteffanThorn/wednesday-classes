@@ -48,11 +48,30 @@ export default function BlogArticlePage() {
       .replace(/\*\*(.*?)\*\*/g, '$1')
       .split('\n\n')
       .filter(Boolean)
-      .map((paragraph, index) => (
-        <p key={index} className="text-muted-foreground leading-8 whitespace-pre-wrap mb-5">
-          {paragraph.trim()}
-        </p>
-      ));
+      .map((paragraph, index) => {
+        const trimmed = paragraph.trim();
+        const imageMatch = trimmed.match(/^!\[(.*?)\]\(((?:https?:\/\/|\/)[^\s)]+)\)$/);
+
+        if (imageMatch) {
+          const [, altText, imageUrl] = imageMatch;
+          return (
+            <figure key={index} className="mb-6 flex justify-center">
+              <img
+                src={imageUrl}
+                alt={altText || 'Article image'}
+                className="w-full max-w-sm rounded-2xl border border-border/40"
+                loading="lazy"
+              />
+            </figure>
+          );
+        }
+
+        return (
+          <p key={index} className="text-muted-foreground leading-8 whitespace-pre-wrap mb-5">
+            {trimmed}
+          </p>
+        );
+      });
   };
 
   return (

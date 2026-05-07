@@ -109,14 +109,6 @@ const Header = () => {
                   >
                     Admin Dashboard
                   </Link>
-                  <Link
-                    href="/admin/articles?new=true"
-                    className="block px-4 py-2 text-sm text-foreground hover:bg-glow-cyan/10 
-                             transition-colors"
-                    onClick={() => setIsAdminDropdownOpen(false)}
-                  >
-                    Write New Blog
-                  </Link>
                 </div>
               )}
             </div>

@@ -42,7 +42,7 @@ function AdminArticlesContent() {
     contentEn: '',
     contentZh: '',
     tags: [],
-    category: 'general',
+    category: 'ayurveda',
     status: 'draft'
   });
 
@@ -162,7 +162,7 @@ function AdminArticlesContent() {
       contentEn: article.content?.en || '',
       contentZh: article.content?.zh || '',
       tags: article.tags || [],
-      category: article.category || 'general',
+      category: article.category || 'ayurveda',
       status: article.status || 'published'
     });
     setEditingId(article.id);
@@ -176,7 +176,7 @@ function AdminArticlesContent() {
       contentEn: '',
       contentZh: '',
       tags: [],
-      category: 'general',
+      category: 'ayurveda',
       status: 'draft'
     });
     setEditingId(null);
@@ -451,11 +451,7 @@ function AdminArticlesContent() {
                   className="w-full px-4 py-3 rounded-xl bg-background/50 border border-border/50 
                            focus:border-glow-cyan/50 focus:outline-none transition-colors"
                 >
-                  <option value="general">{mounted ? '通用' : 'General'}</option>
-                  <option value="diet">{mounted ? '饮食与营养' : 'Diet & Nutrition'}</option>
-                  <option value="wellness">{mounted ? '养生' : 'Wellness'}</option>
-                  <option value="meditation">{mounted ? '冥想' : 'Meditation'}</option>
-                  <option value="lifestyle">{mounted ? '生活方式' : 'Lifestyle'}</option>
+                  <option value="ayurveda">{mounted ? '阿育吠陀' : 'Ayurveda'}</option>
                 </select>
               </div>
               
