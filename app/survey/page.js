@@ -67,6 +67,8 @@ const INITIAL = {
   phone: '',
   ageRange: '',
   painAreas: [],
+  painLevel: '',
+  painType: '',
   painFrequency: '',
   painDetail: '',
   injuries: [],
@@ -82,7 +84,7 @@ const INITIAL = {
 const STEP_ORDER = [
   'welcome',
   'q1', 'q2', 'q3', 'q4',
-  'q5', 'q6', 'q7',
+  'q5', 'q5b', 'q5c', 'q6', 'q7',
   'q8', 'q9',
   'q10', 'q11',
   'q12',
@@ -92,18 +94,18 @@ const STEP_ORDER = [
 
 const QUESTION_NUM = {
   q1: 1, q2: 2, q3: 3, q4: 4,
-  q5: 5, q6: 6, q7: 7,
-  q8: 8, q9: 9,
-  q10: 10, q11: 11,
-  q12: 12,
-  q13: 13,
+  q5: 5, q5b: 6, q5c: 7, q6: 8, q7: 9,
+  q8: 10, q9: 11,
+  q10: 12, q11: 13,
+  q12: 14,
+  q13: 15,
 };
 
-const TOTAL = 13;
+const TOTAL = 15;
 
 function getNextStep(step, answers) {
   if (step === 'q5') {
-    return answers.painAreas.includes('No pain') ? 'q8' : 'q6';
+    return answers.painAreas.includes('No pain') ? 'q8' : 'q5b';
   }
   if (step === 'q8') {
     return answers.injuries.includes('None') ? 'q10' : 'q9';
@@ -152,6 +154,8 @@ export default function SurveyPage() {
       case 'q3':  return true;
       case 'q4':  return !!answers.ageRange;
       case 'q5':  return answers.painAreas.length > 0;
+      case 'q5b': return !!answers.painLevel;
+      case 'q5c': return !!answers.painType;
       case 'q6':  return !!answers.painFrequency;
       case 'q7':  return true;
       case 'q8':  return answers.injuries.length > 0;
@@ -387,6 +391,97 @@ export default function SurveyPage() {
                   hint="Select all that apply"
                 />
                 <MultiSelect field="painAreas" options={PAIN_OPTIONS} />
+                <Nav />
+              </div>
+            )}
+
+            {/* ── Q5b Pain Level ── */}
+            {step === 'q5b' && (
+              <div className="space-y-6 animate-fade-in-up">
+                <QuestionHeader
+                  section="② Pain & Joint Screening" num={6} total={TOTAL}
+                  question="On a scale of 1–10, how intense is your pain?"
+                  hint="1 = mild discomfort · 10 = severe / debilitating"
+                />
+                <div className="grid grid-cols-5 gap-2 w-full max-w-sm">
+                  {Array.from({ length: 10 }, (_, i) => String(i + 1)).map((n) => {
+                    const level = Number(n);
+                    const color =
+                      level <= 3 ? 'text-emerald-400 border-emerald-400/40 bg-emerald-400/10 hover:bg-emerald-400/20' :
+                      level <= 6 ? 'text-amber-400 border-amber-400/40 bg-amber-400/10 hover:bg-amber-400/20' :
+                                   'text-red-400 border-red-400/40 bg-red-400/10 hover:bg-red-400/20';
+                    const selectedColor =
+                      level <= 3 ? 'bg-emerald-400/30 border-emerald-400 text-emerald-300' :
+                      level <= 6 ? 'bg-amber-400/30 border-amber-400 text-amber-300' :
+                                   'bg-red-400/30 border-red-400 text-red-300';
+                    const isSelected = answers.painLevel === n;
+                    return (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setField('painLevel', n)}
+                        className={`py-3 rounded-xl border text-sm font-semibold transition-all ${
+                          isSelected ? selectedColor : `bg-card/40 border-glow-cyan/20 text-muted-foreground ${color}`
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    );
+                  })}
+                </div>
+                {answers.painLevel && (
+                  <p className="text-sm text-muted-foreground/70 text-center">
+                    {Number(answers.painLevel) <= 3 ? '🟢 Mild — manageable in daily life' :
+                     Number(answers.painLevel) <= 6 ? '🟡 Moderate — affects some activities' :
+                                                      '🔴 Severe — significantly limits activity'}
+                  </p>
+                )}
+                <Nav />
+              </div>
+            )}
+
+            {/* ── Q5c Pain Type ── */}
+            {step === 'q5c' && (
+              <div className="space-y-6 animate-fade-in-up">
+                <QuestionHeader
+                  section="② Pain & Joint Screening" num={7} total={TOTAL}
+                  question="How would you describe the nature of your pain?"
+                />
+                <div className="flex flex-col gap-3 w-full max-w-sm">
+                  {[
+                    {
+                      val: 'Localized (one fixed spot)',
+                      icon: '📍',
+                      desc: 'Pain stays in one specific area and does not spread',
+                    },
+                    {
+                      val: 'Radiating (spreads to other areas)',
+                      icon: '⚡',
+                      desc: 'Pain travels down the arm, leg, or another region',
+                    },
+                    {
+                      val: 'Both — localized and sometimes radiating',
+                      icon: '🔀',
+                      desc: 'Mostly in one spot but occasionally spreads',
+                    },
+                  ].map(({ val, icon, desc }) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setField('painType', val)}
+                      className={`w-full px-4 py-3.5 rounded-xl border text-left transition-all ${
+                        answers.painType === val
+                          ? 'bg-glow-cyan/20 border-glow-cyan'
+                          : 'bg-card/40 border-glow-cyan/20 hover:border-glow-cyan/40 hover:bg-card/60'
+                      }`}
+                    >
+                      <p className={`text-sm font-medium mb-0.5 ${answers.painType === val ? 'text-glow-cyan' : 'text-foreground'}`}>
+                        {icon} {val}
+                      </p>
+                      <p className="text-xs text-muted-foreground/70">{desc}</p>
+                    </button>
+                  ))}
+                </div>
                 <Nav />
               </div>
             )}

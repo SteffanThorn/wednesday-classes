@@ -33,6 +33,8 @@ function buildAdminNotificationEmail({ name, email, phone, answers, bodyTypeName
     ['Body Type',       bodyTypeName],
     ['Risk Areas',      riskAreas.join(', ')],
     ['Pain Areas',      fmt(answers.painAreas)],
+    ['Pain Level',      answers.painLevel ? `${answers.painLevel}/10` : '—'],
+    ['Pain Type',       fmt(answers.painType)],
     ['Pain Frequency',  fmt(answers.painFrequency)],
     ['Pain Detail',     fmt(answers.painDetail)],
     ['Injury History',  fmt(answers.injuries)],
@@ -97,7 +99,7 @@ export async function POST(request) {
     const body = await request.json();
     const {
       name, email, phone,
-      ageRange, painAreas, painFrequency, painDetail,
+      ageRange, painAreas, painLevel, painType, painFrequency, painDetail,
       injuries, injuryDetail, lifestyle, bodyFeel, goals, waiverAccepted,
     } = body;
 
@@ -117,6 +119,8 @@ export async function POST(request) {
     const parts = [];
     if (ageRange)                              parts.push(`Age: ${ageRange}`);
     if (Array.isArray(painAreas)  && painAreas.length)   parts.push(`Pain areas: ${painAreas.join(', ')}`);
+    if (painLevel)                             parts.push(`Pain level: ${painLevel}/10`);
+    if (painType)                              parts.push(`Pain type: ${painType}`);
     if (painFrequency)                         parts.push(`Pain frequency: ${painFrequency}`);
     if (painDetail?.trim())                    parts.push(`Pain detail: ${painDetail.trim()}`);
     if (Array.isArray(injuries)   && injuries.length)    parts.push(`Injury history: ${injuries.join(', ')}`);
