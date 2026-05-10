@@ -29,6 +29,26 @@ const INJURY_OPTIONS = [
 
 const AGE_OPTIONS = ['Under 25', '25–35', '35–45', '45–60', '60+'];
 
+const GENDER_OPTIONS = [
+  { val: 'Male',               icon: '♂', desc: '' },
+  { val: 'Female',             icon: '♀', desc: '' },
+  { val: 'Prefer not to say',  icon: '—', desc: '' },
+];
+
+const LAST_BIRTH_OPTIONS = [
+  'Less than 6 months ago',
+  '6 months – 1 year ago',
+  '1 – 3 years ago',
+  'More than 3 years ago',
+];
+
+const PELVIC_FLOOR_OPTIONS = [
+  'Yes — still noticeable (e.g. leaking, pressure, heaviness)',
+  'Occasionally — mild and improving',
+  'No — fully recovered',
+  'Unsure',
+];
+
 const FREQUENCY_OPTIONS = [
   'Occasionally (after activity)',
   'Regularly (weekly)',
@@ -66,6 +86,10 @@ const INITIAL = {
   email: '',
   phone: '',
   ageRange: '',
+  gender: '',
+  hasBirthExperience: '',
+  lastBirthTime: '',
+  pelvicFloorIssues: '',
   painAreas: [],
   painLevel: '',
   painType: '',
@@ -84,6 +108,7 @@ const INITIAL = {
 const STEP_ORDER = [
   'welcome',
   'q1', 'q2', 'q3', 'q4',
+  'q4b', 'q4c', 'q4d', 'q4e',
   'q5', 'q5b', 'q5c', 'q6', 'q7',
   'q8', 'q9',
   'q10', 'q11',
@@ -94,16 +119,23 @@ const STEP_ORDER = [
 
 const QUESTION_NUM = {
   q1: 1, q2: 2, q3: 3, q4: 4,
-  q5: 5, q5b: 6, q5c: 7, q6: 8, q7: 9,
-  q8: 10, q9: 11,
-  q10: 12, q11: 13,
-  q12: 14,
-  q13: 15,
+  q4b: 5, q4c: 6, q4d: 7, q4e: 8,
+  q5: 9, q5b: 10, q5c: 11, q6: 12, q7: 13,
+  q8: 14, q9: 15,
+  q10: 16, q11: 17,
+  q12: 18,
+  q13: 19,
 };
 
-const TOTAL = 15;
+const TOTAL = 19;
 
 function getNextStep(step, answers) {
+  if (step === 'q4b') {
+    return answers.gender === 'Female' ? 'q4c' : 'q5';
+  }
+  if (step === 'q4c') {
+    return answers.hasBirthExperience === 'Yes' ? 'q4d' : 'q5';
+  }
   if (step === 'q5') {
     return answers.painAreas.includes('No pain') ? 'q8' : 'q5b';
   }
@@ -153,6 +185,10 @@ export default function SurveyPage() {
       case 'q2':  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(answers.email);
       case 'q3':  return true;
       case 'q4':  return !!answers.ageRange;
+      case 'q4b': return !!answers.gender;
+      case 'q4c': return !!answers.hasBirthExperience;
+      case 'q4d': return !!answers.lastBirthTime;
+      case 'q4e': return !!answers.pelvicFloorIssues;
       case 'q5':  return answers.painAreas.length > 0;
       case 'q5b': return !!answers.painLevel;
       case 'q5c': return !!answers.painType;
@@ -378,6 +414,101 @@ export default function SurveyPage() {
               <div className="space-y-6 animate-fade-in-up">
                 <QuestionHeader section="① Basic Information" num={4} total={TOTAL} question="Age Range" />
                 <SingleChoice field="ageRange" options={AGE_OPTIONS} />
+                <Nav />
+              </div>
+            )}
+
+            {/* ── Q4b Gender ── */}
+            {step === 'q4b' && (
+              <div className="space-y-6 animate-fade-in-up">
+                <QuestionHeader section="① Basic Information" num={5} total={TOTAL} question="What is your gender?" />
+                <div className="flex flex-col gap-3 w-full max-w-sm">
+                  {GENDER_OPTIONS.map(({ val, icon }) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setField('gender', val)}
+                      className={`w-full px-5 py-4 rounded-xl border text-left transition-all flex items-center gap-4 ${
+                        answers.gender === val
+                          ? 'bg-glow-cyan/20 border-glow-cyan'
+                          : 'bg-card/40 border-glow-cyan/20 hover:border-glow-cyan/40 hover:bg-card/60'
+                      }`}
+                    >
+                      <span className={`text-xl w-8 text-center ${answers.gender === val ? 'text-glow-cyan' : 'text-muted-foreground'}`}>{icon}</span>
+                      <span className={`text-sm font-medium ${answers.gender === val ? 'text-glow-cyan' : 'text-foreground'}`}>{val}</span>
+                    </button>
+                  ))}
+                </div>
+                <Nav />
+              </div>
+            )}
+
+            {/* ── Q4c Birth Experience (female only) ── */}
+            {step === 'q4c' && (
+              <div className="space-y-6 animate-fade-in-up">
+                <QuestionHeader
+                  section="① Basic Information" num={6} total={TOTAL}
+                  question="Have you had any childbirth experience?"
+                />
+                <div className="flex gap-3 w-full max-w-sm">
+                  {[
+                    { val: 'Yes', label: 'Yes', active: 'bg-glow-cyan/20 border-glow-cyan text-glow-cyan' },
+                    { val: 'No',  label: 'No',  active: 'bg-glow-cyan/20 border-glow-cyan text-glow-cyan' },
+                  ].map(({ val, label, active }) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setField('hasBirthExperience', val)}
+                      className={`flex-1 py-3.5 rounded-xl border text-sm font-medium transition-all ${
+                        answers.hasBirthExperience === val
+                          ? active
+                          : 'bg-card/40 border-glow-cyan/20 text-muted-foreground hover:border-glow-cyan/40'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <Nav />
+              </div>
+            )}
+
+            {/* ── Q4d Last Birth Time ── */}
+            {step === 'q4d' && (
+              <div className="space-y-6 animate-fade-in-up">
+                <QuestionHeader
+                  section="① Basic Information" num={7} total={TOTAL}
+                  question="How long ago was your most recent birth?"
+                />
+                <SingleChoice field="lastBirthTime" options={LAST_BIRTH_OPTIONS} />
+                <Nav />
+              </div>
+            )}
+
+            {/* ── Q4e Pelvic Floor ── */}
+            {step === 'q4e' && (
+              <div className="space-y-6 animate-fade-in-up">
+                <QuestionHeader
+                  section="① Basic Information" num={8} total={TOTAL}
+                  question="Do you still experience pelvic floor issues?"
+                  hint="e.g. leaking when sneezing / jumping, pressure, or heaviness"
+                />
+                <div className="flex flex-col gap-2 w-full max-w-sm">
+                  {PELVIC_FLOOR_OPTIONS.map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => setField('pelvicFloorIssues', opt)}
+                      className={`w-full px-5 py-3 rounded-xl border text-sm text-left transition-all ${
+                        answers.pelvicFloorIssues === opt
+                          ? 'bg-glow-cyan/20 border-glow-cyan text-glow-cyan'
+                          : 'bg-card/40 border-glow-cyan/20 text-muted-foreground hover:border-glow-cyan/40 hover:bg-card/60'
+                      }`}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
                 <Nav />
               </div>
             )}

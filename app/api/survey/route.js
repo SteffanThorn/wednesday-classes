@@ -30,6 +30,10 @@ function buildAdminNotificationEmail({ name, email, phone, answers, bodyTypeName
     ['Email',           email],
     ['Phone',           phone || '—'],
     ['Age Range',       fmt(answers.ageRange)],
+    ['Gender',          fmt(answers.gender)],
+    ['Birth Experience', answers.gender === 'Female' ? fmt(answers.hasBirthExperience) : '—'],
+    ['Last Birth',      answers.hasBirthExperience === 'Yes' ? fmt(answers.lastBirthTime) : '—'],
+    ['Pelvic Floor',    answers.hasBirthExperience === 'Yes' ? fmt(answers.pelvicFloorIssues) : '—'],
     ['Body Type',       bodyTypeName],
     ['Risk Areas',      riskAreas.join(', ')],
     ['Pain Areas',      fmt(answers.painAreas)],
@@ -99,7 +103,8 @@ export async function POST(request) {
     const body = await request.json();
     const {
       name, email, phone,
-      ageRange, painAreas, painLevel, painType, painFrequency, painDetail,
+      ageRange, gender, hasBirthExperience, lastBirthTime, pelvicFloorIssues,
+      painAreas, painLevel, painType, painFrequency, painDetail,
       injuries, injuryDetail, lifestyle, bodyFeel, goals, waiverAccepted,
     } = body;
 
@@ -118,6 +123,10 @@ export async function POST(request) {
     // Build notes string for FutureCustomer record
     const parts = [];
     if (ageRange)                              parts.push(`Age: ${ageRange}`);
+    if (gender)                                parts.push(`Gender: ${gender}`);
+    if (hasBirthExperience)                    parts.push(`Birth experience: ${hasBirthExperience}`);
+    if (lastBirthTime)                         parts.push(`Last birth: ${lastBirthTime}`);
+    if (pelvicFloorIssues)                     parts.push(`Pelvic floor: ${pelvicFloorIssues}`);
     if (Array.isArray(painAreas)  && painAreas.length)   parts.push(`Pain areas: ${painAreas.join(', ')}`);
     if (painLevel)                             parts.push(`Pain level: ${painLevel}/10`);
     if (painType)                              parts.push(`Pain type: ${painType}`);
