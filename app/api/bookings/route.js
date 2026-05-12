@@ -3,7 +3,11 @@ import { auth } from '@/auth';
 import dbConnect from '@/lib/mongodb';
 import Booking from '@/lib/models/Booking';
 import User from '@/lib/models/User';
-import { sendBookingConfirmationEmail, sendCancellationEmail } from '@/lib/email';
+import {
+  sendAdminNewBookingNotification,
+  sendBookingConfirmationEmail,
+  sendCancellationEmail,
+} from '@/lib/email';
 import { inferDayFromClassName, isAllowedClassDate } from '@/lib/class-schedule';
 
 function getDayRange(classDateInput) {
@@ -221,6 +225,16 @@ export async function POST(request) {
       remainingClasses: emailUserData.classCredits,
       preferredLanguage: emailUserData.preferredLanguage,
     }).catch(err => console.error('Failed to send booking confirmation email:', err));
+
+    sendAdminNewBookingNotification({
+      bookingId: booking._id.toString(),
+      userName: booking.userName,
+      userEmail: booking.userEmail,
+      className: booking.className,
+      classDate: formattedDate,
+      classTime: booking.classTime,
+      amount: booking.amount,
+    }).catch(err => console.error('Failed to send admin booking notification email:', err));
 
     // Return the created booking
     const formattedBooking = {

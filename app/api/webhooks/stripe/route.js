@@ -179,7 +179,45 @@ async function handlePaymentSucceeded(paymentIntent) {
   const booking = await findBookingByPaymentIntent(paymentIntent);
   
   if (booking) {
+    const wasAlreadyConfirmed =
+      booking.paymentStatus === 'completed' && booking.status === 'confirmed';
+
     await updateBookingPaymentSuccess(booking, paymentIntent);
+
+    if (!wasAlreadyConfirmed) {
+      const formattedDate = new Date(booking.classDate).toLocaleDateString('en-NZ', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+
+      User.findOne({ email: booking.userEmail.toLowerCase() }).select('classCredits preferredLanguage').lean()
+        .then(bookingUser => sendBookingConfirmationEmail({
+          userEmail: booking.userEmail,
+          userName: booking.userName,
+          className: booking.className,
+          classDate: formattedDate,
+          classTime: booking.classTime,
+          location: booking.location,
+          amount: booking.amount,
+          bookingId: booking._id.toString(),
+          remainingClasses: bookingUser?.classCredits ?? 0,
+          preferredLanguage: bookingUser?.preferredLanguage || 'en',
+        }))
+        .catch(err => console.error('Failed to send booking confirmation email:', err));
+
+      sendAdminNewBookingNotification({
+        bookingId: booking._id.toString(),
+        userName: booking.userName,
+        userEmail: booking.userEmail,
+        className: booking.className,
+        classDate: formattedDate,
+        classTime: booking.classTime,
+        amount: booking.amount,
+      }).catch(err => console.error('Failed to send admin booking notification email:', err));
+    }
+
     console.log(`   Booking ${booking._id} payment completed`);
   } else {
     console.warn(`⚠️  No booking found for payment intent: ${paymentIntent.id}`);
@@ -420,6 +458,9 @@ async function handleCheckoutSessionCompleted(session) {
   const now = new Date();
   
   for (const booking of bookings) {
+    const wasAlreadyConfirmed =
+      booking.paymentStatus === 'completed' && booking.status === 'confirmed';
+
     booking.paymentStatus = 'completed';
     booking.status = 'confirmed';
     booking.stripePaymentId = session.payment_intent || session.id;
@@ -435,31 +476,33 @@ async function handleCheckoutSessionCompleted(session) {
       month: 'long',
       day: 'numeric'
     });
-    
-    User.findOne({ email: booking.userEmail.toLowerCase() }).select('classCredits preferredLanguage').lean()
-      .then(bookingUser => sendBookingConfirmationEmail({
-        userEmail: booking.userEmail,
+
+    if (!wasAlreadyConfirmed) {
+      User.findOne({ email: booking.userEmail.toLowerCase() }).select('classCredits preferredLanguage').lean()
+        .then(bookingUser => sendBookingConfirmationEmail({
+          userEmail: booking.userEmail,
+          userName: booking.userName,
+          className: booking.className,
+          classDate: formattedDate,
+          classTime: booking.classTime,
+          location: booking.location,
+          amount: booking.amount,
+          bookingId: booking._id.toString(),
+          remainingClasses: bookingUser?.classCredits ?? 0,
+          preferredLanguage: bookingUser?.preferredLanguage || 'en',
+        }))
+        .catch(err => console.error('Failed to send booking confirmation email:', err));
+
+      sendAdminNewBookingNotification({
+        bookingId: booking._id.toString(),
         userName: booking.userName,
+        userEmail: booking.userEmail,
         className: booking.className,
         classDate: formattedDate,
         classTime: booking.classTime,
-        location: booking.location,
         amount: booking.amount,
-        bookingId: booking._id.toString(),
-        remainingClasses: bookingUser?.classCredits ?? 0,
-        preferredLanguage: bookingUser?.preferredLanguage || 'en',
-      }))
-      .catch(err => console.error('Failed to send booking confirmation email:', err));
-
-    sendAdminNewBookingNotification({
-      bookingId: booking._id.toString(),
-      userName: booking.userName,
-      userEmail: booking.userEmail,
-      className: booking.className,
-      classDate: formattedDate,
-      classTime: booking.classTime,
-      amount: booking.amount,
-    }).catch(err => console.error('Failed to send admin booking notification email:', err));
+      }).catch(err => console.error('Failed to send admin booking notification email:', err));
+    }
     
     console.log(`   Booking ${booking._id} confirmed`);
   }
