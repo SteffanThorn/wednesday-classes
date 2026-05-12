@@ -111,14 +111,6 @@ const Index = () => {
               >
                 {language === 'zh' ? '阅读 Blog' : 'Read the Blog'}
               </Link>
-
-              <Link
-                href="/energy-assessment"
-                className="px-8 py-3 rounded-full border border-glow-cyan/30 text-glow-subtle
-                           hover:bg-glow-cyan/10 hover:border-glow-cyan/50 transition-all duration-300"
-              >
-                {language === 'zh' ? '身体能量测试' : 'Body Energy Test'}
-              </Link>
             </div>
           </div>
         </section>
