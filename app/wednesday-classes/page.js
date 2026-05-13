@@ -161,7 +161,7 @@ function WednesdayClassesPageContent() {
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="font-display text-4xl md:text-6xl lg:text-7xl font-light 
                          text-glow animate-fade-in-up mb-6">
-              {mounted ? (language === 'zh' ? 'Ashhurst瑜伽课' : 'Yoga Classes in Ashhurst') : 'Yoga Classes in Ashhurst'}
+              {mounted ? (language === 'zh' ? 'Ashhurst瑜伽课' : 'Yoga &Pilates in Palmerston North') : 'Yoga &Pilates in Palmerston North'}
             </h1>
             
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto 
@@ -174,17 +174,17 @@ function WednesdayClassesPageContent() {
               <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card/60 border border-glow-cyan/20">
                 <Calendar className="w-4 h-4 text-glow-cyan" />
                 <div className="text-sm leading-tight">
-                  <div>Wed · 9:15 AM · Functional Pain Relief Series</div>
-                  <div>Thu · 5:30 PM · Structural Alignment &amp; Deep Mobility Series</div>
+                  <div>Fri · 10:30 AM / 1:30 PM</div>
+                  <div>Sat · 10:30 AM / 1:30 PM</div>
                 </div>
               </div>
               <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card/60 border border-glow-cyan/20">
                 <MapPin className="w-4 h-4 text-glow-cyan" />
-                <span className="text-sm">Village Valley Centre, Ashhurst</span>
+                <span className="text-sm">Bella Vista Motel, Palmerston North</span>
               </div>
               <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card/60 border border-glow-cyan/20">
                 <Users className="w-4 h-4 text-glow-cyan" />
-                <span className="text-sm">Small classes · Max 8 people</span>
+                <span className="text-sm">中英文授课 · Bilingual (CN/EN)</span>
               </div>
               <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card/60 border border-glow-cyan/20">
                 <DollarSign className="w-4 h-4 text-glow-cyan" />
@@ -199,7 +199,7 @@ function WednesdayClassesPageContent() {
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-                {/* ── Wednesday 9:15 AM — Warm Coral (Pain Relief) ── */}
+                {/* ── Friday/Saturday 10:30 AM — Warm Coral (Beginner Yoga) ── */}
                 <button
                   onClick={() => { setSelectedDay('wednesday-morning'); setIsBookingModalOpen(true); }}
                   className="group relative p-6 rounded-2xl border-2 border-warm-coral/30 bg-card/60 hover:bg-warm-coral/5 hover:border-warm-coral/60 transition-all duration-300 text-left overflow-hidden"
@@ -209,16 +209,16 @@ function WednesdayClassesPageContent() {
                   <div className="flex items-start justify-between mb-4 mt-1">
                     <span className="text-2xl">☀️</span>
                     <span className="text-[11px] px-2 py-0.5 rounded-full bg-warm-coral/15 text-warm-coral border border-warm-coral/30 font-medium">
-                      {mounted ? (language === 'zh' ? '晨课' : 'Morning') : 'Morning'}
+                      {mounted ? (language === 'zh' ? '周五/周六早课' : 'Fri/Sat Morning') : 'Fri/Sat Morning'}
                     </span>
                   </div>
                   <div className="mb-3">
-                    <p className="text-xs font-medium text-warm-coral/70 mb-0.5">Wednesday</p>
-                    <p className="text-3xl font-display text-warm-coral font-light">9:15 AM</p>
+                    <p className="text-xs font-medium text-warm-coral/70 mb-0.5">Friday &amp; Saturday</p>
+                    <p className="text-3xl font-display text-warm-coral font-light">10:30 AM</p>
                   </div>
                   <div className="space-y-1.5 mb-4">
-                    <p className="text-xs font-semibold text-foreground">Functional Pain Relief</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed">Release tension · Reduce pain · Restore movement</p>
+                    <p className="text-xs font-semibold text-foreground">Beginner Yoga</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">Energy awakening · Mobility flow · Gentle full-body activation</p>
                   </div>
                   <div className="pt-3 border-t border-warm-coral/20 flex items-center justify-between">
                     <span className="text-[11px] text-warm-coral/60">{mounted ? (language === 'zh' ? '点击预约 →' : 'Book →') : 'Book →'}</span>
@@ -226,7 +226,7 @@ function WednesdayClassesPageContent() {
                   </div>
                 </button>
 
-                {/* ── Thursday 5:30 PM — Teal (Structural Alignment) ── */}
+                {/* ── Friday/Saturday 1:30 PM — Teal (Pilates) ── */}
                 <button
                   onClick={() => { setSelectedDay('thursday-evening'); setIsBookingModalOpen(true); }}
                   className="group relative p-6 rounded-2xl border-2 border-glow-teal/30 bg-card/60 hover:bg-glow-teal/5 hover:border-glow-teal/60 transition-all duration-300 text-left overflow-hidden"
@@ -236,16 +236,16 @@ function WednesdayClassesPageContent() {
                   <div className="flex items-start justify-between mb-4 mt-1">
                     <span className="text-2xl">🌿</span>
                     <span className="text-[11px] px-2 py-0.5 rounded-full bg-glow-teal/15 text-glow-teal border border-glow-teal/30 font-medium">
-                      {mounted ? (language === 'zh' ? '周四晚' : 'Thursday') : 'Thursday'}
+                      {mounted ? (language === 'zh' ? '周五/周六下午' : 'Fri/Sat Afternoon') : 'Fri/Sat Afternoon'}
                     </span>
                   </div>
                   <div className="mb-3">
-                    <p className="text-xs font-medium text-glow-teal/70 mb-0.5">Thursday</p>
-                    <p className="text-3xl font-display text-glow-teal font-light">5:30 PM</p>
+                    <p className="text-xs font-medium text-glow-teal/70 mb-0.5">Friday &amp; Saturday</p>
+                    <p className="text-3xl font-display text-glow-teal font-light">1:30 PM</p>
                   </div>
                   <div className="space-y-1.5 mb-4">
-                    <p className="text-xs font-semibold text-foreground">Structural Alignment</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed">Posture · Joint mobility · Deep structure</p>
+                    <p className="text-xs font-semibold text-foreground">Pilates Mat / Pilates Sculpt</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">Core control · Body sculpting · Postural support</p>
                   </div>
                   <div className="pt-3 border-t border-glow-teal/20 flex items-center justify-between">
                     <span className="text-[11px] text-glow-teal/60">{mounted ? (language === 'zh' ? '点击预约 →' : 'Book →') : 'Book →'}</span>
@@ -349,12 +349,20 @@ function WednesdayClassesPageContent() {
                       {mounted ? (language === 'zh' ? '时间：' : 'When:') : 'When:'}
                     </h4>
                     <div className="mb-2">
-                      <p className="text-muted-foreground">Wednesdays · 9:15 AM · 60 minutes</p>
-                      <p className="text-xs text-glow-purple">Functional Pain Relief Series</p>
+                      <p className="text-muted-foreground">Fridays · 10:30 AM · 60 minutes</p>
+                      <p className="text-xs text-glow-purple">Beginner Yoga</p>
                     </div>
                   <div className="mt-2">
-                    <p className="text-muted-foreground">Thursdays · 5:30 PM · 60 minutes</p>
-                    <p className="text-xs text-glow-purple">Structural Alignment &amp; Deep Mobility Series</p>
+                    <p className="text-muted-foreground">Fridays · 1:30 PM · 60 minutes</p>
+                    <p className="text-xs text-glow-purple">Pilates Mat / Pilates Sculpt</p>
+                  </div>
+                  <div className="mt-2">
+                    <p className="text-muted-foreground">Saturdays · 10:30 AM · 60 minutes</p>
+                    <p className="text-xs text-glow-purple">Beginner Yoga</p>
+                  </div>
+                  <div className="mt-2">
+                    <p className="text-muted-foreground">Saturdays · 1:30 PM · 60 minutes</p>
+                    <p className="text-xs text-glow-purple">Pilates Mat / Pilates Sculpt</p>
                   </div>
                   </div>
                 </div>
@@ -365,7 +373,7 @@ function WednesdayClassesPageContent() {
                     <h4 className="font-medium text-foreground">
                       {mounted ? (language === 'zh' ? '地点：' : 'Where:') : 'Where:'}
                     </h4>
-                    <p className="text-muted-foreground">Village Valley Centre, Ashhurst</p>
+                    <p className="text-muted-foreground">Bella Vista Motel, Palmerston North</p>
                   </div>
                 </div>
                 

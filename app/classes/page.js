@@ -23,10 +23,42 @@ const THU_EVENING_CLASS = {
   price: 15
 };
 
+const FRI_MORNING_CLASS = {
+  name: 'Beginner Yoga',
+  time: '10:30 AM',
+  location: 'Bella Vista Motel, Palmerston North',
+  price: 15
+};
+
+const FRI_AFTERNOON_CLASS = {
+  name: 'Pilates Mat / Pilates Sculpt',
+  time: '1:30 PM',
+  location: 'Bella Vista Motel, Palmerston North',
+  price: 15
+};
+
+const SAT_MORNING_CLASS = {
+  name: 'Beginner Yoga',
+  time: '10:30 AM',
+  location: 'Bella Vista Motel, Palmerston North',
+  price: 15
+};
+
+const SAT_AFTERNOON_CLASS = {
+  name: 'Pilates Mat / Pilates Sculpt',
+  time: '1:30 PM',
+  location: 'Bella Vista Motel, Palmerston North',
+  price: 15
+};
+
 const ClassesPage = () => {
   const { t, mounted } = useLanguage();
   const [isWedMorningModalOpen, setIsWedMorningModalOpen] = useState(false);
   const [isThuEveningModalOpen, setIsThuEveningModalOpen] = useState(false);
+  const [isFriMorningModalOpen, setIsFriMorningModalOpen] = useState(false);
+  const [isFriAfternoonModalOpen, setIsFriAfternoonModalOpen] = useState(false);
+  const [isSatMorningModalOpen, setIsSatMorningModalOpen] = useState(false);
+  const [isSatAfternoonModalOpen, setIsSatAfternoonModalOpen] = useState(false);
   
   // Motherscope waitlist state
   const [motherScopeLoading, setMotherScopeLoading] = useState(false);
@@ -123,7 +155,7 @@ const ClassesPage = () => {
                   level="Beginner"
                   price="$15/class · 5 for $65"
                   additionalInfo="B.Y.O mat"
-                  href="#"
+                  href="/wednesday-classes"
                   onClick={(e) => {
                     e.preventDefault();
                     setIsWedMorningModalOpen(true);
@@ -143,11 +175,67 @@ const ClassesPage = () => {
                   level="Beginner"
                   price="$15/class · 5 for $65"
                   additionalInfo="B.Y.O mat"
-                  href="#"
+                  href="/wednesday-classes"
                   onClick={(e) => {
                     e.preventDefault();
                     setIsThuEveningModalOpen(true);
                   }}
+                />
+              </div>
+
+              {/* Friday 10:30 AM */}
+              <div className="relative group cursor-pointer" onClick={() => setIsFriMorningModalOpen(true)}>
+                <ClassCard
+                  icon={Zap}
+                  titleEn="Beginner Yoga"
+                  titleZh="新手瑜伽"
+                  descriptionEn={'Friday 10:30 AM\nBeginner Yoga\nCourse Address: (Bella Vista Motel, Palmerston North)'}
+                  descriptionZh={'每周五上午10:30\n新手瑜伽\n课程地址：(Bella Vista Motel, Palmerston North)'}
+                  duration="60 min"
+                  level="Beginner"
+                  price="$15/class · 5 for $65"
+                />
+              </div>
+
+              {/* Friday 1:30 PM */}
+              <div className="relative group cursor-pointer" onClick={() => setIsFriAfternoonModalOpen(true)}>
+                <ClassCard
+                  icon={Heart}
+                  titleEn="Pilates Body Sculpt"
+                  titleZh="普拉提 垫上/普拉提塑形"
+                  descriptionEn={'Friday 1:30 PM\nPilates Body Sculpt\nCourse Address: (Bella Vista Motel, Palmerston North)'}
+                  descriptionZh={'每周五下午1:30\n普拉提 垫上/普拉提塑形\n课程地址：(Bella Vista Motel, Palmerston North)'}
+                  duration="60 min"
+                  level="Beginner"
+                  price="$15/class · 5 for $65"
+                />
+              </div>
+
+              {/* Saturday 10:30 AM */}
+              <div className="relative group cursor-pointer" onClick={() => setIsSatMorningModalOpen(true)}>
+                <ClassCard
+                  icon={Zap}
+                  titleEn="Beginner Yoga"
+                  titleZh="新手瑜伽"
+                  descriptionEn={'Saturday 10:30 AM\nBeginner Yoga\nCourse Address: (Bella Vista Motel, Palmerston North)'}
+                  descriptionZh={'每周六上午10:30\n新手瑜伽\n课程地址：(Bella Vista Motel, Palmerston North)'}
+                  duration="60 min"
+                  level="Beginner"
+                  price="$15/class · 5 for $65"
+                />
+              </div>
+
+              {/* Saturday 1:30 PM */}
+              <div className="relative group cursor-pointer" onClick={() => setIsSatAfternoonModalOpen(true)}>
+                <ClassCard
+                  icon={Heart}
+                  titleEn="Pilates Body Sculpt"
+                  titleZh="普拉提 垫上/普拉提塑形"
+                  descriptionEn={'Saturday 1:30 PM\nPilates Body Sculpt\nCourse Address: (Bella Vista Motel, Palmerston North)'}
+                  descriptionZh={'每周六下午1:30\n普拉提 垫上/普拉提塑形\n课程地址：(Bella Vista Motel, Palmerston North)'}
+                  duration="60 min"
+                  level="Beginner"
+                  price="$15/class · 5 for $65"
                 />
               </div>
 
@@ -282,6 +370,34 @@ const ClassesPage = () => {
         onClose={() => setIsThuEveningModalOpen(false)}
         classDetails={THU_EVENING_CLASS}
         dayOfWeek="thursday-evening"
+      />
+
+      <BookingModal
+        isOpen={isFriMorningModalOpen}
+        onClose={() => setIsFriMorningModalOpen(false)}
+        classDetails={FRI_MORNING_CLASS}
+        dayOfWeek="friday-morning"
+      />
+
+      <BookingModal
+        isOpen={isFriAfternoonModalOpen}
+        onClose={() => setIsFriAfternoonModalOpen(false)}
+        classDetails={FRI_AFTERNOON_CLASS}
+        dayOfWeek="friday-afternoon"
+      />
+
+      <BookingModal
+        isOpen={isSatMorningModalOpen}
+        onClose={() => setIsSatMorningModalOpen(false)}
+        classDetails={SAT_MORNING_CLASS}
+        dayOfWeek="saturday-morning"
+      />
+
+      <BookingModal
+        isOpen={isSatAfternoonModalOpen}
+        onClose={() => setIsSatAfternoonModalOpen(false)}
+        classDetails={SAT_AFTERNOON_CLASS}
+        dayOfWeek="saturday-afternoon"
       />
     </div>
   );
