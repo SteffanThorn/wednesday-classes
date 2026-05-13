@@ -1,19 +1,23 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { getAllQuestions, interpretScore } from '@/data/chakra-questions';
 import { getChakraInterpretation, chakraInterpretations } from '@/data/chakra-interpretations';
 import FloatingParticles from '@/components/FloatingParticle';
 import Header from '@/components/Header';
-import { ChevronLeft, ChevronRight, Save, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Save, RotateCcw, ChevronDown, ChevronUp, Mail } from 'lucide-react';
 
 const ChakraTest = () => {
   const { t, mounted, language } = useLanguage();
+  const { data: session, status } = useSession();
   const [started, setStarted] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
   const [showResults, setShowResults] = useState(false);
+  const [isSendingReport, setIsSendingReport] = useState(false);
+  const [reportMessage, setReportMessage] = useState(null);
   // Store expanded state for each chakra by sanskrit name
   const [expandedStates, setExpandedStates] = useState({});
   
@@ -95,7 +99,45 @@ const ChakraTest = () => {
     setCurrentQuestion(0);
     setAnswers({});
     setShowResults(false);
+    setReportMessage(null);
     localStorage.removeItem('chakra-test-progress');
+  };
+
+  const handleSendReport = async () => {
+    if (!session?.user?.email || isSendingReport) return;
+
+    setIsSendingReport(true);
+    setReportMessage(null);
+
+    try {
+      const response = await fetch('/api/chakra/send-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          answers,
+          language,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result?.error || 'Failed to send report');
+      }
+
+      setReportMessage({
+        type: 'success',
+        text: language === 'zh' ? '测试报告已发送到你的邮箱。' : 'Your test report has been sent to your email.',
+      });
+    } catch (error) {
+      setReportMessage({
+        type: 'error',
+        text: language === 'zh' ? '发送失败，请稍后重试。' : 'Failed to send report. Please try again later.',
+      });
+      console.error('Failed to send chakra report email:', error);
+    } finally {
+      setIsSendingReport(false);
+    }
   };
   
   const getChakraScores = () => {
@@ -421,7 +463,36 @@ const ChakraTest = () => {
                   <RotateCcw className="w-4 h-4" />
                   {mounted ? t('retakeTest') : 'Retake Test'}
                 </button>
+
+                <button
+                  onClick={handleSendReport}
+                  disabled={isSendingReport || status !== 'authenticated'}
+                  className={`flex items-center gap-2 px-6 py-3 rounded-full font-medium transition-all duration-300 ${
+                    status === 'authenticated'
+                      ? 'bg-glow-purple/10 border border-glow-purple/30 text-glow-subtle hover:bg-glow-purple/20'
+                      : 'bg-muted/30 border border-border text-muted-foreground cursor-not-allowed'
+                  }`}
+                >
+                  <Mail className="w-4 h-4" />
+                  {isSendingReport
+                    ? (language === 'zh' ? '发送中...' : 'Sending...')
+                    : (language === 'zh' ? '将测试结果发送到我邮箱' : 'Send Test Results To My Email')}
+                </button>
               </div>
+
+              {status !== 'authenticated' && (
+                <p className="mt-4 text-center text-sm text-muted-foreground">
+                  {language === 'zh'
+                    ? '请先登录后再发送测试结果到邮箱。'
+                    : 'Please sign in first to send the test results to your email.'}
+                </p>
+              )}
+
+              {reportMessage && (
+                <p className={`mt-3 text-center text-sm ${reportMessage.type === 'success' ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {reportMessage.text}
+                </p>
+              )}
             </div>
           </main>
           
