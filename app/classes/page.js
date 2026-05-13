@@ -117,8 +117,8 @@ const ClassesPage = () => {
                   icon={Zap}
                   titleEn="Functional Pain Relief Series"
                   titleZh="Functional Pain Relief Series"
-                  descriptionEn={'Wednesday 9:15 AM\nFunctional Pain Relief Series'}
-                  descriptionZh={'每周三早上9:15\nFunctional Pain Relief Series'}
+                  descriptionEn={'Wednesday 9:15 AM\nFunctional Pain Relief Series\nCourse Address: (Village Valley Centre Ashhurst )'}
+                  descriptionZh={'每周三早上9:15\nFunctional Pain Relief Series\n课程地址：(Village Valley Centre Ashhurst )'}
                   duration="60 min"
                   level="Beginner"
                   price="$15/class · 5 for $65"
@@ -137,8 +137,8 @@ const ClassesPage = () => {
                   icon={Heart}
                   titleEn="Structural Alignment & Deep Mobility Series"
                   titleZh="Structural Alignment & Deep Mobility Series"
-                  descriptionEn={'Thursday 5:30 PM\nStructural Alignment & Deep Mobility Series'}
-                  descriptionZh={'每周四下午5:30\nStructural Alignment & Deep Mobility Series'}
+                  descriptionEn={'Thursday 5:30 PM\nStructural Alignment & Deep Mobility Series\nCourse Address: (Village Valley Centre Ashhurst )'}
+                  descriptionZh={'每周四下午5:30\nStructural Alignment & Deep Mobility Series\n课程地址：(Village Valley Centre Ashhurst )'}
                   duration="60 min"
                   level="Beginner"
                   price="$15/class · 5 for $65"
