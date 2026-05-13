@@ -810,3 +810,107 @@ export async function PUT(request) {
     return NextResponse.json({ error: 'Failed to mark no-show' }, { status: 500 });
   }
 }
+
+export async function DELETE(request) {
+  try {
+    const { session, error } = await ensureAdmin();
+    if (error) return error;
+
+    const body = await request.json();
+    const {
+      classDate,
+      classTime,
+      studentEmail,
+      bookingId,
+    } = body;
+
+    if (!classDate || !classTime || !studentEmail) {
+      return NextResponse.json(
+        { error: 'Missing required fields: classDate, classTime, studentEmail' },
+        { status: 400 }
+      );
+    }
+
+    await dbConnect();
+
+    const normalizedEmail = String(studentEmail).toLowerCase().trim();
+    const { dayStart, dayEnd } = getDayRange(classDate);
+
+    const attendanceRecord = await ClassAttendance.findOne({
+      userEmail: normalizedEmail,
+      classDate: { $gte: dayStart, $lte: dayEnd },
+      classTime,
+    });
+
+    if (!attendanceRecord) {
+      return NextResponse.json(
+        { error: 'No attendance record found for this student in this class session' },
+        { status: 404 }
+      );
+    }
+
+    const effectiveBookingId = bookingId || attendanceRecord.bookingId;
+    let refundedCredit = false;
+    let updatedStudent = null;
+
+    if (attendanceRecord.status === 'attended' && attendanceRecord.usedCredit) {
+      const user = await User.findOne({ email: normalizedEmail });
+      if (user) {
+        user.classCredits = (user.classCredits || 0) + 1;
+        user.classCreditHistory = user.classCreditHistory || [];
+        user.classCreditHistory.push({
+          change: 1,
+          type: 'adjustment',
+          description: `Attendance canceled: ${attendanceRecord.className} (${toDateKey(classDate)} ${classTime})`,
+          bookingId: effectiveBookingId || undefined,
+        });
+        await user.save();
+        refundedCredit = true;
+        updatedStudent = user;
+      }
+    }
+
+    if (effectiveBookingId) {
+      const booking = await Booking.findById(effectiveBookingId);
+      if (booking) {
+        if (attendanceRecord.status === 'attended' && booking.status === 'completed') {
+          booking.status = 'confirmed';
+        }
+        if (booking.noShow) {
+          booking.noShow = false;
+          booking.noShowAt = undefined;
+        }
+        booking.updatedAt = new Date();
+        await booking.save();
+      }
+    }
+
+    await ClassAttendance.deleteOne({ _id: attendanceRecord._id });
+
+    return NextResponse.json({
+      message:
+        attendanceRecord.status === 'no-show'
+          ? 'No-show record removed.'
+          : refundedCredit
+            ? 'Attendance canceled and 1 class credit restored.'
+            : 'Attendance canceled.',
+      refundedCredit,
+      student: updatedStudent
+        ? {
+            name: updatedStudent.name,
+            email: updatedStudent.email,
+            classCredits: updatedStudent.classCredits || 0,
+          }
+        : null,
+      attendance: {
+        id: attendanceRecord._id.toString(),
+        classDate: attendanceRecord.classDate,
+        classTime: attendanceRecord.classTime,
+      },
+      removedByAdminEmail: session.user.email,
+    });
+  } catch (error) {
+    console.error('Error canceling attendance:', error);
+    return NextResponse.json({ error: 'Failed to cancel attendance' }, { status: 500 });
+  }
+}

@@ -36,6 +36,7 @@ export default function AdminBookingsPage() {
   const [attendanceListView, setAttendanceListView] = useState('checked-in');
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [bulkCheckInLoading, setBulkCheckInLoading] = useState(false);
+  const [cancelAttendanceLoadingId, setCancelAttendanceLoadingId] = useState('');
   const [attendanceMessage, setAttendanceMessage] = useState('');
   const [attendanceError, setAttendanceError] = useState('');
   const [selectedBookedStudent, setSelectedBookedStudent] = useState('');
@@ -282,6 +283,51 @@ export default function AdminBookingsPage() {
     } catch (error) {
       console.error('Error marking no-show:', error);
       setAttendanceError(error.message || 'Failed to mark no-show');
+    }
+  };
+
+  const handleCancelAttendance = async ({ studentEmail, bookingId = '', recordId = '' }) => {
+    if (!selectedAttendanceSession || !studentEmail) return;
+
+    const [classDate, classTime] = selectedAttendanceSession.split('|');
+    const selectedSession = attendanceSessions.find((s) => s.key === selectedAttendanceSession);
+
+    if (!selectedSession) return;
+
+    setAttendanceMessage('');
+    setAttendanceError('');
+    if (recordId) setCancelAttendanceLoadingId(recordId);
+
+    try {
+      const response = await fetch('/api/admin/attendance', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          classDate,
+          classTime,
+          className: selectedSession.className,
+          location: selectedSession.location,
+          studentEmail,
+          bookingId: bookingId || undefined,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to cancel attendance');
+      }
+
+      setAttendanceMessage(data.message || txt('已取消签到。', 'Attendance canceled.'));
+      setSelectedBookedStudent('');
+      setSelectedWalkInStudent('');
+      await fetchAttendanceData(selectedAttendanceSession);
+      await fetchBookings();
+    } catch (error) {
+      console.error('Error canceling attendance:', error);
+      setAttendanceError(error.message || txt('取消签到失败', 'Failed to cancel attendance'));
+    } finally {
+      if (recordId) setCancelAttendanceLoadingId('');
     }
   };
 
@@ -1369,11 +1415,29 @@ export default function AdminBookingsPage() {
                                   </span>
                                 )}
                               </div>
-                              <span className="text-[11px] text-green-300 whitespace-nowrap">
-                                {record.createdAt
-                                  ? new Date(record.createdAt).toLocaleTimeString(isZh ? 'zh-CN' : 'en-NZ', { hour: '2-digit', minute: '2-digit' })
-                                  : txt('已签到', 'Checked in')}
-                              </span>
+                              <div className="flex flex-col items-end gap-1">
+                                <span className="text-[11px] text-green-300 whitespace-nowrap">
+                                  {record.createdAt
+                                    ? new Date(record.createdAt).toLocaleTimeString(isZh ? 'zh-CN' : 'en-NZ', { hour: '2-digit', minute: '2-digit' })
+                                    : txt('已签到', 'Checked in')}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleCancelAttendance({
+                                      studentEmail: record.userEmail,
+                                      bookingId: record.bookingId || '',
+                                      recordId: record.id,
+                                    })
+                                  }
+                                  disabled={!selectedAttendanceSession || cancelAttendanceLoadingId === record.id}
+                                  className="px-2 py-1 rounded border border-yellow-500/40 text-yellow-300 hover:bg-yellow-500/15 text-[11px] disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {cancelAttendanceLoadingId === record.id
+                                    ? txt('取消中...', 'Canceling...')
+                                    : txt('取消签到', 'Cancel Check-in')}
+                                </button>
+                              </div>
                             </div>
                           </div>
                         ))
@@ -1513,6 +1577,18 @@ export default function AdminBookingsPage() {
                           className="w-full px-3 py-2 rounded-lg bg-glow-cyan/20 border border-glow-cyan/40 text-glow-cyan hover:bg-glow-cyan/30 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {txt('确认到课（临时到场）', 'Confirm Attended (Walk-in)')}
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (!selectedWalkInStudent) return;
+                            handleCancelAttendance({ studentEmail: selectedWalkInStudent, recordId: selectedWalkInStudent });
+                          }}
+                          disabled={!selectedWalkInStudent || !selectedAttendanceSession || cancelAttendanceLoadingId === selectedWalkInStudent}
+                          className="w-full px-3 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/40 text-yellow-300 hover:bg-yellow-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {cancelAttendanceLoadingId === selectedWalkInStudent
+                            ? txt('取消中...', 'Canceling...')
+                            : txt('取消签到（临时到场）', 'Cancel Check-in (Walk-in)')}
                         </button>
                       </div>
                     </div>
