@@ -1,18 +1,22 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { ayurvedaQuestions, doshaInfo, calculateDoshaScores, interpretDoshaScores, getDoshaRecommendations } from '@/data/ayurveda-test-questions';
 import FloatingParticles from '@/components/FloatingParticle';
 import Header from '@/components/Header';
-import { ChevronLeft, ChevronRight, Save, RotateCcw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Save, RotateCcw, Mail } from 'lucide-react';
 
 const AyurvedaTest = () => {
   const { t, mounted, language } = useLanguage();
+  const { data: session, status } = useSession();
   const [started, setStarted] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
   const [showResults, setShowResults] = useState(false);
+  const [isSendingReport, setIsSendingReport] = useState(false);
+  const [reportMessage, setReportMessage] = useState(null);
   
   // Check for direct results access
   useEffect(() => {
@@ -87,7 +91,45 @@ const AyurvedaTest = () => {
     setCurrentQuestion(0);
     setAnswers({});
     setShowResults(false);
+    setReportMessage(null);
     localStorage.removeItem('ayurveda-test-progress');
+  };
+
+  const handleSendReport = async () => {
+    if (!session?.user?.email || isSendingReport) return;
+
+    setIsSendingReport(true);
+    setReportMessage(null);
+
+    try {
+      const response = await fetch('/api/ayurveda/send-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          answers,
+          language,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result?.error || 'Failed to send report');
+      }
+
+      setReportMessage({
+        type: 'success',
+        text: language === 'zh' ? '测试报告已发送到你的邮箱。' : 'Your test report has been sent to your email.',
+      });
+    } catch (error) {
+      setReportMessage({
+        type: 'error',
+        text: language === 'zh' ? '发送失败，请稍后重试。' : 'Failed to send report. Please try again later.',
+      });
+      console.error('Failed to send ayurveda report email:', error);
+    } finally {
+      setIsSendingReport(false);
+    }
   };
   
   const getProgress = () => {
@@ -176,6 +218,12 @@ const AyurvedaTest = () => {
                   >
                     {mounted ? t('ayurvedaStartTest') : 'Begin the Test'}
                   </button>
+
+                  <p className="mt-4 text-xs text-muted-foreground leading-relaxed">
+                    {language === 'zh'
+                      ? '题目来源说明：本测试为基于传统阿育吠陀体质评估原则整理的站内自评题组，不等同于医疗诊断。若需个体化临床判断，请咨询合格的阿育吠陀医师或医疗专业人士。'
+                      : 'Source note: This questionnaire is an in-house self-assessment set adapted from traditional Ayurvedic constitution principles and is not a medical diagnosis. For clinical guidance, consult a qualified Ayurvedic practitioner or licensed healthcare professional.'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -390,7 +438,7 @@ const AyurvedaTest = () => {
                                  hover:from-glow-cyan/30 hover:to-glow-purple/30 
                                  hover:border-glow-cyan/50 transition-all duration-300
                                  hover:shadow-lg hover:shadow-glow-cyan/20">
-                  {mounted ? t('bookFreeConsultation') : 'Book Free Consultation'}
+                  {language === 'zh' ? '预约你的第一节课吧' : 'Book Your First Class'}
                 </button>
               </div>
 
@@ -421,7 +469,36 @@ const AyurvedaTest = () => {
                   <RotateCcw className="w-4 h-4" />
                   {mounted ? t('retakeTest') : 'Retake Test'}
                 </button>
+
+                <button
+                  onClick={handleSendReport}
+                  disabled={isSendingReport || status !== 'authenticated'}
+                  className={`flex items-center gap-2 px-6 py-3 rounded-full font-medium transition-all duration-300 ${
+                    status === 'authenticated'
+                      ? 'bg-glow-purple/10 border border-glow-purple/30 text-glow-subtle hover:bg-glow-purple/20'
+                      : 'bg-muted/30 border border-border text-muted-foreground cursor-not-allowed'
+                  }`}
+                >
+                  <Mail className="w-4 h-4" />
+                  {isSendingReport
+                    ? (language === 'zh' ? '发送中...' : 'Sending...')
+                    : (language === 'zh' ? '将测试报告发送到我邮箱' : 'Send Test Report To My Email')}
+                </button>
               </div>
+
+              {status !== 'authenticated' && (
+                <p className="mt-4 text-center text-sm text-muted-foreground">
+                  {language === 'zh'
+                    ? '请先登录后再发送测试报告到邮箱。'
+                    : 'Please sign in first to send the test report to your email.'}
+                </p>
+              )}
+
+              {reportMessage && (
+                <p className={`mt-3 text-center text-sm ${reportMessage.type === 'success' ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {reportMessage.text}
+                </p>
+              )}
             </div>
           </main>
           
