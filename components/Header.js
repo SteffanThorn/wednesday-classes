@@ -8,7 +8,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { useState, useEffect, useRef } from 'react';
 
 const Header = () => {
-  const { t, mounted } = useLanguage();
+  const { t, mounted, language } = useLanguage();
   const { data: session, status } = useSession();
   const [isAdmin, setIsAdmin] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -72,6 +72,15 @@ const Header = () => {
                      transition-colors duration-300 tracking-wide"
           >
             Blog
+          </Link>
+
+          {/* Body Energy Test Link */}
+          <Link
+            href="/energy-assessment"
+            className="text-sm text-muted-foreground hover:text-glow-cyan 
+                     transition-colors duration-300 tracking-wide"
+          >
+            {mounted ? (language === 'zh' ? '身体能量测试' : 'Body Energy Test') : 'Body Energy Test'}
           </Link>
 
           {/* Privacy Policy Link */}

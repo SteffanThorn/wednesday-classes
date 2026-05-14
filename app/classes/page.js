@@ -31,10 +31,11 @@ const FRI_MORNING_CLASS = {
 };
 
 const FRI_AFTERNOON_CLASS = {
-  name: 'Pilates Mat / Pilates Sculpt',
+  name: 'Postnatal Recovery (Mat Pilates)',
   time: '1:30 PM',
   location: 'Bella Vista Motel, Palmerston North',
-  price: 15
+  price: 25,
+  packagePrice: 115
 };
 
 const SAT_MORNING_CLASS = {
@@ -45,10 +46,11 @@ const SAT_MORNING_CLASS = {
 };
 
 const SAT_AFTERNOON_CLASS = {
-  name: 'Pilates Mat / Pilates Sculpt',
+  name: 'Postnatal Recovery (Mat Pilates)',
   time: '1:30 PM',
   location: 'Bella Vista Motel, Palmerston North',
-  price: 15
+  price: 25,
+  packagePrice: 115
 };
 
 const ClassesPage = () => {
@@ -201,13 +203,15 @@ const ClassesPage = () => {
               <div className="relative group cursor-pointer" onClick={() => setIsFriAfternoonModalOpen(true)}>
                 <ClassCard
                   icon={Heart}
-                  titleEn="Pilates Body Sculpt"
-                  titleZh="普拉提 垫上/普拉提塑形"
-                  descriptionEn={'Friday 1:30 PM\nPilates Body Sculpt\nCourse Address: (Bella Vista Motel, Palmerston North)'}
-                  descriptionZh={'每周五下午1:30\n普拉提 垫上/普拉提塑形\n课程地址：(Bella Vista Motel, Palmerston North)'}
-                  duration="60 min"
+                  titleEn="Postnatal Recovery (Mat Pilates)"
+                  titleZh="产后修复（Mat普拉提）"
+                  subtitleEn="Small-group class"
+                  subtitleZh="适合产后妈妈"
+                  descriptionEn={'Friday 1:30 PM\nAddresses pelvic discomfort, core weakness & rebuilds stability\n75-minute small-group class\nCourse Address: (Bella Vista Motel, Palmerston North)'}
+                  descriptionZh={'每周五下午1:30\n解决盆腔不适、核心肌群无力，重建稳定性与安全\n75分钟小班课教学\n课程地址：(Bella Vista Motel, Palmerston North)'}
+                  duration="75 min"
                   level="Beginner"
-                  price="$15/class · 5 for $65"
+                  price="$25/class · 5 for $115"
                 />
               </div>
 
@@ -229,13 +233,15 @@ const ClassesPage = () => {
               <div className="relative group cursor-pointer" onClick={() => setIsSatAfternoonModalOpen(true)}>
                 <ClassCard
                   icon={Heart}
-                  titleEn="Pilates Body Sculpt"
-                  titleZh="普拉提 垫上/普拉提塑形"
-                  descriptionEn={'Saturday 1:30 PM\nPilates Body Sculpt\nCourse Address: (Bella Vista Motel, Palmerston North)'}
-                  descriptionZh={'每周六下午1:30\n普拉提 垫上/普拉提塑形\n课程地址：(Bella Vista Motel, Palmerston North)'}
-                  duration="60 min"
+                  titleEn="Postnatal Recovery (Mat Pilates)"
+                  titleZh="产后修复（Mat普拉提）"
+                  subtitleEn="Small-group class"
+                  subtitleZh="适合产后妈妈"
+                  descriptionEn={'Saturday 1:30 PM\nAddresses pelvic discomfort, core weakness & rebuilds stability\n75-minute small-group class\nCourse Address: (Bella Vista Motel, Palmerston North)'}
+                  descriptionZh={'每周六下午1:30\n解决盆腔不适、核心肌群无力，重建稳定性与安全\n75分钟小班课教学\n课程地址：(Bella Vista Motel, Palmerston North)'}
+                  duration="75 min"
                   level="Beginner"
-                  price="$15/class · 5 for $65"
+                  price="$25/class · 5 for $115"
                 />
               </div>
 

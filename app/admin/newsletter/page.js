@@ -104,6 +104,7 @@ export default function NewsletterAdminPage() {
   const [customConfirmInput, setCustomConfirmInput] = useState('');
   const [customRecipientsLoading, setCustomRecipientsLoading] = useState(false);
   const [customRecipients, setCustomRecipients] = useState([]);
+  const [customRecipientsGroups, setCustomRecipientsGroups] = useState({ activeCustomers: [], futureCustomers: [] });
   const [customSelectedEmails, setCustomSelectedEmails] = useState([]);
   const [customRecipientSearch, setCustomRecipientSearch] = useState('');
   const [customForm, setCustomForm] = useState({
@@ -234,34 +235,77 @@ export default function NewsletterAdminPage() {
   async function fetchCustomRecipients() {
     setCustomRecipientsLoading(true);
     try {
-      const res = await fetch('/api/admin/customers');
-      const data = await res.json();
-      if (!res.ok || !data?.success) {
-        throw new Error(data?.error || 'Failed to load customers');
+      // 并行获取现有客户和未来客户
+      const [activeRes, futureRes] = await Promise.all([
+        fetch('/api/admin/customers'),
+        fetch('/api/admin/future-customers'),
+      ]);
+
+      if (!activeRes.ok || !futureRes.ok) {
+        throw new Error('Failed to load customers');
       }
 
-      const map = new Map();
-      (data.customers || []).forEach((customer) => {
+      const activeData = await activeRes.json();
+      const futureData = await futureRes.json();
+
+      if (!activeData?.success || !futureData?.success) {
+        throw new Error(activeData?.error || futureData?.error || 'Failed to load customers');
+      }
+
+      // 处理现有客户
+      const activeMap = new Map();
+      (activeData.customers || []).forEach((customer) => {
         const email = String(customer?.userEmail || '').trim().toLowerCase();
         if (!email) return;
-        if (!map.has(email)) {
-          map.set(email, {
+        if (!activeMap.has(email)) {
+          activeMap.set(email, {
             email,
             name: String(customer?.userName || 'Student').trim() || 'Student',
+            type: 'active',
           });
         }
       });
 
-      const sorted = Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, 'en'));
-      const validRecipients = sorted.filter((item) => {
+      const activeSorted = Array.from(activeMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'en'));
+      const activeValid = activeSorted.filter((item) => {
         const email = String(item.email || '').trim().toLowerCase();
         if (!email || email.includes('placeholder.local') || email.includes('*')) return false;
         return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
       });
-      setCustomRecipients(validRecipients);
+
+      // 处理未来客户
+      const futureMap = new Map();
+      (futureData.customers || []).forEach((customer) => {
+        const email = String(customer?.email || '').trim().toLowerCase();
+        if (!email) return;
+        if (!futureMap.has(email)) {
+          futureMap.set(email, {
+            email,
+            name: String(customer?.name || 'Prospect').trim() || 'Prospect',
+            type: 'future',
+          });
+        }
+      });
+
+      const futureSorted = Array.from(futureMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'en'));
+      const futureValid = futureSorted.filter((item) => {
+        const email = String(item.email || '').trim().toLowerCase();
+        if (!email || email.includes('placeholder.local') || email.includes('*')) return false;
+        return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+      });
+
+      // 保存分类的数据
+      setCustomRecipientsGroups({
+        activeCustomers: activeValid,
+        futureCustomers: futureValid,
+      });
+
+      // 同时保存组合的列表用于向后兼容
+      setCustomRecipients([...activeValid, ...futureValid]);
     } catch (err) {
       showToast('error', '客户列表加载失败，请稍后重试');
       setCustomRecipients([]);
+      setCustomRecipientsGroups({ activeCustomers: [], futureCustomers: [] });
     } finally {
       setCustomRecipientsLoading(false);
     }
@@ -803,11 +847,21 @@ export default function NewsletterAdminPage() {
   if (!session?.user || session.user.role !== 'admin') return null;
 
   const isSent = selectedWeek?.campaign?.status === 'sent';
-  const filteredCustomRecipients = customRecipients.filter((item) => {
+  
+  // 过滤分类的客户列表
+  const filteredActiveCustomers = customRecipientsGroups.activeCustomers.filter((item) => {
     if (!customRecipientSearch.trim()) return true;
     const keyword = customRecipientSearch.trim().toLowerCase();
     return item.name.toLowerCase().includes(keyword) || item.email.toLowerCase().includes(keyword);
   });
+
+  const filteredFutureCustomers = customRecipientsGroups.futureCustomers.filter((item) => {
+    if (!customRecipientSearch.trim()) return true;
+    const keyword = customRecipientSearch.trim().toLowerCase();
+    return item.name.toLowerCase().includes(keyword) || item.email.toLowerCase().includes(keyword);
+  });
+
+  const filteredCustomRecipients = [...filteredActiveCustomers, ...filteredFutureCustomers];
 
   const allFilteredSelected =
     filteredCustomRecipients.length > 0 &&
@@ -1030,74 +1084,169 @@ export default function NewsletterAdminPage() {
                     </div>
 
                     <div className="space-y-3">
-                      <div className="rounded-xl border border-white/10 bg-black/15 p-3 space-y-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <p className="text-sm text-foreground/90">
-                            选择客户发送（可选）
-                            <span className="text-xs text-muted-foreground ml-2">
-                              已选 {customSelectedEmails.length} 位
-                            </span>
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => toggleSelectAllFilteredRecipients(filteredCustomRecipients)}
-                            className="text-xs px-2.5 py-1.5 rounded-lg border border-white/15 text-muted-foreground hover:text-foreground hover:border-glow-cyan/40"
-                          >
-                            {allFilteredSelected ? '取消全选(当前筛选)' : '全选(当前筛选)'}
-                          </button>
-                        </div>
-
-                        <input
-                          type="text"
-                          value={customRecipientSearch}
-                          onChange={(e) => setCustomRecipientSearch(e.target.value)}
-                          placeholder="搜索客户姓名或邮箱"
-                          className="w-full px-3 py-2.5 rounded-lg border border-white/10 bg-card/50 text-sm focus:outline-none focus:border-glow-cyan/40"
-                        />
-
-                        <div className="max-h-44 overflow-y-auto space-y-1.5 pr-1">
-                          {customRecipientsLoading ? (
-                            <p className="text-xs text-muted-foreground">加载客户列表中...</p>
-                          ) : filteredCustomRecipients.length === 0 ? (
-                            <p className="text-xs text-muted-foreground">没有匹配的客户</p>
-                          ) : (
-                            filteredCustomRecipients.map((item) => (
-                              <label
-                                key={item.email}
-                                className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-white/5 cursor-pointer"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={customSelectedEmails.includes(item.email)}
-                                  onChange={() => toggleCustomRecipient(item.email)}
-                                  className="w-4 h-4"
-                                />
-                                <span className="text-xs text-foreground/90 truncate">
-                                  {item.name} · {item.email}
-                                </span>
-                              </label>
-                            ))
-                          )}
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={promptCustomSendSelected}
-                          disabled={customSendingAll || customSendingTest || customSendingSelected || customSelectedEmails.length === 0}
-                          className={`w-full mt-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all disabled:opacity-50 ${
-                            customSelectedEmails.length > 0
-                              ? 'bg-emerald-500 text-black hover:bg-emerald-400 shadow-[0_0_0_1px_rgba(16,185,129,0.35)]'
-                              : 'bg-white/10 text-muted-foreground'
-                          }`}
-                        >
-                          {customSendingSelected ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                          {customSendingSelected
-                            ? '发送中...'
-                            : customSelectedEmails.length > 0
-                            ? `发送给已选择客户（${customSelectedEmails.length}）`
-                            : '请先选择客户'}
-                        </button>
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <p className="text-sm text-foreground/90">
+                          选择客户发送（可选）
+                          <span className="text-xs text-muted-foreground ml-2">
+                            已选 {customSelectedEmails.length} 位
+                          </span>
+                        </p>
                       </div>
+
+                      <input
+                        type="text"
+                        value={customRecipientSearch}
+                        onChange={(e) => setCustomRecipientSearch(e.target.value)}
+                        placeholder="搜索客户姓名或邮箱"
+                        className="w-full px-3 py-2.5 rounded-lg border border-white/10 bg-card/50 text-sm focus:outline-none focus:border-glow-cyan/40"
+                      />
+
+                      {/* 现有客户部分 */}
+                      {customRecipientsLoading ? (
+                        <p className="text-xs text-muted-foreground text-center py-4">加载客户列表中...</p>
+                      ) : (
+                        <>
+                          {filteredActiveCustomers.length > 0 && (
+                            <div className="rounded-lg border border-glow-cyan/30 bg-glow-cyan/5 p-3 space-y-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="text-sm font-semibold text-glow-cyan">
+                                  👥 现有客户 ({filteredActiveCustomers.length})
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const allSelectedInGroup = filteredActiveCustomers.every((item) =>
+                                      customSelectedEmails.includes(item.email)
+                                    );
+                                    if (allSelectedInGroup) {
+                                      setCustomSelectedEmails((prev) =>
+                                        prev.filter(
+                                          (email) =>
+                                            !filteredActiveCustomers.find((item) => item.email === email)
+                                        )
+                                      );
+                                    } else {
+                                      setCustomSelectedEmails((prev) => [
+                                        ...new Set([
+                                          ...prev,
+                                          ...filteredActiveCustomers.map((item) => item.email),
+                                        ]),
+                                      ]);
+                                    }
+                                  }}
+                                  className="text-xs px-2 py-1 rounded border border-glow-cyan/40 text-glow-cyan hover:bg-glow-cyan/10"
+                                >
+                                  {filteredActiveCustomers.every((item) =>
+                                    customSelectedEmails.includes(item.email)
+                                  )
+                                    ? '取消全选'
+                                    : '全选'}
+                                </button>
+                              </div>
+                              <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
+                                {filteredActiveCustomers.map((item) => (
+                                  <label
+                                    key={item.email}
+                                    className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-glow-cyan/10 cursor-pointer"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={customSelectedEmails.includes(item.email)}
+                                      onChange={() => toggleCustomRecipient(item.email)}
+                                      className="w-4 h-4"
+                                    />
+                                    <span className="text-xs text-foreground/90 truncate">
+                                      {item.name} · {item.email}
+                                    </span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 未来客户名单部分 */}
+                          {filteredFutureCustomers.length > 0 && (
+                            <div className="rounded-lg border border-amber-400/30 bg-amber-500/5 p-3 space-y-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="text-sm font-semibold text-amber-400">
+                                  ✨ 未来客户名单 ({filteredFutureCustomers.length})
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const allSelectedInGroup = filteredFutureCustomers.every((item) =>
+                                      customSelectedEmails.includes(item.email)
+                                    );
+                                    if (allSelectedInGroup) {
+                                      setCustomSelectedEmails((prev) =>
+                                        prev.filter(
+                                          (email) =>
+                                            !filteredFutureCustomers.find((item) => item.email === email)
+                                        )
+                                      );
+                                    } else {
+                                      setCustomSelectedEmails((prev) => [
+                                        ...new Set([
+                                          ...prev,
+                                          ...filteredFutureCustomers.map((item) => item.email),
+                                        ]),
+                                      ]);
+                                    }
+                                  }}
+                                  className="text-xs px-2 py-1 rounded border border-amber-400/40 text-amber-400 hover:bg-amber-500/10"
+                                >
+                                  {filteredFutureCustomers.every((item) =>
+                                    customSelectedEmails.includes(item.email)
+                                  )
+                                    ? '取消全选'
+                                    : '全选'}
+                                </button>
+                              </div>
+                              <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
+                                {filteredFutureCustomers.map((item) => (
+                                  <label
+                                    key={item.email}
+                                    className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-amber-500/10 cursor-pointer"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={customSelectedEmails.includes(item.email)}
+                                      onChange={() => toggleCustomRecipient(item.email)}
+                                      className="w-4 h-4"
+                                    />
+                                    <span className="text-xs text-amber-300/90 truncate">
+                                      {item.name} · {item.email}
+                                    </span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {filteredCustomRecipients.length === 0 && (
+                            <p className="text-xs text-muted-foreground text-center py-4">没有匹配的客户</p>
+                          )}
+                        </>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={promptCustomSendSelected}
+                        disabled={customSendingAll || customSendingTest || customSendingSelected || customSelectedEmails.length === 0}
+                        className={`w-full mt-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all disabled:opacity-50 ${
+                          customSelectedEmails.length > 0
+                            ? 'bg-emerald-500 text-black hover:bg-emerald-400 shadow-[0_0_0_1px_rgba(16,185,129,0.35)]'
+                            : 'bg-white/10 text-muted-foreground'
+                        }`}
+                      >
+                        {customSendingSelected ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                        {customSendingSelected
+                          ? '发送中...'
+                          : customSelectedEmails.length > 0
+                          ? `发送给已选择客户（${customSelectedEmails.length}）`
+                          : '请先选择客户'}
+                      </button>
+                    </div>
 
                       <input
                         ref={customFileInputRef}
@@ -1145,7 +1294,6 @@ export default function NewsletterAdminPage() {
                           </div>
                         </div>
                       )}
-                    </div>
 
                     {customConfirmSendType && (
                       <div className="p-4 rounded-xl border border-red-500/25 bg-red-950/15">
@@ -1498,13 +1646,6 @@ export default function NewsletterAdminPage() {
                         <p className="text-sm text-foreground/90">
                           单独发送对象（已选 {customSelectedEmails.length} 位）
                         </p>
-                        <button
-                          type="button"
-                          onClick={() => toggleSelectAllFilteredRecipients(filteredCustomRecipients)}
-                          className="text-xs px-2.5 py-1.5 rounded-lg border border-white/15 text-muted-foreground hover:text-foreground hover:border-glow-cyan/40"
-                        >
-                          {allFilteredSelected ? '取消全选(当前筛选)' : '全选(当前筛选)'}
-                        </button>
                       </div>
 
                       <input
@@ -1515,30 +1656,133 @@ export default function NewsletterAdminPage() {
                         className="w-full px-3 py-2.5 rounded-lg border border-white/10 bg-card/50 text-sm focus:outline-none focus:border-glow-cyan/40"
                       />
 
-                      <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
-                        {customRecipientsLoading ? (
-                          <p className="text-xs text-muted-foreground">加载客户列表中...</p>
-                        ) : filteredCustomRecipients.length === 0 ? (
-                          <p className="text-xs text-muted-foreground">没有匹配的客户</p>
-                        ) : (
-                          filteredCustomRecipients.map((item) => (
-                            <label
-                              key={`week-${item.email}`}
-                              className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-white/5 cursor-pointer"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={customSelectedEmails.includes(item.email)}
-                                onChange={() => toggleCustomRecipient(item.email)}
-                                className="w-4 h-4"
-                              />
-                              <span className="text-xs text-foreground/90 truncate">
-                                {item.name} · {item.email}
-                              </span>
-                            </label>
-                          ))
-                        )}
-                      </div>
+                      {customRecipientsLoading ? (
+                        <p className="text-xs text-muted-foreground text-center py-4">加载客户列表中...</p>
+                      ) : (
+                        <>
+                          {/* 现有客户部分 */}
+                          {filteredActiveCustomers.length > 0 && (
+                            <div className="rounded-lg border border-glow-cyan/30 bg-glow-cyan/5 p-3 space-y-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="text-sm font-semibold text-glow-cyan">
+                                  👥 现有客户 ({filteredActiveCustomers.length})
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const allSelectedInGroup = filteredActiveCustomers.every((item) =>
+                                      customSelectedEmails.includes(item.email)
+                                    );
+                                    if (allSelectedInGroup) {
+                                      setCustomSelectedEmails((prev) =>
+                                        prev.filter(
+                                          (email) =>
+                                            !filteredActiveCustomers.find((item) => item.email === email)
+                                        )
+                                      );
+                                    } else {
+                                      setCustomSelectedEmails((prev) => [
+                                        ...new Set([
+                                          ...prev,
+                                          ...filteredActiveCustomers.map((item) => item.email),
+                                        ]),
+                                      ]);
+                                    }
+                                  }}
+                                  className="text-xs px-2 py-1 rounded border border-glow-cyan/40 text-glow-cyan hover:bg-glow-cyan/10"
+                                >
+                                  {filteredActiveCustomers.every((item) =>
+                                    customSelectedEmails.includes(item.email)
+                                  )
+                                    ? '取消全选'
+                                    : '全选'}
+                                </button>
+                              </div>
+                              <div className="max-h-32 overflow-y-auto space-y-1 pr-1">
+                                {filteredActiveCustomers.map((item) => (
+                                  <label
+                                    key={`week-${item.email}`}
+                                    className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-glow-cyan/10 cursor-pointer"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={customSelectedEmails.includes(item.email)}
+                                      onChange={() => toggleCustomRecipient(item.email)}
+                                      className="w-4 h-4"
+                                    />
+                                    <span className="text-xs text-foreground/90 truncate">
+                                      {item.name} · {item.email}
+                                    </span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 未来客户名单部分 */}
+                          {filteredFutureCustomers.length > 0 && (
+                            <div className="rounded-lg border border-amber-400/30 bg-amber-500/5 p-3 space-y-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="text-sm font-semibold text-amber-400">
+                                  ✨ 未来客户名单 ({filteredFutureCustomers.length})
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const allSelectedInGroup = filteredFutureCustomers.every((item) =>
+                                      customSelectedEmails.includes(item.email)
+                                    );
+                                    if (allSelectedInGroup) {
+                                      setCustomSelectedEmails((prev) =>
+                                        prev.filter(
+                                          (email) =>
+                                            !filteredFutureCustomers.find((item) => item.email === email)
+                                        )
+                                      );
+                                    } else {
+                                      setCustomSelectedEmails((prev) => [
+                                        ...new Set([
+                                          ...prev,
+                                          ...filteredFutureCustomers.map((item) => item.email),
+                                        ]),
+                                      ]);
+                                    }
+                                  }}
+                                  className="text-xs px-2 py-1 rounded border border-amber-400/40 text-amber-400 hover:bg-amber-500/10"
+                                >
+                                  {filteredFutureCustomers.every((item) =>
+                                    customSelectedEmails.includes(item.email)
+                                  )
+                                    ? '取消全选'
+                                    : '全选'}
+                                </button>
+                              </div>
+                              <div className="max-h-32 overflow-y-auto space-y-1 pr-1">
+                                {filteredFutureCustomers.map((item) => (
+                                  <label
+                                    key={`week-${item.email}`}
+                                    className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-amber-500/10 cursor-pointer"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={customSelectedEmails.includes(item.email)}
+                                      onChange={() => toggleCustomRecipient(item.email)}
+                                      className="w-4 h-4"
+                                    />
+                                    <span className="text-xs text-amber-300/90 truncate">
+                                      {item.name} · {item.email}
+                                    </span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {filteredCustomRecipients.length === 0 && (
+                            <p className="text-xs text-muted-foreground text-center py-4">没有匹配的客户</p>
+                          )}
+                        </>
+                      )}
 
                       <p className="text-xs text-muted-foreground">
                         仅发送给勾选客户，不会标记为“已发送给所有学生”。
@@ -1659,7 +1903,7 @@ export default function NewsletterAdminPage() {
                       disabled={sendingTest || saving}
                       className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium
                         border border-violet-400/30 text-violet-400 hover:bg-violet-400/10
-                        transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                        disabled:opacity-50 disabled:cursor-not-allowed">
                       {sendingTest ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (

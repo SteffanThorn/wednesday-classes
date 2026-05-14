@@ -79,6 +79,20 @@ const GOAL_OPTIONS = [
   'Reconnect with body',
 ];
 
+const DIET_OPTIONS = [
+  { val: 'Balanced — vegetables, fruit & protein daily', icon: '🥗' },
+  { val: 'Mostly home-cooked but limited variety',       icon: '🍳' },
+  { val: 'Frequent processed or fast food',              icon: '🍔' },
+  { val: 'Vegetarian / plant-based',                    icon: '🌱' },
+];
+
+const SLEEP_OPTIONS = [
+  { val: 'Light sleep — wake easily or frequently',     icon: '😴' },
+  { val: 'Moderate — occasionally disrupted',           icon: '🌙' },
+  { val: 'Good — generally well-rested',                icon: '✨' },
+  { val: 'Poor — difficulty falling or staying asleep', icon: '😞' },
+];
+
 // ── Initial state ──────────────────────────────────────────────────
 
 const INITIAL = {

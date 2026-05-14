@@ -7,6 +7,8 @@ import { useLanguage } from '@/hooks/useLanguage';
 const ClassCard = ({ 
   titleEn,
   titleZh,
+  subtitleEn,
+  subtitleZh,
   descriptionEn,
   descriptionZh,
   duration,
@@ -26,10 +28,17 @@ const ClassCard = ({
                       flex items-center justify-center border border-glow-cyan/30 box-glow">
           <Icon className="w-6 h-6 text-glow-cyan" />
         </div>
-        <h3 className="font-display text-2xl text-foreground group-hover:text-glow-subtle 
-                     transition-all duration-300">
-          {mounted ? (t('language') === 'zh' ? titleZh : titleEn) : titleEn}
-        </h3>
+        <div>
+          <h3 className="font-display text-2xl text-foreground group-hover:text-glow-subtle 
+                       transition-all duration-300">
+            {mounted ? (t('language') === 'zh' ? titleZh : titleEn) : titleEn}
+          </h3>
+          {(subtitleEn || subtitleZh) && (
+            <p className="mt-1 text-sm text-glow-cyan/80">
+              {mounted ? (t('language') === 'zh' ? subtitleZh : subtitleEn) : subtitleEn}
+            </p>
+          )}
+        </div>
       </div>
 
       <p className="text-muted-foreground leading-relaxed mb-6 whitespace-pre-line">

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import { X, Calendar, Clock, MapPin, Loader2, LogIn, Check, ChevronLeft, ChevronRight, Tag, Gift } from 'lucide-react';
 import { getAvailableDatesByDay, getClassNameForDay, getClassTimeForDay } from '@/lib/class-schedule';
-import { calculateClassBookingTotal, SINGLE_CLASS_PRICE } from '@/lib/pricing';
+import { calculateClassBookingTotal, FIVE_CLASS_PACKAGE_PRICE, SINGLE_CLASS_PRICE } from '@/lib/pricing';
 import HealthIntakeForm from '@/components/HealthIntakeForm';
 
 // Weekly focus template for specific date + slot (easy to extend later)
@@ -231,9 +231,12 @@ export default function BookingModal({
   const totalPages = Math.ceil(availableDates.length / DATES_PER_PAGE);
   const displayedDates = availableDates.slice(currentPage * DATES_PER_PAGE, (currentPage + 1) * DATES_PER_PAGE);
   
+  const classPrice = Number(classDetails?.price ?? SINGLE_CLASS_PRICE);
+  const classPackagePrice = Number(classDetails?.packagePrice ?? FIVE_CLASS_PACKAGE_PRICE);
+
   // Calculate total price (supports 5-class package pricing)
-  const totalPrice = calculateClassBookingTotal(selectedDates.length);
-  const regularPrice = selectedDates.length * SINGLE_CLASS_PRICE;
+  const totalPrice = calculateClassBookingTotal(selectedDates.length, classPrice, classPackagePrice);
+  const regularPrice = selectedDates.length * classPrice;
   const packageSavings = Math.max(0, regularPrice - totalPrice);
 
   // Reset state when modal opens - useEffect must always be called
@@ -308,6 +311,16 @@ export default function BookingModal({
       title: 'Structural Alignment & Deep Mobility Series',
       subtitle: 'Improve posture. Unlock joints. Build resilient movement.',
       focus: 'Postural alignment, hip and shoulder mobility, and joint stability',
+    },
+    'friday-afternoon': {
+      title: 'Postnatal Recovery (Mat Pilates)',
+      subtitle: 'Small-group class for postnatal mothers',
+      focus: 'Address pelvic discomfort, core weakness & urinary leakage. Rebuild deep core strength, stability and confidence.',
+    },
+    'saturday-afternoon': {
+      title: 'Postnatal Recovery (Mat Pilates)',
+      subtitle: 'Small-group class for postnatal mothers',
+      focus: 'Address pelvic discomfort, core weakness & urinary leakage. Rebuild deep core strength, stability and confidence.',
     },
   };
   const selectedSeriesTitle = slotSeriesInfo[effectiveDayOfWeek]?.title;
@@ -699,7 +712,9 @@ export default function BookingModal({
                 }}
                 className="py-2 px-3 rounded-lg font-medium transition-colors bg-glow-cyan/20 border border-glow-cyan/50 text-glow-cyan hover:bg-glow-cyan/30"
               >
-                {language === 'zh' ? '购买5节课套餐（$65）' : 'Buy 5-Class Package ($65)'}
+                {language === 'zh'
+                  ? `购买5节课套餐（$${classPackagePrice}）`
+                  : `Buy 5-Class Package ($${classPackagePrice})`}
               </button>
             </div>
           )}
