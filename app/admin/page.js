@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { useLanguage } from '@/hooks/useLanguage';
 import Header from '@/components/Header';
 import FloatingParticles from '@/components/FloatingParticle';
-import { Loader2, CalendarCheck2, TicketPercent, UserPlus, ChevronRight, Users, Mail, UserCog } from 'lucide-react';
+import { Loader2, CalendarCheck2, TicketPercent, UserPlus, ChevronRight, Users, Mail, UserCog, ClipboardList } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -195,13 +195,26 @@ export default function AdminDashboardPage() {
 
               <Link
                 href="/admin/future-customers"
-                className="p-6 rounded-3xl border border-glow-cyan/20 bg-card/60 backdrop-blur-sm 
+                className="p-6 rounded-3xl border border-glow-cyan/20 bg-card/60 backdrop-blur-sm
                          hover:border-glow-cyan/40 hover:box-glow transition-all duration-500
                          flex items-center justify-between group"
               >
                 <div className="flex items-center gap-3">
                   <UserCog className="w-5 h-5 text-glow-cyan" />
                   <span className="font-medium">{txt('未来客户名单', 'Future Customer List')}</span>
+                </div>
+                <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-glow-cyan transition-colors" />
+              </Link>
+
+              <Link
+                href="/admin/surveys"
+                className="p-6 rounded-3xl border border-glow-cyan/20 bg-card/60 backdrop-blur-sm
+                         hover:border-glow-cyan/40 hover:box-glow transition-all duration-500
+                         flex items-center justify-between group"
+              >
+                <div className="flex items-center gap-3">
+                  <ClipboardList className="w-5 h-5 text-glow-cyan" />
+                  <span className="font-medium">{txt('问卷调查记录', 'Survey Submissions')}</span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-glow-cyan transition-colors" />
               </Link>
