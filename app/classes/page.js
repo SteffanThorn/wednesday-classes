@@ -53,12 +53,20 @@ const SAT_AFTERNOON_CLASS = {
   packagePrice: 115
 };
 
+const FRI_EVENING_CLASS = {
+  name: 'Functional Integrative Yoga',
+  time: '6:00 PM',
+  location: 'Bella Vista Motel, Palmerston North',
+  price: 15
+};
+
 const ClassesPage = () => {
   const { t, mounted } = useLanguage();
   const [isWedMorningModalOpen, setIsWedMorningModalOpen] = useState(false);
   const [isThuEveningModalOpen, setIsThuEveningModalOpen] = useState(false);
   const [isFriMorningModalOpen, setIsFriMorningModalOpen] = useState(false);
   const [isFriAfternoonModalOpen, setIsFriAfternoonModalOpen] = useState(false);
+  const [isFriEveningModalOpen, setIsFriEveningModalOpen] = useState(false);
   const [isSatMorningModalOpen, setIsSatMorningModalOpen] = useState(false);
   const [isSatAfternoonModalOpen, setIsSatAfternoonModalOpen] = useState(false);
   
@@ -212,6 +220,20 @@ const ClassesPage = () => {
                   duration="75 min"
                   level="Beginner"
                   price="$25/class · 5 for $115"
+                />
+              </div>
+
+              {/* Friday 6:00 PM */}
+              <div className="relative group cursor-pointer" onClick={() => setIsFriEveningModalOpen(true)}>
+                <ClassCard
+                  icon={Zap}
+                  titleEn="Functional Integrative Yoga"
+                  titleZh="功能整合瑜伽"
+                  descriptionEn={'Friday 6:00 PM\nFunctional Integrative Yoga\nCourse Address: (Bella Vista Motel, Palmerston North)'}
+                  descriptionZh={'每周五晚上6:00\n功能整合瑜伽\n课程地址：(Bella Vista Motel, Palmerston North)'}
+                  duration="60 min"
+                  level="Beginner"
+                  price="$15/class · 5 for $65"
                 />
               </div>
 
@@ -390,6 +412,13 @@ const ClassesPage = () => {
         onClose={() => setIsFriAfternoonModalOpen(false)}
         classDetails={FRI_AFTERNOON_CLASS}
         dayOfWeek="friday-afternoon"
+      />
+
+      <BookingModal
+        isOpen={isFriEveningModalOpen}
+        onClose={() => setIsFriEveningModalOpen(false)}
+        classDetails={FRI_EVENING_CLASS}
+        dayOfWeek="friday-evening"
       />
 
       <BookingModal
