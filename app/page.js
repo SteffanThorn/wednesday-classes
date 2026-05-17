@@ -209,6 +209,11 @@ const Index = () => {
             <p className="text-sm text-muted-foreground">
               {mounted ? t('copyright') : '© 2026 INNER LIGHT · Auckland, New Zealand'}
             </p>
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground/80">
+              <span>Email: <a href="mailto:innerlightyuki@gmail.com" className="hover:text-glow-cyan transition-colors duration-200">innerlightyuki@gmail.com</a></span>
+              <span className="text-muted-foreground/30">·</span>
+              <span>Phone: <a href="tel:02108005679" className="hover:text-glow-cyan transition-colors duration-200">021 080 05679</a></span>
+            </div>
             <p className="mt-2 text-xs text-muted-foreground/60">
               {mounted ? t('footerMotto') : 'Breathe deeply. Move gently. Live fully.'}
             </p>
