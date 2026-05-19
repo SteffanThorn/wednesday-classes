@@ -217,7 +217,10 @@ export default function BookingModal({
   const [selectedDates, setSelectedDates] = useState([]);
   const [currentPage, setCurrentPage] = useState(0);
   const DATES_PER_PAGE = 4;
-  
+
+  // Capacity state for Bella Vista slots (date -> remaining spots)
+  const [capacityMap, setCapacityMap] = useState({});
+
   // Day selection state (for homepage)
   const [selectedDay, setSelectedDay] = useState(dayOfWeek || 'wednesday-morning');
 
@@ -276,6 +279,18 @@ export default function BookingModal({
       cancelled = true;
     };
   }, [isOpen, session?.user?.email]);
+
+  // Fetch remaining capacity for Bella Vista slots
+  const CAPPED_SLOTS = ['friday-morning', 'friday-afternoon', 'friday-evening', 'saturday-morning', 'saturday-afternoon'];
+  useEffect(() => {
+    if (!isOpen || !CAPPED_SLOTS.includes(effectiveDayOfWeek)) return;
+    const dates = availableDates.map((d) => d.date).join(',');
+    if (!dates) return;
+    fetch(`/api/class-capacity?slot=${effectiveDayOfWeek}&dates=${dates}`)
+      .then((r) => r.json())
+      .then((data) => { if (data.capacities) setCapacityMap(data.capacities); })
+      .catch(() => {});
+  }, [isOpen, effectiveDayOfWeek]);
 
   useEffect(() => {
     if (!isOpen || !preselectedDate) return;
@@ -369,6 +384,8 @@ export default function BookingModal({
   };
 
   const handleDateToggle = (date) => {
+    const remaining = capacityMap[date.date];
+    if (remaining === 0) return; // full — do nothing
     setSelectedDates(prev => {
       const exists = prev.find(d => d.date === date.date);
       if (exists) {
@@ -819,25 +836,43 @@ export default function BookingModal({
             {displayedDates.map((date) => {
               const isSelected = selectedDates.some(d => d.date === date.date);
               const weeklyFocus = getWeeklyFocusForDate(effectiveDayOfWeek, date.date);
+              const remaining = CAPPED_SLOTS.includes(effectiveDayOfWeek) ? (capacityMap[date.date] ?? null) : null;
+              const isFull = remaining === 0;
+              const isLow = remaining !== null && remaining > 0 && remaining <= 3;
               return (
                 <button
                   key={date.date}
                   type="button"
                   onClick={() => handleDateToggle(date)}
+                  disabled={isFull}
                   className={`w-full p-3 rounded-xl border transition-all flex items-center justify-between ${
-                    isSelected 
-                      ? 'bg-glow-cyan/20 border-glow-cyan/50 text-foreground' 
-                      : 'bg-background/50 border-glow-cyan/20 text-muted-foreground hover:border-glow-cyan/40'
+                    isFull
+                      ? 'bg-background/30 border-glow-cyan/10 text-muted-foreground/40 cursor-not-allowed'
+                      : isSelected
+                        ? 'bg-glow-cyan/20 border-glow-cyan/50 text-foreground'
+                        : 'bg-background/50 border-glow-cyan/20 text-muted-foreground hover:border-glow-cyan/40'
                   }`}
                 >
                   <div className="flex items-center gap-3">
                     <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                      isSelected ? 'border-glow-cyan bg-glow-cyan' : 'border-muted-foreground'
+                      isFull ? 'border-muted-foreground/20' : isSelected ? 'border-glow-cyan bg-glow-cyan' : 'border-muted-foreground'
                     }`}>
-                      {isSelected && <Check className="w-3 h-3 text-card" />}
+                      {isSelected && !isFull && <Check className="w-3 h-3 text-card" />}
                     </div>
                     <div className="text-left">
-                      <div className="font-medium">{date.displayDate}</div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium">{date.displayDate}</span>
+                        {isFull && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 border border-red-500/30 text-red-400 font-medium">
+                            Full
+                          </span>
+                        )}
+                        {isLow && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/30 text-amber-400 font-medium">
+                            {remaining} spot{remaining === 1 ? '' : 's'} left
+                          </span>
+                        )}
+                      </div>
                       {weeklyFocus && (
                         <div className="mt-2 p-2 rounded-lg bg-glow-purple/10 border border-glow-purple/30">
                           <p className="text-xs text-foreground font-medium">{weeklyFocus.weekTitle}</p>
@@ -853,7 +888,7 @@ export default function BookingModal({
                       )}
                     </div>
                   </div>
-                  {!shouldHidePriceForMember && (
+                  {!shouldHidePriceForMember && !isFull && (
                     <div className="text-glow-cyan font-medium">
                       ${classDetails.price}
                     </div>

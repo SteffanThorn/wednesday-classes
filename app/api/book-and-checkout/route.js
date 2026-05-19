@@ -4,6 +4,7 @@ import Stripe from 'stripe';
 import dbConnect from '@/lib/mongodb';
 import Booking from '@/lib/models/Booking';
 import Coupon from '@/lib/models/Coupon';
+import { inferDayFromClassName, getCapacityForSlot, getClassTimeForDay } from '@/lib/class-schedule';
 
 function getDayRange(classDateInput) {
   const d = new Date(classDateInput);
@@ -23,6 +24,21 @@ async function findDuplicateBooking({ userEmail, classDate, classTime }) {
     status: { $ne: 'cancelled' },
     paymentStatus: { $nin: ['failed', 'canceled', 'refunded'] },
   }).lean();
+}
+
+async function checkCapacity(className, classDate, classTime) {
+  const slotDay = inferDayFromClassName(className);
+  const capacity = slotDay ? getCapacityForSlot(slotDay) : null;
+  if (capacity === null) return null; // unlimited
+  const { dayStart, dayEnd } = getDayRange(classDate);
+  const count = await Booking.countDocuments({
+    classDate: { $gte: dayStart, $lte: dayEnd },
+    classTime,
+    status: { $ne: 'cancelled' },
+    paymentStatus: { $nin: ['failed', 'canceled', 'refunded'] },
+  });
+  if (count >= capacity) return capacity; // returns limit as signal that it's full
+  return null; // not full
 }
 
 // Check for Stripe key at module load time
@@ -206,6 +222,15 @@ export async function POST(request) {
       );
     }
 
+    // Capacity check for Bella Vista classes
+    const fullCapacity = await checkCapacity(className, classDate, classTime);
+    if (fullCapacity !== null) {
+      return NextResponse.json(
+        { error: `This class is fully booked (max ${fullCapacity} students). Please choose a different date.` },
+        { status: 409 }
+      );
+    }
+
     // Create the booking
     const booking = new Booking({
       userId: userId,
@@ -326,6 +351,15 @@ async function handleMultiDateBooking({ selectedDates, className, classTime, loc
               paymentStatus: duplicateBooking.paymentStatus,
             },
           },
+          { status: 409 }
+        );
+      }
+
+      // Capacity check for Bella Vista classes
+      const fullCap = await checkCapacity(className, date, classTime);
+      if (fullCap !== null) {
+        return NextResponse.json(
+          { error: `The class on ${new Date(date).toLocaleDateString('en-NZ', { weekday: 'long', day: 'numeric', month: 'long' })} is fully booked (max ${fullCap} students). Please deselect that date.` },
           { status: 409 }
         );
       }

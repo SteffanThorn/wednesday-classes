@@ -8,7 +8,7 @@ import {
   sendBookingConfirmationEmail,
   sendCancellationEmail,
 } from '@/lib/email';
-import { inferDayFromClassName, isAllowedClassDate } from '@/lib/class-schedule';
+import { inferDayFromClassName, isAllowedClassDate, getCapacityForSlot, getClassTimeForDay } from '@/lib/class-schedule';
 
 function getDayRange(classDateInput) {
   const d = new Date(classDateInput);
@@ -138,6 +138,25 @@ export async function POST(request) {
         },
         { status: 409 }
       );
+    }
+
+    // Capacity check for Bella Vista classes (max 8 per session)
+    const slotDay = inferDayFromClassName(className);
+    const slotCapacity = slotDay ? getCapacityForSlot(slotDay) : null;
+    if (slotCapacity !== null) {
+      const { dayStart, dayEnd } = getDayRange(normalizedClassDate);
+      const bookedCount = await Booking.countDocuments({
+        classDate: { $gte: dayStart, $lte: dayEnd },
+        classTime,
+        status: { $ne: 'cancelled' },
+        paymentStatus: { $nin: ['failed', 'canceled', 'refunded'] },
+      });
+      if (bookedCount >= slotCapacity) {
+        return NextResponse.json(
+          { error: `This class is fully booked (max ${slotCapacity} students). Please choose a different date.` },
+          { status: 409 }
+        );
+      }
     }
 
     const isPaymentMethodCash = paymentMethod === 'cash';
