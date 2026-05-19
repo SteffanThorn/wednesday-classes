@@ -281,7 +281,7 @@ export default function BookingModal({
   }, [isOpen, session?.user?.email]);
 
   // Fetch remaining capacity for Bella Vista slots
-  const CAPPED_SLOTS = ['friday-morning', 'friday-afternoon', 'friday-evening', 'saturday-morning', 'saturday-afternoon'];
+  const CAPPED_SLOTS = ['thursday-evening', 'friday-morning', 'friday-afternoon', 'friday-evening', 'saturday-morning', 'saturday-afternoon'];
   useEffect(() => {
     if (!isOpen || !CAPPED_SLOTS.includes(effectiveDayOfWeek)) return;
     const dates = availableDates.map((d) => d.date).join(',');

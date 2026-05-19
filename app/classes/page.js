@@ -75,7 +75,7 @@ const ClassesPage = () => {
   const [spots, setSpots] = useState({});
 
   useEffect(() => {
-    const CAPPED = ['friday-morning', 'friday-afternoon', 'friday-evening', 'saturday-morning', 'saturday-afternoon'];
+    const CAPPED = ['thursday-evening', 'friday-morning', 'friday-afternoon', 'friday-evening', 'saturday-morning', 'saturday-afternoon'];
     Promise.all(
       CAPPED.map(async (slot) => {
         const dates = getAvailableDatesByDay(slot, 1);
@@ -212,6 +212,8 @@ const ClassesPage = () => {
                     e.preventDefault();
                     setIsThuEveningModalOpen(true);
                   }}
+                  maxCapacity={8}
+                  spotsRemaining={spots['thursday-evening']}
                 />
               </div>
 
