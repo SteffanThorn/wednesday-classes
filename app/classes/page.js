@@ -244,7 +244,7 @@ const ClassesPage = () => {
                   duration="75 min"
                   level="Beginner"
                   price="$25/class · 5 for $115"
-                  maxCapacity={8}
+                  maxCapacity={6}
                   spotsRemaining={spots['friday-afternoon']}
                 />
               </div>
@@ -294,7 +294,7 @@ const ClassesPage = () => {
                   duration="75 min"
                   level="Beginner"
                   price="$25/class · 5 for $115"
-                  maxCapacity={8}
+                  maxCapacity={6}
                   spotsRemaining={spots['saturday-afternoon']}
                 />
               </div>
