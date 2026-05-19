@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Clock, Users, Zap } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
 
-const ClassCard = ({ 
+const ClassCard = ({
   titleEn,
   titleZh,
   subtitleEn,
@@ -15,7 +15,9 @@ const ClassCard = ({
   level,
   icon: Icon = Zap,
   price,
-  href
+  href,
+  maxCapacity,
+  spotsRemaining,
 }) => {
   const { t, mounted } = useLanguage();
 
@@ -58,6 +60,22 @@ const ClassCard = ({
           <Zap className="w-4 h-4" />
           <span>{price}</span>
         </div>
+        {maxCapacity != null && (
+          <div className={`flex items-center gap-1.5 text-sm font-medium px-2 py-0.5 rounded-full border ${
+            spotsRemaining === 0
+              ? 'text-red-400 border-red-400/30 bg-red-400/10'
+              : spotsRemaining != null && spotsRemaining <= 3
+                ? 'text-amber-400 border-amber-400/30 bg-amber-400/10'
+                : 'text-glow-cyan/70 border-glow-cyan/20 bg-glow-cyan/5'
+          }`}>
+            <Users className="w-3.5 h-3.5" />
+            {spotsRemaining === 0
+              ? 'Next class full'
+              : spotsRemaining != null && spotsRemaining <= 3
+                ? `${spotsRemaining} spot${spotsRemaining === 1 ? '' : 's'} left`
+                : `Max ${maxCapacity} students`}
+          </div>
+        )}
       </div>
 
       <button className="w-full py-3 rounded-xl bg-glow-cyan/10 border border-glow-cyan/30 

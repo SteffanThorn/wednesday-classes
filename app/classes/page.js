@@ -7,7 +7,8 @@ import ClassCard from '@/components/ClassCard';
 import BookingModal from '@/components/BookingModal';
 import { Zap, Heart, Users } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { getAvailableDatesByDay } from '@/lib/class-schedule';
 
 const WED_MORNING_CLASS = {
   name: 'Functional Integrative Yoga',
@@ -69,6 +70,27 @@ const ClassesPage = () => {
   const [isFriEveningModalOpen, setIsFriEveningModalOpen] = useState(false);
   const [isSatMorningModalOpen, setIsSatMorningModalOpen] = useState(false);
   const [isSatAfternoonModalOpen, setIsSatAfternoonModalOpen] = useState(false);
+
+  // Remaining spots for capped Bella Vista slots (keyed by slot name)
+  const [spots, setSpots] = useState({});
+
+  useEffect(() => {
+    const CAPPED = ['friday-morning', 'friday-afternoon', 'friday-evening', 'saturday-morning', 'saturday-afternoon'];
+    Promise.all(
+      CAPPED.map(async (slot) => {
+        const dates = getAvailableDatesByDay(slot, 1);
+        if (!dates.length) return;
+        const nextDate = dates[0].date;
+        try {
+          const res = await fetch(`/api/class-capacity?slot=${slot}&dates=${nextDate}`);
+          const data = await res.json();
+          if (data.capacities) {
+            setSpots((prev) => ({ ...prev, [slot]: data.capacities[nextDate] }));
+          }
+        } catch { /* ignore */ }
+      })
+    );
+  }, []);
   
   // Motherscope waitlist state
   const [motherScopeLoading, setMotherScopeLoading] = useState(false);
@@ -204,6 +226,8 @@ const ClassesPage = () => {
                   duration="60 min"
                   level="Beginner"
                   price="$15/class · 5 for $65"
+                  maxCapacity={8}
+                  spotsRemaining={spots['friday-morning']}
                 />
               </div>
 
@@ -220,6 +244,8 @@ const ClassesPage = () => {
                   duration="75 min"
                   level="Beginner"
                   price="$25/class · 5 for $115"
+                  maxCapacity={8}
+                  spotsRemaining={spots['friday-afternoon']}
                 />
               </div>
 
@@ -234,6 +260,8 @@ const ClassesPage = () => {
                   duration="60 min"
                   level="Beginner"
                   price="$15/class · 5 for $65"
+                  maxCapacity={8}
+                  spotsRemaining={spots['friday-evening']}
                 />
               </div>
 
@@ -248,6 +276,8 @@ const ClassesPage = () => {
                   duration="60 min"
                   level="Beginner"
                   price="$15/class · 5 for $65"
+                  maxCapacity={8}
+                  spotsRemaining={spots['saturday-morning']}
                 />
               </div>
 
@@ -264,6 +294,8 @@ const ClassesPage = () => {
                   duration="75 min"
                   level="Beginner"
                   price="$25/class · 5 for $115"
+                  maxCapacity={8}
+                  spotsRemaining={spots['saturday-afternoon']}
                 />
               </div>
 
