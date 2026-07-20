@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import dbConnect from '@/lib/mongodb';
 import FutureCustomer from '@/lib/models/FutureCustomer';
+import { escapeRegExp } from '@/lib/regex-escape';
 
 export async function GET(request) {
   try {
@@ -17,11 +18,12 @@ export async function GET(request) {
 
     const query = { source: 'questionnaire' };
     if (search) {
+      const safeSearch = escapeRegExp(search);
       query.$or = [
-        { name:  { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } },
-        { notes: { $regex: search, $options: 'i' } },
+        { name:  { $regex: safeSearch, $options: 'i' } },
+        { email: { $regex: safeSearch, $options: 'i' } },
+        { phone: { $regex: safeSearch, $options: 'i' } },
+        { notes: { $regex: safeSearch, $options: 'i' } },
       ];
     }
 

@@ -24,7 +24,7 @@ export async function POST(request) {
 
     // Try to find user from session or sessionId
     let userEmail = session?.user?.email;
-    
+
     if (!userEmail && sessionId) {
       // Try to find user by checking bookings with this sessionId
       const booking = await Booking.findOne({ stripeSessionId: sessionId });
@@ -33,12 +33,22 @@ export async function POST(request) {
       }
     }
 
+    // Never run an unscoped update — without a verified owner (authenticated session,
+    // or a booking matched via the Stripe checkout sessionId) we can't tell these
+    // booking IDs actually belong to the caller, so reject instead of updating blindly.
+    if (!userEmail) {
+      return NextResponse.json(
+        { error: 'Unable to verify booking ownership' },
+        { status: 401 }
+      );
+    }
+
     // Update bookings to "interested" status (not cancelled, but not confirmed either)
     // This marks them as interested but payment didn't go through
     const result = await Booking.updateMany(
-      { 
+      {
         _id: { $in: bookingIds },
-        ...(userEmail && { userEmail })
+        userEmail
       },
       { 
         $set: { 

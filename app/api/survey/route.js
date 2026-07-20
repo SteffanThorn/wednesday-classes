@@ -3,6 +3,7 @@ import { Resend } from 'resend';
 import dbConnect from '@/lib/mongodb';
 import FutureCustomer from '@/lib/models/FutureCustomer';
 import { classifyBodyType, getRiskAreas, BODY_TYPES } from '@/lib/body-assessment';
+import { escapeHtml } from '@/lib/html-escape';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -52,8 +53,8 @@ function buildAdminNotificationEmail({ name, email, phone, answers, bodyTypeName
   const rowsHtml = rows.map(([label, val], i) => `
     <tr>
       <td style="padding:${i === 0 ? '8px' : '12px'} 0 8px;${i > 0 ? 'border-top:1px solid #e5e7eb;' : ''}">
-        <p style="margin:0 0 2px;color:#9ca3af;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;">${label}</p>
-        <p style="margin:0;color:#111827;font-size:14px;line-height:1.5;">${val}</p>
+        <p style="margin:0 0 2px;color:#9ca3af;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;">${escapeHtml(label)}</p>
+        <p style="margin:0;color:#111827;font-size:14px;line-height:1.5;">${escapeHtml(val)}</p>
       </td>
     </tr>`).join('');
 
@@ -71,7 +72,7 @@ function buildAdminNotificationEmail({ name, email, phone, answers, bodyTypeName
     <tr>
       <td style="background:#fff;padding:28px 24px;border-radius:0 0 12px 12px;">
         <p style="margin:0 0 16px;color:#374151;font-size:15px;">
-          <strong>${name}</strong> just completed the New Student Survey.
+          <strong>${escapeHtml(name)}</strong> just completed the New Student Survey.
         </p>
         <!-- Body type badge -->
         <div style="display:inline-block;padding:5px 14px;border-radius:20px;background:${bodyType.bg};border:1px solid ${bodyType.border};margin-bottom:20px;">
@@ -84,7 +85,7 @@ function buildAdminNotificationEmail({ name, email, phone, answers, bodyTypeName
           ${rowsHtml}
         </table>
         <p style="margin:16px 0 0;color:#9ca3af;font-size:12px;">
-          Reply to this email to contact ${name} directly.
+          Reply to this email to contact ${escapeHtml(name)} directly.
         </p>
       </td>
     </tr>

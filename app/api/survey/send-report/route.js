@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { classifyBodyType, getRiskAreas, BODY_TYPES } from '@/lib/body-assessment';
+import { escapeHtml } from '@/lib/html-escape';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -26,7 +27,7 @@ function buildUserEmail({ name, bodyTypeName, bodyType, riskAreas }) {
     <tr>
       <td style="background:#fff;padding:40px 32px;">
         <p style="margin:0 0 8px;color:#6b7280;font-size:14px;text-transform:uppercase;letter-spacing:0.1em;">Level 1 Body Assessment</p>
-        <h2 style="margin:0 0 24px;color:#111827;font-size:26px;font-weight:400;">Hi ${name} 🌿</h2>
+        <h2 style="margin:0 0 24px;color:#111827;font-size:26px;font-weight:400;">Hi ${escapeHtml(name)} 🌿</h2>
         <p style="margin:0 0 28px;color:#4b5563;font-size:15px;line-height:1.7;">
           Thank you for completing your New Student Survey. Based on your responses, here is your personalised Level 1 Body Assessment Report.
         </p>
@@ -114,8 +115,8 @@ function buildAdminEmail({ name, email, phone, answers, bodyTypeName, bodyType, 
   const rowsHtml = rows.map(([label, val], i) => `
     <tr>
       <td style="padding:${i === 0 ? '10px' : '14px'} 0 10px;${i > 0 ? 'border-top:1px solid #e5e7eb;' : ''}">
-        <p style="margin:0 0 3px;color:#9ca3af;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;">${label}</p>
-        <p style="margin:0;color:#111827;font-size:14px;">${val}</p>
+        <p style="margin:0 0 3px;color:#9ca3af;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;">${escapeHtml(label)}</p>
+        <p style="margin:0;color:#111827;font-size:14px;">${escapeHtml(val)}</p>
       </td>
     </tr>`).join('');
 

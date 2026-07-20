@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import { appendBrandLogo } from '@/lib/email-branding';
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -20,6 +21,19 @@ export async function POST(req) {
       return Response.json(
         { error: 'Invalid email address' },
         { status: 400 }
+      );
+    }
+
+    // Rate limit by IP and by target address so this can't be scripted to
+    // spam arbitrary third parties from the business's sending domain.
+    const ip = getClientIp(req);
+    const normalizedEmail = email.trim().toLowerCase();
+    const ipLimit = checkRateLimit(`waitlist:motherscope:ip:${ip}`, { limit: 5, windowMs: 60 * 60 * 1000 });
+    const emailLimit = checkRateLimit(`waitlist:motherscope:email:${normalizedEmail}`, { limit: 2, windowMs: 60 * 60 * 1000 });
+    if (!ipLimit.allowed || !emailLimit.allowed) {
+      return Response.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429 }
       );
     }
 

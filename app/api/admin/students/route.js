@@ -4,6 +4,7 @@ import { auth } from '@/auth';
 import dbConnect from '@/lib/mongodb';
 import User from '@/lib/models/User';
 import HealthIntake from '@/lib/models/HealthIntake';
+import { escapeRegExp } from '@/lib/regex-escape';
 
 const PACKAGE_TOTAL_CLASSES = 5;
 async function ensureAdmin() {
@@ -32,9 +33,10 @@ export async function GET(request) {
 
     const query = { role: 'student' };
     if (q) {
+      const safeQ = escapeRegExp(q);
       query.$or = [
-        { name: { $regex: q, $options: 'i' } },
-        { email: { $regex: q, $options: 'i' } },
+        { name: { $regex: safeQ, $options: 'i' } },
+        { email: { $regex: safeQ, $options: 'i' } },
       ];
     }
 

@@ -5,6 +5,7 @@ import dbConnect from '@/lib/mongodb';
 import Booking from '@/lib/models/Booking';
 import Coupon from '@/lib/models/Coupon';
 import { inferDayFromClassName, getCapacityForSlot, getClassTimeForDay } from '@/lib/class-schedule';
+import { calculateClassBookingTotal } from '@/lib/pricing';
 
 function getDayRange(classDateInput) {
   const d = new Date(classDateInput);
@@ -118,25 +119,31 @@ export async function POST(request) {
       couponCode
     } = body;
 
+    // Validate required fields
+    if (!className || !classTime || !location) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    // Price is always derived server-side from the canonical price table — never trust the client-supplied amount
+    const numClasses = (selectedDates && Array.isArray(selectedDates) && selectedDates.length > 0)
+      ? selectedDates.length
+      : 1;
+    const serverAmount = calculateClassBookingTotal(numClasses);
+
     // Validate coupon if provided
-    let validatedAmount = amount;
+    let validatedAmount = serverAmount;
     let appliedCoupon = null;
-    
+
     if (couponCode) {
-      const couponResult = await validateAndApplyCoupon(couponCode, amount, selectedDates?.length || 1);
+      const couponResult = await validateAndApplyCoupon(couponCode, serverAmount, numClasses);
       if (couponResult.error) {
         return NextResponse.json({ error: couponResult.error }, { status: 400 });
       }
       validatedAmount = couponResult.finalAmount;
       appliedCoupon = couponResult.coupon;
-    }
-
-    // Validate required fields
-    if (!className || !classTime || !location || amount === undefined) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
     }
 
     // Handle multi-date booking

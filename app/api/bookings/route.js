@@ -9,6 +9,7 @@ import {
   sendCancellationEmail,
 } from '@/lib/email';
 import { inferDayFromClassName, isAllowedClassDate, getCapacityForSlot, getClassTimeForDay } from '@/lib/class-schedule';
+import { calculateClassBookingTotal } from '@/lib/pricing';
 
 function getDayRange(classDateInput) {
   const d = new Date(classDateInput);
@@ -162,7 +163,8 @@ export async function POST(request) {
     const isPaymentMethodCash = paymentMethod === 'cash';
     const isPaymentMethodMemberCard = paymentMethod === 'member_card';
     const isBringAFriend = Boolean(bringAFriend);
-    const normalizedAmount = (isBringAFriend || isPaymentMethodMemberCard) ? 0 : Number(amount);
+    // Price is always derived server-side from the canonical price table — never trust the client-supplied amount
+    const normalizedAmount = (isBringAFriend || isPaymentMethodMemberCard) ? 0 : calculateClassBookingTotal(1);
     const isAmountValid = Number.isFinite(normalizedAmount) && normalizedAmount >= 0;
 
     if (!isAmountValid) {

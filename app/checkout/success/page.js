@@ -4,6 +4,7 @@ import Link from 'next/link';
 import dbConnect from '@/lib/mongodb';
 import Booking from '@/lib/models/Booking';
 import Stripe from 'stripe';
+import { auth } from '@/auth';
 import styles from './success.module.css';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -40,6 +41,7 @@ async function getPaymentIntentDetails(paymentIntentId) {
       status: paymentIntent.status,
       amount: paymentIntent.amount / 100,
       currency: paymentIntent.currency?.toUpperCase(),
+      metadata: paymentIntent.metadata || {},
     };
   } catch (error) {
     console.error('Error retrieving Stripe payment intent:', error);
@@ -123,76 +125,87 @@ function LoadingSkeleton() {
   );
 }
 
-function BookingDetails({ searchParams }) {
+function UnauthorizedContent() {
+  return (
+    <div className={styles.errorContainer}>
+      <h2>Sign in to view this booking</h2>
+      <p>Please sign in with the account you used to book, then reopen this page.</p>
+      <Link href="/auth/signin" className={styles.button}>
+        Sign In
+      </Link>
+    </div>
+  );
+}
+
+async function BookingDetails({ searchParams }) {
+  const session = await auth();
+  const viewerEmail = session?.user?.email?.toLowerCase();
+
+  if (!viewerEmail) {
+    return <UnauthorizedContent />;
+  }
+
   const sessionId = searchParams?.session_id;
   const paymentIntentId = searchParams?.payment_intent;
   const bookingId = searchParams?.booking_id;
   const bookingIdsStr = searchParams?.booking_ids;
-  
+
   // Handle Stripe Checkout session
   if (sessionId) {
-    return getCheckoutSessionDetails(sessionId).then(async (session) => {
-      const bookings = await getBookingsForSession(sessionId);
-      
-      if (!session) {
-        return (
-          <div className={styles.errorContainer}>
-            <h2>Unable to retrieve booking details</h2>
-            <p>Please contact support if you believe this is an error.</p>
-            <Link href="/dashboard" className={styles.button}>
-              Go to Dashboard
-            </Link>
-          </div>
-        );
-      }
-      
-      return <BookingDetailsContent session={session} bookings={bookings} />;
-    });
+    const [stripeSession, allBookings] = await Promise.all([
+      getCheckoutSessionDetails(sessionId),
+      getBookingsForSession(sessionId),
+    ]);
+
+    // The Stripe session must belong to the signed-in viewer before we show anything from it
+    if (!stripeSession || stripeSession.customerEmail?.toLowerCase() !== viewerEmail) {
+      return <UnauthorizedContent />;
+    }
+
+    const bookings = allBookings.filter((b) => b.userEmail?.toLowerCase() === viewerEmail);
+
+    return <BookingDetailsContent session={stripeSession} bookings={bookings} />;
   }
-  
+
   // Handle Stripe Elements payment (direct payment intent)
   if (paymentIntentId) {
-    return getPaymentIntentDetails(paymentIntentId).then(async (paymentIntent) => {
-      let bookings = [];
-      
-      // Try to find bookings by various methods
-      if (bookingIdsStr) {
-        const bookingIds = bookingIdsStr.split(',');
-        bookings = await getBookingsByIds(bookingIds);
-      } else if (bookingId) {
-        bookings = await getBookingsById(bookingId);
-      } else {
-        // Try to find by payment intent
-        bookings = await getBookingsForPaymentIntent(paymentIntentId);
-      }
-      
-      if (!paymentIntent) {
-        return (
-          <div className={styles.errorContainer}>
-            <h2>Unable to retrieve payment details</h2>
-            <p>Please contact support if you believe this is an error.</p>
-            <Link href="/dashboard" className={styles.button}>
-              Go to Dashboard
-            </Link>
-          </div>
-        );
-      }
-      
-      // Create a session-like object for the content component
-      const session = {
-        id: paymentIntent.id,
-        status: paymentIntent.status,
-        paymentStatus: 'paid',
-        amountTotal: paymentIntent.amount,
-        customerEmail: bookings[0]?.userEmail || 'N/A',
-        currency: paymentIntent.currency,
-        lineItems: [],
-      };
-      
-      return <BookingDetailsContent session={session} bookings={bookings} isPaymentIntent />;
-    });
+    const paymentIntent = await getPaymentIntentDetails(paymentIntentId);
+
+    // The PaymentIntent must belong to the signed-in viewer before we show anything from it
+    if (!paymentIntent || paymentIntent.metadata?.userEmail?.toLowerCase() !== viewerEmail) {
+      return <UnauthorizedContent />;
+    }
+
+    let bookings = [];
+
+    // Try to find bookings by various methods
+    if (bookingIdsStr) {
+      const bookingIds = bookingIdsStr.split(',');
+      bookings = await getBookingsByIds(bookingIds);
+    } else if (bookingId) {
+      bookings = await getBookingsById(bookingId);
+    } else {
+      // Try to find by payment intent
+      bookings = await getBookingsForPaymentIntent(paymentIntentId);
+    }
+
+    // Defense in depth: only ever show bookings owned by the signed-in viewer
+    bookings = bookings.filter((b) => b.userEmail?.toLowerCase() === viewerEmail);
+
+    // Create a session-like object for the content component
+    const sessionLike = {
+      id: paymentIntent.id,
+      status: paymentIntent.status,
+      paymentStatus: 'paid',
+      amountTotal: paymentIntent.amount,
+      customerEmail: viewerEmail,
+      currency: paymentIntent.currency,
+      lineItems: [],
+    };
+
+    return <BookingDetailsContent session={sessionLike} bookings={bookings} isPaymentIntent />;
   }
-  
+
   // No session or payment intent found
   return (
     <div className={styles.errorContainer}>

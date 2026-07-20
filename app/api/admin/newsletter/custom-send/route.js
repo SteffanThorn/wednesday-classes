@@ -8,6 +8,7 @@ import User from '@/lib/models/User';
 import HealthIntake from '@/lib/models/HealthIntake';
 import { appendBrandLogo, getCompanyLogoUrl } from '@/lib/email-branding';
 import { personalizeTextForRecipient } from '@/lib/email-personalization';
+import { escapeHtml } from '@/lib/html-escape';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -48,15 +49,6 @@ function withResendGuidance(message) {
     return `${message} Current sender: ${SENDER_EMAIL}. Please verify this sender domain in Resend and set EMAIL_FROM_PRODUCTION to a verified sender (for example: contact@email.innerlight.co.nz), or use onboarding@resend.dev for testing.`;
   }
   return message;
-}
-
-function escapeHtml(text = '') {
-  return String(text)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
 }
 
 function estimateBase64Size(base64 = '') {
