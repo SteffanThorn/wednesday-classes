@@ -64,6 +64,35 @@ async function findDuplicateBooking({ userEmail, classDate, classTime }) {
   }).lean();
 }
 
+// Reuses a booking's existing PaymentIntent if it's still payable, refreshing its amount if it
+// changed (e.g. a coupon was applied on retry). Only creates a new PaymentIntent when there is
+// none yet, or the previous one already succeeded/was canceled. This lets a student who got
+// interrupted mid-payment (bad connection, closed tab, re-clicking "Book") retry on the SAME
+// booking instead of being blocked by the duplicate-booking check with no way to pay.
+async function reuseOrCreatePaymentIntent({ existingIntentId, amountCents, metadata, description, receiptEmail }) {
+  if (existingIntentId) {
+    try {
+      const existing = await stripe.paymentIntents.retrieve(existingIntentId);
+      if (existing.status !== 'succeeded' && existing.status !== 'canceled') {
+        return existing.amount === amountCents
+          ? existing
+          : await stripe.paymentIntents.update(existingIntentId, { amount: amountCents, metadata });
+      }
+    } catch (e) {
+      // Stale/missing intent - fall through and create a new one
+    }
+  }
+
+  return stripe.paymentIntents.create({
+    amount: amountCents,
+    currency: 'nzd',
+    automatic_payment_methods: { enabled: true },
+    metadata,
+    description,
+    receipt_email: receiptEmail,
+  });
+}
+
 /**
  * Create Payment Intent Endpoint
  * 
@@ -505,7 +534,7 @@ async function createAdHocBookingAndPaymentIntent({ session, amount, className, 
       classTime: classTime || 'TBD',
     });
 
-    if (duplicateBooking) {
+    if (duplicateBooking && duplicateBooking.paymentStatus === 'completed') {
       return NextResponse.json(
         {
           error: 'You already have a booking for this class session.',
@@ -522,31 +551,38 @@ async function createAdHocBookingAndPaymentIntent({ session, amount, className, 
       );
     }
 
-    // Create a new booking
-    const booking = new Booking({
-      userId: userId,
-      userEmail: userEmail,
-      userName: userName,
-      className,
-      classDate: classDate ? new Date(classDate) : new Date(),
-      classTime: classTime || 'TBD',
-      location: location || 'TBD',
-      amount: finalAmount,
-      notes: notes || '',
-      status: 'pending',
-      paymentStatus: 'pending',
-    });
+    let booking;
+    if (duplicateBooking) {
+      // Unpaid booking left over from an earlier attempt on this same class - resume it
+      // instead of creating a new one, so a retry doesn't get blocked as a "duplicate".
+      booking = await Booking.findById(duplicateBooking._id);
+      booking.amount = finalAmount;
+      if (notes) booking.notes = notes;
+      await booking.save();
+      console.log(`Resuming unpaid ad-hoc booking: ${booking._id}`);
+    } else {
+      booking = new Booking({
+        userId: userId,
+        userEmail: userEmail,
+        userName: userName,
+        className,
+        classDate: classDate ? new Date(classDate) : new Date(),
+        classTime: classTime || 'TBD',
+        location: location || 'TBD',
+        amount: finalAmount,
+        notes: notes || '',
+        status: 'pending',
+        paymentStatus: 'pending',
+      });
+      await booking.save();
+      console.log(`Ad-hoc booking created: ${booking._id}`);
+    }
 
-    await booking.save();
-    console.log(`Ad-hoc booking created: ${booking._id}`);
-
-    // Create a PaymentIntent
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(booking.amount * 100),
-      currency: 'nzd',
-      automatic_payment_methods: {
-        enabled: true,
-      },
+    // Reuse the existing PaymentIntent if this booking already has one that's still payable,
+    // otherwise create a new one.
+    const paymentIntent = await reuseOrCreatePaymentIntent({
+      existingIntentId: booking.paymentIntentId,
+      amountCents: Math.round(booking.amount * 100),
       metadata: {
         bookingId: booking._id.toString(),
         userId: userId || 'unknown',
@@ -557,7 +593,7 @@ async function createAdHocBookingAndPaymentIntent({ session, amount, className, 
         classTime: booking.classTime,
       },
       description: `Yoga class booking: ${booking.className}`,
-      receipt_email: booking.userEmail,
+      receiptEmail: booking.userEmail,
     });
 
     // Save payment intent ID to booking
@@ -565,7 +601,7 @@ async function createAdHocBookingAndPaymentIntent({ session, amount, className, 
     booking.updatedAt = new Date();
     await booking.save();
 
-    console.log(`Payment intent created: ${paymentIntent.id} for ad-hoc booking: ${booking._id}`);
+    console.log(`Payment intent ready: ${paymentIntent.id} for ad-hoc booking: ${booking._id}`);
 
     // Return the client secret and booking details
     return NextResponse.json({
@@ -599,9 +635,10 @@ async function createMultiDateBookingAndPaymentIntent({ session, selectedDates, 
   
   const pricePerClass = amount / selectedDates.length;
   
-  // Create bookings for each selected date
+  // Create (or resume) a booking for each selected date
   const bookings = [];
-  
+  let allResumed = true;
+
   for (const date of selectedDates) {
     const duplicateBooking = await findDuplicateBooking({
       userEmail,
@@ -609,10 +646,10 @@ async function createMultiDateBookingAndPaymentIntent({ session, selectedDates, 
       classTime,
     });
 
-    if (duplicateBooking) {
+    if (duplicateBooking && duplicateBooking.paymentStatus === 'completed') {
       return NextResponse.json(
         {
-          error: 'One of the selected classes is already booked. Duplicate booking is not allowed.',
+          error: 'One of the selected classes is already booked and paid for.',
           code: 'DUPLICATE_BOOKING',
           duplicate: {
             bookingId: duplicateBooking._id.toString(),
@@ -626,6 +663,19 @@ async function createMultiDateBookingAndPaymentIntent({ session, selectedDates, 
       );
     }
 
+    if (duplicateBooking) {
+      // Unpaid booking left over from an earlier attempt on this same class - resume it
+      // instead of creating a new one, so a retry doesn't get blocked as a "duplicate".
+      const existingBooking = await Booking.findById(duplicateBooking._id);
+      existingBooking.amount = pricePerClass;
+      if (notes) existingBooking.notes = notes;
+      await existingBooking.save();
+      bookings.push(existingBooking);
+      console.log(`Resuming unpaid multi-date booking for ${date}: ${existingBooking._id}`);
+      continue;
+    }
+
+    allResumed = false;
     const booking = new Booking({
       userId: userId,
       userEmail: userEmail,
@@ -639,37 +689,37 @@ async function createMultiDateBookingAndPaymentIntent({ session, selectedDates, 
       status: 'pending',
       paymentStatus: 'pending',
     });
-    
+
     await booking.save();
     bookings.push(booking);
     console.log(`Multi-date booking created for ${date}: ${booking._id}`);
   }
-  
+
   const bookingIds = bookings.map(b => b._id.toString());
-  
-  // Create a single PaymentIntent for all bookings
-  const dateList = selectedDates.map(d => new Date(d).toLocaleDateString('en-NZ', { 
-    day: 'numeric', 
-    month: 'short' 
-  })).join(', ');
-  
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount: Math.round(amount * 100),
-    currency: 'nzd',
-    automatic_payment_methods: {
-      enabled: true,
-    },
-    metadata: {
-      bookingIds: bookingIds.join(','),
-      userId: userId || 'unknown',
-      userEmail: userEmail,
-      userName: userName,
-      className: className,
-      selectedDates: selectedDates.join(','),
-      classTime: classTime,
-    },
+  const amountCents = Math.round(amount * 100);
+  const metadata = {
+    bookingIds: bookingIds.join(','),
+    userId: userId || 'unknown',
+    userEmail: userEmail,
+    userName: userName,
+    className: className,
+    selectedDates: selectedDates.join(','),
+    classTime: classTime,
+  };
+
+  // If every date in this retry resolved to a pre-existing unpaid booking and they all still
+  // share the same PaymentIntent from the earlier attempt, reuse/refresh that one intent.
+  // Otherwise (first attempt, or a different mix of dates than before) create a fresh one.
+  const sharedIntentId = allResumed && bookings.every(b => b.paymentIntentId === bookings[0].paymentIntentId)
+    ? bookings[0].paymentIntentId
+    : null;
+
+  const paymentIntent = await reuseOrCreatePaymentIntent({
+    existingIntentId: sharedIntentId,
+    amountCents,
+    metadata,
     description: `${className} - ${selectedDates.length} classes`,
-    receipt_email: userEmail,
+    receiptEmail: userEmail,
   });
 
   // Save payment intent ID to all bookings
