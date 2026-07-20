@@ -68,14 +68,6 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value);
 }
 
-function stripChinese(text = '') {
-  return String(text)
-    .replace(/[\u3400-\u9FFF\uF900-\uFAFF]/g, '')
-    .replace(/[，。；：！？、“”‘’（）【】《》·]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
 function normalizeRemainingClasses(value) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return 0;
@@ -336,6 +328,12 @@ function buildNewsletterHtml({
 }) {
   const firstName = userName?.split(' ')[0] || 'Friend';
 
+  // Split "Wed ... · Thu ..." into two stacked, aligned lines instead of one long wrapped line
+  const bodyFocusHtml = String(bodyFocus || '')
+    .split(' · ')
+    .filter(Boolean)
+    .join('<br />');
+
   // Convert line breaks in mainContent to <br> tags
   const contentHtml = mainContent
     .split('\n')
@@ -392,7 +390,7 @@ function buildNewsletterHtml({
       ${classSummaries
         .map((item) => {
           const s = SLOT_STYLES[item.slot] || { icon: '📅', accent: '#6366f1', bg: '#f0f9ff', border: '#c7d2fe', label: item.slot, labelColor: '#4338ca' };
-          const englishSummary = stripChinese(item.summary) || `${item.series || 'Class'} session focus.`;
+          const englishSummary = item.summary || `${item.series || 'Class'} session focus.`;
           return `
       <tr>
         <td style="padding: 0 0 10px;">
@@ -498,7 +496,7 @@ function buildNewsletterHtml({
                 This Week's Focus
               </p>
               <p style="margin: 0; color: white; font-size: 20px; font-weight: 300; letter-spacing: 1px;">
-                ${emoji}&nbsp; ${bodyFocus}
+                ${emoji}&nbsp; ${bodyFocusHtml}
               </p>
             </td>
           </tr>
@@ -532,10 +530,6 @@ function buildNewsletterHtml({
                     <p style="margin:0 0 8px;color:#374151;font-size:14px;line-height:1.7;">📍 <strong>Venue:</strong> Village Valley Centre, Ashhurst</p>
                     <p style="margin:0 0 8px;color:#374151;font-size:14px;line-height:1.7;">⏱ <strong>Duration:</strong> 60 minutes per class</p>
                     <p style="margin:0 0 12px;color:#374151;font-size:14px;line-height:1.7;">👥 <strong>Evening class:</strong> Small group</p>
-
-                    <p style="margin:0 0 12px;color:#374151;font-size:14px;line-height:1.7;">💡 <strong>Wednesday 9:15am:</strong> Not limited in numbers — <strong>walk-ins welcome</strong></p>
-
-                    <p style="margin:0 0 10px;color:#374151;font-size:14px;line-height:1.7;">Classes start from <strong>1 April 2026</strong>.<br />Spots are limited — book early to secure your place.</p>
 
                     <p style="margin:0;color:#374151;font-size:14px;line-height:1.7;">Looking forward to seeing you on the mat 🙏</p>
                   </td>

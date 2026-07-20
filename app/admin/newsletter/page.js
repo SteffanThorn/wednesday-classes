@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import FloatingParticles from '@/components/FloatingParticle';
+import { useLanguage } from '@/hooks/useLanguage';
 import {
   Loader2,
   Mail,
@@ -21,6 +22,7 @@ import {
   X,
   Pencil,
   Paperclip,
+  Video,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -74,6 +76,8 @@ export default function NewsletterAdminPage() {
   const COMPANY_TEST_EMAILS = ['innerlightyuki@gmail.com', 'nzsteffan@gmail.com'];
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { language } = useLanguage();
+  const isZh = language === 'zh';
 
   const [weeks, setWeeks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -111,6 +115,7 @@ export default function NewsletterAdminPage() {
     subject: '',
     content: '',
     attachments: [],
+    videoUrl: '',
   });
   const [toast, setToast] = useState(null); // { type: 'success'|'error', message }
   const [confirmSend, setConfirmSend] = useState(false);
@@ -217,6 +222,7 @@ export default function NewsletterAdminPage() {
       subject: '',
       content: '',
       attachments: [],
+      videoUrl: '',
     });
     setCustomConfirmSendType(null);
     setCustomConfirmInput('');
@@ -420,6 +426,7 @@ export default function NewsletterAdminPage() {
           content: customForm.content,
           testEmail: COMPANY_TEST_EMAILS,
           attachments: customForm.attachments,
+          videoUrl: customForm.videoUrl,
         }),
       });
 
@@ -454,6 +461,7 @@ export default function NewsletterAdminPage() {
           subject: customForm.subject,
           content: customForm.content,
           attachments: customForm.attachments,
+          videoUrl: customForm.videoUrl,
           confirmPhrase: SEND_CONFIRM_PHRASE,
         }),
       });
@@ -497,6 +505,7 @@ export default function NewsletterAdminPage() {
           subject: customForm.subject,
           content: customForm.content,
           attachments: customForm.attachments,
+          videoUrl: customForm.videoUrl,
           selectedRecipients: customSelectedEmails,
           confirmPhrase: SEND_CONFIRM_PHRASE,
         }),
@@ -916,7 +925,7 @@ export default function NewsletterAdminPage() {
                   </div>
                   <p className="text-muted-foreground text-sm">
                     {selectedWeek
-                      ? `编辑 Week ${selectedWeek.week} · ${selectedWeek.bodyFocus}`
+                      ? `编辑 Week ${selectedWeek.week} · ${isZh ? selectedWeek.bodyFocusZh : selectedWeek.bodyFocus}`
                       : '12周课程邮件系统 — 四月开始发送'}
                   </p>
                 </div>
@@ -1080,6 +1089,25 @@ export default function NewsletterAdminPage() {
                         className="w-full px-4 py-3 rounded-xl border border-white/10 bg-card/50
                           text-foreground placeholder:text-muted-foreground/40 text-sm leading-relaxed
                           focus:outline-none focus:border-glow-cyan/40 resize-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="flex items-center gap-2 text-sm font-medium text-foreground/80 mb-2">
+                        <Video className="w-4 h-4 text-glow-cyan" />
+                        练习视频链接（可选）
+                      </label>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        粘贴 YouTube / Vimeo / Google Drive 等视频分享链接，邮件中会自动显示一个「观看练习视频」按钮（YouTube 链接还会显示视频缩略图）。
+                      </p>
+                      <input
+                        type="url"
+                        value={customForm.videoUrl}
+                        onChange={(e) => setCustomForm((p) => ({ ...p, videoUrl: e.target.value }))}
+                        placeholder="https://youtu.be/..."
+                        className="w-full px-4 py-3 rounded-xl border border-white/10 bg-card/50
+                          text-foreground placeholder:text-muted-foreground/40 text-sm
+                          focus:outline-none focus:border-glow-cyan/40"
                       />
                     </div>
 
@@ -1421,9 +1449,9 @@ export default function NewsletterAdminPage() {
 
                         <p className="text-xs text-muted-foreground mb-0.5">Week {week.week}</p>
                         <p className="text-sm font-medium text-foreground leading-tight mb-1">
-                          {week.title}
+                          {isZh ? week.titleZh : week.title}
                         </p>
-                        <p className="text-xs text-muted-foreground/70">{week.bodyFocus}</p>
+                        <p className="text-xs text-muted-foreground/70">{isZh ? week.bodyFocusZh : week.bodyFocus}</p>
                         {Array.isArray(week.classSummaries) && week.classSummaries.length > 0 && (
                           <div className="mt-2 space-y-1">
                             {week.classSummaries.slice(0, 3).map((item, idx) => {
@@ -1433,7 +1461,7 @@ export default function NewsletterAdminPage() {
                               return (
                                 <p key={`${week.week}-${item.slot}-${idx}`} className="flex items-center gap-1.5 text-[11px] text-muted-foreground/75 leading-snug">
                                   <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
-                                  {item.slot} · {item.topic}
+                                  {item.slot} · {isZh ? item.topicZh : item.topic}
                                 </p>
                               );
                             })}
@@ -1487,14 +1515,10 @@ export default function NewsletterAdminPage() {
                       <StatusBadge status={selectedWeek.campaign?.status} />
                     </div>
                     <p className="text-xl font-light text-foreground mt-0.5">
-                      {selectedWeek.title}
-                      <span className="ml-2 text-muted-foreground text-base">
-                        {selectedWeek.titleZh}
-                      </span>
+                      {isZh ? selectedWeek.titleZh : selectedWeek.title}
                     </p>
                     <p className="text-sm text-muted-foreground mt-0.5">
-                      Body Focus: <strong className="text-foreground/80">{selectedWeek.bodyFocus}</strong>
-                      {' '}· {selectedWeek.bodyFocusZh}
+                      Body Focus: <strong className="text-foreground/80">{isZh ? selectedWeek.bodyFocusZh : selectedWeek.bodyFocus}</strong>
                     </p>
                     {Array.isArray(selectedWeek.classSummaries) && selectedWeek.classSummaries.length > 0 && (
                       <div className="mt-3 space-y-1.5">
@@ -1507,8 +1531,8 @@ export default function NewsletterAdminPage() {
                               className={`flex items-start gap-2 px-3 py-2 rounded-lg border ${accentColor}`}>
                               <span className="text-[11px] font-bold shrink-0 mt-0.5">{item.slot}</span>
                               <span className="text-xs text-muted-foreground">
-                                <span className="font-medium text-foreground/80">{item.topic}</span>
-                                {' '}— {item.summary}
+                                <span className="font-medium text-foreground/80">{isZh ? item.topicZh : item.topic}</span>
+                                {' '}— {isZh ? item.summaryZh : item.summary}
                               </span>
                             </div>
                           );

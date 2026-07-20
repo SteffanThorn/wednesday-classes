@@ -79,6 +79,52 @@ function normalizeAttachments(input) {
     .filter(Boolean);
 }
 
+function extractYouTubeId(url) {
+  const match = url.match(
+    /(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
+  );
+  return match ? match[1] : null;
+}
+
+function normalizeVideoUrl(input) {
+  const trimmed = String(input || '').trim();
+  if (!trimmed) return null;
+  if (!/^https?:\/\//i.test(trimmed)) return null;
+  return trimmed;
+}
+
+function buildVideoSection(videoUrl) {
+  if (!videoUrl) return '';
+
+  const youtubeId = extractYouTubeId(videoUrl);
+  const safeUrl = escapeHtml(videoUrl);
+
+  if (youtubeId) {
+    const thumbnailUrl = `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`;
+    return `
+              <div style="margin:24px 0 0;text-align:center;">
+                <a href="${safeUrl}" style="display:inline-block;position:relative;text-decoration:none;">
+                  <img src="${thumbnailUrl}" alt="练习视频预览" width="480" style="display:block;max-width:100%;height:auto;border-radius:12px;" />
+                  <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:64px;height:64px;background:rgba(0,0,0,0.65);border-radius:50%;display:flex;align-items:center;justify-content:center;">
+                    <span style="display:inline-block;width:0;height:0;border-top:14px solid transparent;border-bottom:14px solid transparent;border-left:22px solid #fff;margin-left:6px;"></span>
+                  </span>
+                </a>
+                <p style="margin:10px 0 0;">
+                  <a href="${safeUrl}" style="display:inline-block;padding:10px 22px;border-radius:999px;background:linear-gradient(135deg,#0ea5e9,#8b5cf6);color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;">
+                    ▶ 观看练习视频
+                  </a>
+                </p>
+              </div>`;
+  }
+
+  return `
+              <div style="margin:24px 0 0;text-align:center;">
+                <a href="${safeUrl}" style="display:inline-block;padding:12px 26px;border-radius:999px;background:linear-gradient(135deg,#0ea5e9,#8b5cf6);color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;">
+                  ▶ 观看练习视频
+                </a>
+              </div>`;
+}
+
 function isInlineImage(file) {
   if (!file?.type) return false;
   const normalized = String(file.type).toLowerCase();
@@ -123,7 +169,7 @@ function normalizeRemainingClasses(value) {
   return Math.max(0, Math.floor(parsed));
 }
 
-function buildCustomEmailHtml({ userName, content, logoUrl, inlineImages = [], fileAttachments = [] }) {
+function buildCustomEmailHtml({ userName, content, logoUrl, inlineImages = [], fileAttachments = [], videoUrl = null }) {
   const firstName = userName?.split(' ')[0] || 'Friend';
   const paragraphs = content
     .split('\n\n')
@@ -134,6 +180,8 @@ function buildCustomEmailHtml({ userName, content, logoUrl, inlineImages = [], f
         `<p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 1.75;">${p.replace(/\n/g, '<br />')}</p>`
     )
     .join('');
+
+  const videoSection = buildVideoSection(videoUrl);
 
   // For inline images, reference them by CID (Content-ID)
   const imagesSection =
@@ -183,6 +231,7 @@ ${inlineImages
             <td style="padding:30px 26px 16px;">
               <p style="margin:0 0 20px;color:#4b5563;font-size:16px;line-height:1.7;">Hi ${firstName},</p>
               ${paragraphs}
+              ${videoSection}
               ${imagesSection}
               ${attachmentSection}
               <div style="margin:24px 0 0;padding-top:20px;border-top:1px solid #e5e7eb;text-align:left;">
@@ -190,10 +239,6 @@ ${inlineImages
                 <p style="margin:0 0 8px;color:#374151;font-size:14px;line-height:1.7;">📍 <strong>Venue:</strong> Village Valley Centre, Ashhurst</p>
                 <p style="margin:0 0 8px;color:#374151;font-size:14px;line-height:1.7;">⏱ <strong>Duration:</strong> 60 minutes per class</p>
                 <p style="margin:0 0 12px;color:#374151;font-size:14px;line-height:1.7;">👥 <strong>Evening class:</strong> Small group</p>
-
-                <p style="margin:0 0 12px;color:#374151;font-size:14px;line-height:1.7;">💡 <strong>Wednesday 9:15am:</strong> Not limited in numbers — <strong>walk-ins welcome</strong></p>
-
-                <p style="margin:0 0 10px;color:#374151;font-size:14px;line-height:1.7;">Classes start from <strong>1 April 2026</strong>.<br />Spots are limited — book early to secure your place.</p>
 
                 <p style="margin:0;color:#374151;font-size:14px;line-height:1.7;">Looking forward to seeing you on the mat 🙏</p>
               </div>
@@ -247,6 +292,7 @@ export async function POST(request) {
     const { subject, content, testEmail, confirmPhrase } = body;
     const selectedRecipientEmails = normalizeSelectedRecipients(body?.selectedRecipients);
     const attachments = normalizeAttachments(body?.attachments);
+    const videoUrl = normalizeVideoUrl(body?.videoUrl);
 
     if (!subject?.trim()) {
       return NextResponse.json({ error: 'Subject is required' }, { status: 400 });
@@ -380,6 +426,7 @@ export async function POST(request) {
             logoUrl: getCompanyLogoUrl(),
             inlineImages,
             fileAttachments,
+            videoUrl,
           }),
           undefined
         ),
