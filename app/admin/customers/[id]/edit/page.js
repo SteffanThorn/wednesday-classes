@@ -6,7 +6,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import FloatingParticles from '@/components/FloatingParticle';
-import { Loader2, ChevronRight, ArrowLeft } from 'lucide-react';
+import { Loader2, ChevronRight, ArrowLeft, Trash2 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +23,7 @@ export default function EditCustomerPage() {
   const [customer, setCustomer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -161,6 +162,44 @@ export default function EditCustomerPage() {
       setError(err.message || '更新客户失败。/ Failed to update customer');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!customerId || typeof customerId !== 'string' || !OBJECT_ID_REGEX.test(customerId)) {
+      setError('客户记录 ID 无效，请从客户列表重新进入编辑页。/ Invalid customer record ID, please reopen this page from Customer Data.');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `确认删除该客户档案资料吗？此操作无法撤销。\n\n姓名: ${customer?.userName}\n邮箱: ${customer?.userEmail}\n\n注意：这只会删除档案资料（健康问卷/紧急联系人/免责协议），该客户的登录账号和预约历史不会受影响。\n\nAre you sure you want to delete this customer's profile record? This cannot be undone. The login account and booking history will NOT be affected.`
+    );
+    if (!confirmed) return;
+
+    setDeleting(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const response = await fetch(`/api/admin/customers/${customerId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        if (data?.code === 'INVALID_INTAKE_ID') {
+          throw new Error('客户记录 ID 无效，请从客户列表重新进入编辑页。/ Invalid intake ID, please reopen from Customer Data.');
+        }
+        throw new Error(data.error || 'Failed to delete customer profile');
+      }
+
+      setSuccess('客户档案资料已删除，正在返回客户列表... / Customer profile deleted, returning to Customer Data...');
+      setTimeout(() => {
+        router.push('/admin/customers');
+      }, 1200);
+    } catch (err) {
+      setError(err.message || '删除失败。/ Failed to delete customer profile');
+      setDeleting(false);
     }
   };
 
@@ -489,6 +528,34 @@ export default function EditCustomerPage() {
                 </Link>
               </div>
             </form>
+
+            {/* Danger Zone */}
+            <div className="mt-8 p-6 rounded-lg border border-red-500/30 bg-red-500/5">
+              <h2 className="font-semibold text-red-400 mb-1">危险操作 / Danger Zone</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                删除后无法恢复。仅删除档案资料（健康问卷/紧急联系人/免责协议），登录账号和预约历史不受影响，适合清理重复记录。
+                <br />
+                This cannot be undone. Only the profile record (health notes / emergency contact / waiver) is deleted — the login account and booking history are unaffected. Use this to clean up duplicate records.
+              </p>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="px-6 py-2 rounded-lg bg-red-500/10 border border-red-500/40 text-red-400 hover:bg-red-500/20 disabled:opacity-50 transition-colors font-medium flex items-center gap-2"
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    删除中... / Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    删除客户档案资料 / Delete Customer Profile
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </section>
       </div>

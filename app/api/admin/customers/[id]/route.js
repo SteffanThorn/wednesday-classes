@@ -162,3 +162,45 @@ export async function PUT(request, context) {
     );
   }
 }
+
+// Deletes only the customer's profile record (health intake: notes, emergency contact,
+// waiver, signature). The linked User login account is intentionally left untouched so
+// the customer can still sign in - this is for cleaning up duplicate/stale profile
+// submissions, not for removing a customer's account.
+export async function DELETE(request, context) {
+  const session = await auth();
+  if (!session?.user || session.user.role !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  await dbConnect();
+
+  try {
+    const resolvedParams = await context?.params;
+    const rawId = resolvedParams?.id;
+    const id = Array.isArray(rawId) ? rawId[0] : rawId;
+
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return NextResponse.json(
+        {
+          error: '无效的客户档案ID（Intake ID）。/ Invalid intake ID.',
+          code: 'INVALID_INTAKE_ID',
+        },
+        { status: 400 }
+      );
+    }
+
+    const intake = await HealthIntake.findByIdAndDelete(id);
+    if (!intake) {
+      return NextResponse.json({ error: 'Intake not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, deletedId: id });
+  } catch (error) {
+    console.error('Error deleting intake:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete intake' },
+      { status: 500 }
+    );
+  }
+}
