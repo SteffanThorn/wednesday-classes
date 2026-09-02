@@ -21,7 +21,7 @@ const SENDER_EMAIL = (
 const SENDER_NAME = 'Yuki · INNER LIGHT Yoga';
 const COMPANY_EMAIL = process.env.COMPANY_EMAIL || 'innerlightyuki@gmail.com';
 const COMPANY_LOGO_CID = 'innerlight-logo-footer';
-const BATCH_SIZE = 100;
+const SEND_CONCURRENCY = 5;
 const MAX_ATTACHMENTS = 5;
 const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024; // 5MB
 const REQUIRED_CONFIRM_PHRASE = 'SEND';
@@ -49,6 +49,36 @@ function withResendGuidance(message) {
     return `${message} Current sender: ${SENDER_EMAIL}. Please verify this sender domain in Resend and set EMAIL_FROM_PRODUCTION to a verified sender (for example: contact@email.innerlight.co.nz), or use onboarding@resend.dev for testing.`;
   }
   return message;
+}
+
+// Resend's batch API does not support attachments (the logo and any uploaded files/images
+// are always attached here), so custom emails must go out one at a time via emails.send()
+// instead of batch.send(). Concurrency keeps this fast without tripping Resend's rate limit.
+async function sendEmailIndividually(email) {
+  try {
+    const { data, error } = await resend.emails.send(email);
+    if (error) {
+      return { ok: false, to: email.to, message: withResendGuidance(extractErrorMessage(error)) };
+    }
+    return { ok: true, to: email.to, id: data?.id };
+  } catch (err) {
+    return { ok: false, to: email.to, message: withResendGuidance(extractErrorMessage(err)) };
+  }
+}
+
+async function sendEmailsWithConcurrency(emails, concurrency = SEND_CONCURRENCY) {
+  const results = new Array(emails.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < emails.length) {
+      const current = nextIndex++;
+      results[current] = await sendEmailIndividually(emails[current]);
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, emails.length) }, worker));
+  return results;
 }
 
 function estimateBase64Size(base64 = '') {
@@ -279,6 +309,8 @@ ${inlineImages
 `.trim();
 }
 
+export const maxDuration = 120;
+
 export async function POST(request) {
   const session = await auth();
   if (!session?.user || session.user.role !== 'admin') {
@@ -436,11 +468,12 @@ export async function POST(request) {
     });
 
     if (testEmail) {
-      const { data, error } = await resend.batch.send(emailBatch);
-      if (error) {
-        const message = withResendGuidance(extractErrorMessage(error));
+      const results = await sendEmailsWithConcurrency(emailBatch);
+      const failed = results.filter((r) => !r.ok);
+
+      if (failed.length === emailBatch.length) {
         return NextResponse.json(
-          { success: false, error: `Test email failed: ${message}` },
+          { success: false, error: `Test email failed: ${failed[0]?.message}` },
           { status: 500 }
         );
       }
@@ -448,28 +481,15 @@ export async function POST(request) {
       return NextResponse.json({
         success: true,
         testMode: true,
-        sent: emailBatch.length,
+        sent: results.filter((r) => r.ok).length,
         total: emailBatch.length,
-        ids: Array.isArray(data) ? data.map((item) => item?.id).filter(Boolean) : [data?.id].filter(Boolean),
+        ids: results.filter((r) => r.ok).map((r) => r.id).filter(Boolean),
       });
     }
 
-    let totalSent = 0;
-    const errors = [];
-
-    for (let i = 0; i < emailBatch.length; i += BATCH_SIZE) {
-      const chunk = emailBatch.slice(i, i + BATCH_SIZE);
-      try {
-        const { data, error } = await resend.batch.send(chunk);
-        if (error) {
-          errors.push(`Chunk ${i / BATCH_SIZE + 1}: ${withResendGuidance(extractErrorMessage(error))}`);
-          continue;
-        }
-        totalSent += Array.isArray(data) ? data.length : chunk.length;
-      } catch (err) {
-        errors.push(`Chunk ${i / BATCH_SIZE + 1}: ${withResendGuidance(extractErrorMessage(err))}`);
-      }
-    }
+    const results = await sendEmailsWithConcurrency(emailBatch);
+    const totalSent = results.filter((r) => r.ok).length;
+    const errors = results.filter((r) => !r.ok).map((r) => `${r.to}: ${r.message}`);
 
     if (totalSent === 0) {
       const firstError = errors[0] ? ` ${errors[0]}` : '';
