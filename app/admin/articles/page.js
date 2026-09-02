@@ -11,7 +11,8 @@ import { stripHtmlToPlainText } from '@/lib/html-sanitize';
 
 // Available tags for articles
 const AVAILABLE_TAGS = [
-  { value: 'ayurveda', label: 'Ayurveda', labelZh: '阿育吠陀' },
+  { value: 'ayurveda', label: 'Ayurveda Wellness', labelZh: '阿育吠陀养生' },
+  { value: 'personal-experience', label: 'Personal Experience', labelZh: '个人经历' },
   { value: 'practice', label: 'Practice (Main)', labelZh: '练习主页' },
   { value: 'mindfulness', label: 'Mindfulness', labelZh: '正念冥想' },
   { value: 'chakra', label: 'Chakra', labelZh: '脉轮' },
