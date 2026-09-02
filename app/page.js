@@ -150,6 +150,117 @@ const Index = () => {
         {/* Testimonials Section - Temporarily disabled */}
         {/* <TestimonialsColumn /> */}
 
+        {/* Teaching Philosophy Section */}
+        <section className="px-6 py-16 md:py-24">
+          <div className="max-w-3xl mx-auto text-center">
+            <h2 className="font-display text-3xl md:text-4xl text-glow-subtle mb-4 animate-fade-in-up">
+              {language === 'zh' ? '教学理念' : 'Teaching Philosophy'}
+            </h2>
+
+            <div className="mb-10 flex items-center justify-center gap-4 animate-fade-in-up">
+              <div className="h-px w-16 bg-gradient-to-r from-transparent to-glow-purple/50" />
+              <div className="w-1.5 h-1.5 rounded-full bg-glow-purple animate-pulse-glow" />
+              <div className="h-px w-16 bg-gradient-to-l from-transparent to-glow-purple/50" />
+            </div>
+
+            <p className="text-muted-foreground leading-loose whitespace-pre-line text-left md:text-center animate-fade-in-up">
+              {language === 'zh'
+                ? `八年前，我曾以为，那次受伤会结束我的瑜伽之路。
+
+但现在回头看，我才发现：
+
+它并没有结束我的路。
+
+它只是让我走向了另一条路。
+
+它让我开始更深入地理解身体。
+
+教会我更加认真地倾听身体，
+教会我耐心，
+也教会我如何与身体合作，而不是不断地与它对抗。
+
+而最终，这段经历也让我拥有了更多的知识和经验，去帮助其他人重新找回属于自己的身体和运动能力。
+
+今天，当我带领大家练习瑜伽和身体运动时，我想教给你的，从来不只是如何完成一个体式。
+
+我更希望你能够真正理解自己的身体。
+
+去感受，哪里需要释放。
+去觉察，哪里需要更多的稳定。
+去重建身体所需要的力量。
+去重新建立呼吸、动作与身体之间更深的连接。
+
+因为我相信，真正的疗愈，并不是不断要求身体做得更多。
+
+而是通过觉察、安全感、力量与信任，让身体拥有重新学习运动的空间。
+
+也许，这就是我的伤痛最终教会我的事情：
+
+有时候，那段曾经让我们觉得自己"坏掉了"的经历，最终会变成我们帮助别人疗愈的力量。
+
+我不教你忽略身体，强迫自己去完成动作。
+
+我希望教你倾听身体、理解身体，并与身体一起运动。
+
+这，就是 Inner Light 的核心——
+倾听身体。
+理解身体。
+与身体一起运动。`
+                : `Eight years ago, I thought that injury would end my yoga journey.
+
+But looking back now, I realize:
+
+It didn't end my path.
+
+It simply led me onto another one.
+
+It made me understand the body more deeply.
+
+It taught me to listen to my body more carefully,
+taught me patience,
+and taught me how to work with my body — instead of constantly fighting against it.
+
+And in the end, that experience gave me the knowledge and skill to help others reclaim their own bodies and their capacity to move.
+
+Today, when I guide you through yoga and movement, what I want to teach you was never just how to complete a pose.
+
+What I truly hope is that you come to understand your own body.
+
+To feel where you need to release.
+To sense where you need more stability.
+To rebuild the strength your body needs.
+To reconnect breath, movement, and body more deeply.
+
+Because I believe true healing isn't about demanding more and more from the body.
+
+It's about giving the body room to relearn movement — through awareness, safety, strength, and trust.
+
+Perhaps that is what my injury ultimately taught me:
+
+Sometimes, the experience that once made us feel "broken" becomes the very thing that lets us help others heal.
+
+I don't teach you to ignore your body, or force it through movements.
+
+I want to teach you to listen to your body, understand it, and move together with it.
+
+This is the heart of Inner Light —
+Listen to the body.
+Understand the body.
+Move with the body.`}
+            </p>
+
+            {/* Reserved space for the full personal story link (injury-to-therapist journey) */}
+            <div className="mt-10 animate-fade-in-up">
+              <Link
+                href="/blog"
+                className="inline-flex items-center px-6 py-3 rounded-full bg-glow-purple/10 border border-glow-purple/30 text-glow-subtle hover:bg-glow-purple/20 transition-all duration-300"
+              >
+                {language === 'zh' ? '阅读我的完整故事 →' : 'Read My Full Story →'}
+              </Link>
+            </div>
+          </div>
+        </section>
+
         {/* Blog Section */}
         <section id="blog" className="px-6 py-8 md:py-16">
           <div className="max-w-7xl mx-auto">
