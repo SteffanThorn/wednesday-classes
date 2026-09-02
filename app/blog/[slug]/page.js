@@ -16,6 +16,7 @@ import {
   getArticleTitle,
   getCategoryLabel,
 } from '@/lib/blog';
+import { toSafeArticleHtml } from '@/lib/html-sanitize';
 
 export default function BlogArticlePage() {
   const { slug } = useParams();
@@ -44,13 +45,18 @@ export default function BlogArticlePage() {
   }, [slug]);
 
   const renderContent = (content) => {
-    return content
-      .replace(/\*\*(.*?)\*\*/g, '$1')
-      .split('\n\n')
+    // Legacy content is plain text (paragraphs separated by a blank line); rich-editor
+    // content is sanitized HTML with <br> for line breaks and <br><br> between paragraphs.
+    // toSafeArticleHtml() normalizes either case to safe HTML, so splitting on <br><br>
+    // works for both.
+    const safeHtml = toSafeArticleHtml(content.replace(/\*\*(.*?)\*\*/g, '$1'));
+
+    return safeHtml
+      .split(/(?:<br\s*\/?>\s*){2,}/i)
+      .map((p) => p.trim())
       .filter(Boolean)
       .map((paragraph, index) => {
-        const trimmed = paragraph.trim();
-        const imageMatch = trimmed.match(/^!\[(.*?)\]\(((?:https?:\/\/|\/)[^\s)]+)\)$/);
+        const imageMatch = paragraph.match(/^!\[(.*?)\]\(((?:https?:\/\/|\/)[^\s)]+)\)$/);
 
         if (imageMatch) {
           const [, altText, imageUrl] = imageMatch;
@@ -67,9 +73,11 @@ export default function BlogArticlePage() {
         }
 
         return (
-          <p key={index} className="text-muted-foreground leading-8 whitespace-pre-wrap mb-5">
-            {trimmed}
-          </p>
+          <p
+            key={index}
+            className="text-muted-foreground leading-8 mb-5"
+            dangerouslySetInnerHTML={{ __html: paragraph }}
+          />
         );
       });
   };

@@ -6,6 +6,8 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { Plus, Trash2, Edit2, Save, X, Loader2, BookOpen, Archive, Clock3, FilePenLine, Send } from 'lucide-react';
+import RichTextEditor from '@/components/RichTextEditor';
+import { stripHtmlToPlainText } from '@/lib/html-sanitize';
 
 // Available tags for articles
 const AVAILABLE_TAGS = [
@@ -35,6 +37,9 @@ function AdminArticlesContent() {
   // Form state
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  // Bumped every time the form is (re)opened, so the uncontrolled RichTextEditor instances
+  // remount and pick up fresh initial content instead of showing stale DOM from before.
+  const [formKey, setFormKey] = useState(0);
   const [formData, setFormData] = useState({
     titleEn: '',
     titleZh: '',
@@ -79,6 +84,14 @@ function AdminArticlesContent() {
 
   const handleSubmit = async (e, status = 'published') => {
     if (e) e.preventDefault();
+
+    // The content fields are now a contentEditable rich editor, not native <textarea>s, so
+    // they can't carry an HTML `required` attribute - check for empty content manually.
+    if (!stripHtmlToPlainText(formData.contentEn).trim() || !stripHtmlToPlainText(formData.contentZh).trim()) {
+      setMessage({ type: 'error', text: 'Please write content in both English and Chinese before saving.' });
+      return;
+    }
+
     setIsSaving(true);
 
     try {
@@ -170,6 +183,7 @@ function AdminArticlesContent() {
     });
     setEditingId(article.id);
     setShowForm(true);
+    setFormKey((k) => k + 1);
   };
 
   const resetForm = () => {
@@ -184,6 +198,7 @@ function AdminArticlesContent() {
     });
     setEditingId(null);
     setShowForm(false);
+    setFormKey((k) => k + 1);
   };
 
   const toggleTag = (tagValue) => {
@@ -426,28 +441,22 @@ function AdminArticlesContent() {
                   <label className="block text-sm text-muted-foreground mb-2">
                     English Content
                   </label>
-                  <textarea
+                  <RichTextEditor
+                    key={`content-en-${formKey}`}
                     value={formData.contentEn}
-                    onChange={(e) => setFormData({ ...formData, contentEn: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl bg-background/50 border border-border/50 
-                             focus:border-glow-cyan/50 focus:outline-none transition-colors resize-none"
+                    onChange={(html) => setFormData((prev) => ({ ...prev, contentEn: html }))}
                     placeholder="Write your article content in English..."
-                    rows={8}
-                    required
                   />
                 </div>
                 <div>
                   <label className="block text-sm text-muted-foreground mb-2">
                     中文内容
                   </label>
-                  <textarea
+                  <RichTextEditor
+                    key={`content-zh-${formKey}`}
                     value={formData.contentZh}
-                    onChange={(e) => setFormData({ ...formData, contentZh: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl bg-background/50 border border-border/50 
-                             focus:border-glow-cyan/50 focus:outline-none transition-colors resize-none"
+                    onChange={(html) => setFormData((prev) => ({ ...prev, contentZh: html }))}
                     placeholder="在这里写下您的文章内容..."
-                    rows={8}
-                    required
                   />
                 </div>
               </div>
@@ -551,7 +560,7 @@ function AdminArticlesContent() {
                     {mounted ? '日期' : 'Date'}: {article.createdAt ? new Date(article.createdAt).toLocaleDateString(language === 'zh' ? 'zh-CN' : 'en-US') : '-'}
                   </p>
                   <p className="text-sm text-muted-foreground truncate">
-                    {language === 'zh' ? (article.content?.zh || article.content?.en) : (article.content?.en || article.content?.zh)}
+                    {stripHtmlToPlainText(language === 'zh' ? (article.content?.zh || article.content?.en) : (article.content?.en || article.content?.zh))}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">

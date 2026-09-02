@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import dbConnect from '@/lib/mongodb';
 import Article from '@/lib/models/Article';
+import { toSafeArticleHtml } from '@/lib/html-sanitize';
 
 function toPlainArticle(doc) {
   return {
@@ -71,7 +72,10 @@ export async function POST(request) {
           $set: {
             id: String(article.id),
             title: article.title || { en: '', zh: '' },
-            content: article.content || { en: '', zh: '' },
+            content: {
+              en: toSafeArticleHtml(article.content?.en || ''),
+              zh: toSafeArticleHtml(article.content?.zh || ''),
+            },
             tags: article.tags || [],
             category: article.category || 'ayurveda',
             status: article.status || 'published',

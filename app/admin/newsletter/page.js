@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
 import FloatingParticles from '@/components/FloatingParticle';
 import { useLanguage } from '@/hooks/useLanguage';
+import { stripHtmlToPlainText } from '@/lib/html-sanitize';
 import {
   Loader2,
   Mail,
@@ -261,7 +262,11 @@ function NewsletterAdminPageContent() {
   // Students" button on /admin/articles, which links here with ?shareArticleId=<id>).
   function openCustomComposerWithArticle(article) {
     const title = isZh ? (article.title?.zh || article.title?.en) : (article.title?.en || article.title?.zh);
-    const body = isZh ? (article.content?.zh || article.content?.en) : (article.content?.en || article.content?.zh);
+    // The share composer is plain text (see the email builder), so the blog post's rich
+    // HTML content is flattened here - formatting is preserved on the actual blog page,
+    // which this email links to below.
+    const rawBody = isZh ? (article.content?.zh || article.content?.en) : (article.content?.en || article.content?.zh);
+    const body = stripHtmlToPlainText(rawBody);
     const readMoreUrl = `https://www.innerlight.co.nz/blog/${article.id}`;
     const readMoreLine = isZh
       ? `阅读完整文章：${readMoreUrl}`
