@@ -567,10 +567,11 @@ function AdminArticlesContent() {
                   {getStatus(article) === 'published' && (
                     <button
                       onClick={() => router.push(`/admin/newsletter?shareArticleId=${article.id}`)}
-                      className="p-2 rounded-lg text-muted-foreground/60 hover:text-glow-cyan hover:bg-glow-cyan/10 transition-all"
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-glow-cyan/30 text-glow-cyan hover:bg-glow-cyan/10 transition-all whitespace-nowrap"
                       title={mounted ? '分享给学生' : 'Share with Students'}
                     >
-                      <Send className="w-4 h-4" />
+                      <Send className="w-3.5 h-3.5" />
+                      {mounted ? '分享给学生' : 'Share'}
                     </button>
                   )}
                   <button
