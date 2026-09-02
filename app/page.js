@@ -252,7 +252,7 @@ Move with the body.`}
             {/* Links to Yuki's personal injury-to-therapist story on the blog */}
             <div className="mt-10 animate-fade-in-up">
               <Link
-                href="/blog/1788389234891"
+                href="/blog/1788389234891-nine-years-ago-i-thought-i-would-never-be-able-to-live-a-normal-life-again"
                 className="inline-flex items-center px-6 py-3 rounded-full bg-glow-purple/10 border border-glow-purple/30 text-glow-subtle hover:bg-glow-purple/20 transition-all duration-300"
               >
                 {language === 'zh' ? '阅读我的完整故事 →' : 'Read My Full Story →'}
