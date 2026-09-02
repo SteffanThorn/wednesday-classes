@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { Suspense, useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
 import FloatingParticles from '@/components/FloatingParticle';
 import { useLanguage } from '@/hooks/useLanguage';
@@ -72,10 +72,11 @@ function formatDate(dateString) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function NewsletterAdminPage() {
+function NewsletterAdminPageContent() {
   const COMPANY_TEST_EMAILS = ['innerlightyuki@gmail.com', 'nzsteffan@gmail.com'];
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { language } = useLanguage();
   const isZh = language === 'zh';
 
@@ -137,6 +138,29 @@ export default function NewsletterAdminPage() {
   useEffect(() => {
     fetchWeeks();
   }, []);
+
+  // ── Share-a-blog-post entry point (from /admin/articles "Share with Students") ──────
+  useEffect(() => {
+    const shareArticleId = searchParams.get('shareArticleId');
+    if (!shareArticleId || status !== 'authenticated' || session?.user?.role !== 'admin') return;
+
+    (async () => {
+      try {
+        const res = await fetch('/api/admin/articles');
+        if (res.ok) {
+          const articles = await res.json();
+          const article = articles.find((a) => String(a.id) === String(shareArticleId));
+          if (article) {
+            openCustomComposerWithArticle(article);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load article to share:', err);
+      } finally {
+        router.replace('/admin/newsletter');
+      }
+    })();
+  }, [searchParams, status, session]);
 
   async function fetchWeeks() {
     setLoading(true);
@@ -221,6 +245,31 @@ export default function NewsletterAdminPage() {
     setCustomForm({
       subject: '',
       content: '',
+      attachments: [],
+      videoUrl: '',
+    });
+    setCustomConfirmSendType(null);
+    setCustomConfirmInput('');
+    setCustomSelectedEmails([]);
+    setCustomRecipientSearch('');
+    setCustomModalOpen(true);
+    fetchCustomRecipients();
+  }
+
+  // Opens the composer pre-filled with a blog article's title/content, so admin can pick
+  // which students to share a just-published post with (triggered by the "Share with
+  // Students" button on /admin/articles, which links here with ?shareArticleId=<id>).
+  function openCustomComposerWithArticle(article) {
+    const title = isZh ? (article.title?.zh || article.title?.en) : (article.title?.en || article.title?.zh);
+    const body = isZh ? (article.content?.zh || article.content?.en) : (article.content?.en || article.content?.zh);
+    const readMoreUrl = `https://www.innerlight.co.nz/blog/${article.id}`;
+    const readMoreLine = isZh
+      ? `阅读完整文章：${readMoreUrl}`
+      : `Read the full post: ${readMoreUrl}`;
+
+    setCustomForm({
+      subject: title || '',
+      content: `${body || ''}\n\n${readMoreLine}`,
       attachments: [],
       videoUrl: '',
     });
@@ -2003,5 +2052,19 @@ export default function NewsletterAdminPage() {
         </section>
       </div>
     </div>
+  );
+}
+
+export default function NewsletterAdminPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <Loader2 className="w-8 h-8 text-glow-cyan animate-spin" />
+        </div>
+      }
+    >
+      <NewsletterAdminPageContent />
+    </Suspense>
   );
 }

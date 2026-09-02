@@ -1,69 +1,88 @@
-import { promises as fs } from 'fs';
-import path from 'path';
 import { NextResponse } from 'next/server';
+import { auth } from '@/auth';
+import dbConnect from '@/lib/mongodb';
+import Article from '@/lib/models/Article';
 
-// SECURITY: Use environment variable for admin password
-// Never hardcode passwords in production code
-const ADMIN_PASSWORD = process.env.ADMIN_ARTICLES_PASSWORD;
-
-const articlesFilePath = path.join(process.cwd(), 'data', 'articles.json');
-
-// Ensure data directory exists
-async function ensureDirectory() {
-  const dataDir = path.join(process.cwd(), 'data');
-  try {
-    await fs.access(dataDir);
-  } catch {
-    await fs.mkdir(dataDir, { recursive: true });
-  }
+function toPlainArticle(doc) {
+  return {
+    id: doc.id,
+    title: doc.title,
+    content: doc.content,
+    tags: doc.tags,
+    category: doc.category,
+    status: doc.status,
+    author: doc.author,
+    createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
+  };
 }
 
-// GET - Read articles (public - articles are displayed on the website)
+// GET - Read all articles (drafts included) - admin only, matching the rest of /api/admin/*.
+// Public visitors read published articles via /api/articles instead.
 export async function GET() {
+  const session = await auth();
+  if (!session?.user || session.user.role !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   try {
-    await ensureDirectory();
-    const fileContents = await fs.readFile(articlesFilePath, 'utf8');
-    const articles = JSON.parse(fileContents);
-    return NextResponse.json(articles);
+    await dbConnect();
+    const articles = await Article.find({}).sort({ createdAt: 1 }).lean();
+    return NextResponse.json(articles.map(toPlainArticle));
   } catch (error) {
     console.error('Error reading articles:', error);
-    // Return empty array if file doesn't exist
     return NextResponse.json([]);
   }
 }
 
-// POST - Save articles (requires password from environment)
+// POST - Save articles (admin only)
+// The admin UI always sends the FULL current article list (it loads everything via GET,
+// edits/adds/removes one entry client-side, then resends the whole array) - so saving means
+// making the collection match that array exactly: upsert everything present, delete anything
+// that's been dropped from it.
 export async function POST(request) {
+  const session = await auth();
+  if (!session?.user || session.user.role !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   try {
-    // SECURITY: Require password to be configured
-    if (!ADMIN_PASSWORD) {
-      console.error('ADMIN_ARTICLES_PASSWORD is not set in environment variables');
-      return NextResponse.json(
-        { error: 'Admin functionality is not configured' },
-        { status: 500 }
-      );
-    }
-
     const body = await request.json();
-    const { articles, password } = body;
+    const { articles } = body;
 
-    // Verify password matches environment variable
-    if (password !== ADMIN_PASSWORD) {
+    if (!Array.isArray(articles)) {
       return NextResponse.json(
-        { error: 'Unauthorized - Invalid password' },
-        { status: 401 }
+        { error: 'articles must be an array' },
+        { status: 400 }
       );
     }
 
-    // Ensure directory exists
-    await ensureDirectory();
+    await dbConnect();
 
-    // Write articles to file
-    await fs.writeFile(
-      articlesFilePath,
-      JSON.stringify(articles, null, 2),
-      'utf8'
-    );
+    const now = new Date();
+    const incomingIds = articles.map((a) => String(a.id));
+
+    await Article.deleteMany({ id: { $nin: incomingIds } });
+
+    for (const article of articles) {
+      await Article.findOneAndUpdate(
+        { id: String(article.id) },
+        {
+          $set: {
+            id: String(article.id),
+            title: article.title || { en: '', zh: '' },
+            content: article.content || { en: '', zh: '' },
+            tags: article.tags || [],
+            category: article.category || 'ayurveda',
+            status: article.status || 'published',
+            author: article.author || 'Yuki',
+            createdAt: article.createdAt ? new Date(article.createdAt) : now,
+            updatedAt: now,
+          },
+        },
+        { upsert: true }
+      );
+    }
 
     return NextResponse.json({ success: true, message: 'Articles saved successfully' });
   } catch (error) {

@@ -2,15 +2,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useSession, signOut } from 'next-auth/react';
 import { useLanguage } from '@/hooks/useLanguage';
-import { Plus, Trash2, Edit2, Save, X, Lock, Loader2 } from 'lucide-react';
-
-const ADMIN_PASSWORD = 'yuki123';
+import { Plus, Trash2, Edit2, Save, X, Loader2 } from 'lucide-react';
 
 export default function AdminAyurvedaPage() {
   const { t, mounted, language } = useLanguage();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [password, setPassword] = useState('');
+  const router = useRouter();
+  const { data: session, status } = useSession();
   const [articles, setArticles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -27,10 +27,23 @@ export default function AdminAyurvedaPage() {
     category: 'general'
   });
 
-  // Load articles on mount
+  // Redirect non-admins away, same pattern as the other /admin/* pages
   useEffect(() => {
-    loadArticles();
-  }, []);
+    if (status === 'unauthenticated') {
+      router.push('/auth/signin');
+      return;
+    }
+    if (status === 'authenticated' && session?.user?.role !== 'admin') {
+      router.push('/dashboard');
+    }
+  }, [status, session, router]);
+
+  // Load articles once we know the user is an authenticated admin
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user?.role === 'admin') {
+      loadArticles();
+    }
+  }, [status, session]);
 
   const loadArticles = async () => {
     try {
@@ -43,15 +56,6 @@ export default function AdminAyurvedaPage() {
       console.error('Error loading articles:', error);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleLogin = (e) => {
-    e.preventDefault();
-    if (password === ADMIN_PASSWORD) {
-      setIsAuthenticated(true);
-    } else {
-      setMessage({ type: 'error', text: 'Incorrect password' });
     }
   };
 
@@ -88,7 +92,7 @@ export default function AdminAyurvedaPage() {
       const saveResponse = await fetch('/api/admin/articles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ articles: updatedArticles, password: ADMIN_PASSWORD })
+        body: JSON.stringify({ articles: updatedArticles })
       });
 
       if (saveResponse.ok) {
@@ -116,7 +120,7 @@ export default function AdminAyurvedaPage() {
       const saveResponse = await fetch('/api/admin/articles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ articles: updatedArticles, password: ADMIN_PASSWORD })
+        body: JSON.stringify({ articles: updatedArticles })
       });
 
       if (saveResponse.ok) {
@@ -154,51 +158,16 @@ export default function AdminAyurvedaPage() {
     setShowForm(false);
   };
 
-  // Login screen
-  if (!isAuthenticated) {
+  if (status === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="max-w-md w-full p-8 rounded-2xl bg-card border border-border">
-          <h1 className="font-display text-2xl text-glow-subtle mb-6 text-center">
-            {mounted ? '管理员登录' : 'Admin Login'}
-          </h1>
-          
-          {message.text && (
-            <div className={`p-3 rounded-lg mb-4 ${message.type === 'error' ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
-              {message.text}
-            </div>
-          )}
-          
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-sm text-muted-foreground mb-2">
-                {mounted ? '密码' : 'Password'}
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-background/50 border border-border/50 
-                         focus:border-glow-cyan/50 focus:outline-none transition-colors"
-                placeholder={mounted ? '输入密码' : 'Enter password'}
-              />
-            </div>
-            <button
-              type="submit"
-              className="w-full px-6 py-3 rounded-full bg-glow-cyan/10 border border-glow-cyan/30 
-                       text-glow-cyan hover:bg-glow-cyan/20 hover:box-glow transition-all duration-300"
-            >
-              <Lock className="w-4 h-4 inline mr-2" />
-              {mounted ? '登录' : 'Login'}
-            </button>
-          </form>
-          
-          <p className="mt-4 text-xs text-muted-foreground text-center">
-            Default password: yuki123
-          </p>
-        </div>
+        <Loader2 className="w-8 h-8 text-glow-cyan animate-spin" />
       </div>
     );
+  }
+
+  if (!session?.user || session.user.role !== 'admin') {
+    return null;
   }
 
   // Loading
@@ -226,7 +195,7 @@ export default function AdminAyurvedaPage() {
               {mounted ? '查看前台' : 'View Site'}
             </a>
             <button
-              onClick={() => setIsAuthenticated(false)}
+              onClick={() => signOut({ callbackUrl: '/' })}
               className="text-sm text-muted-foreground hover:text-red-400 transition-colors"
             >
               {mounted ? '退出' : 'Logout'}

@@ -2,11 +2,10 @@
 'use client';
 
 import { Suspense, useState, useEffect, useMemo } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { useSession, signOut } from 'next-auth/react';
 import { useLanguage } from '@/hooks/useLanguage';
-import { Plus, Trash2, Edit2, Save, X, Lock, Loader2, BookOpen, Archive, Clock3, FilePenLine } from 'lucide-react';
-
-const ADMIN_PASSWORD = 'yuki123';
+import { Plus, Trash2, Edit2, Save, X, Loader2, BookOpen, Archive, Clock3, FilePenLine, Send } from 'lucide-react';
 
 // Available tags for articles
 const AVAILABLE_TAGS = [
@@ -24,8 +23,8 @@ const AVAILABLE_TAGS = [
 function AdminArticlesContent() {
   const { t, mounted, language } = useLanguage();
   const searchParams = useSearchParams();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [password, setPassword] = useState('');
+  const router = useRouter();
+  const { data: session, status } = useSession();
   const [articles, setArticles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -46,10 +45,23 @@ function AdminArticlesContent() {
     status: 'draft'
   });
 
-  // Load articles on mount
+  // Redirect non-admins away, same pattern as the other /admin/* pages
   useEffect(() => {
-    loadArticles();
-  }, []);
+    if (status === 'unauthenticated') {
+      router.push('/auth/signin');
+      return;
+    }
+    if (status === 'authenticated' && session?.user?.role !== 'admin') {
+      router.push('/dashboard');
+    }
+  }, [status, session, router]);
+
+  // Load articles once we know the user is an authenticated admin
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user?.role === 'admin') {
+      loadArticles();
+    }
+  }, [status, session]);
 
   const loadArticles = async () => {
     try {
@@ -62,15 +74,6 @@ function AdminArticlesContent() {
       console.error('Error loading articles:', error);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleLogin = (e) => {
-    e.preventDefault();
-    if (password === ADMIN_PASSWORD) {
-      setIsAuthenticated(true);
-    } else {
-      setMessage({ type: 'error', text: 'Incorrect password' });
     }
   };
 
@@ -109,7 +112,7 @@ function AdminArticlesContent() {
       const saveResponse = await fetch('/api/admin/articles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ articles: updatedArticles, password: ADMIN_PASSWORD })
+        body: JSON.stringify({ articles: updatedArticles })
       });
 
       if (saveResponse.ok) {
@@ -141,7 +144,7 @@ function AdminArticlesContent() {
       const saveResponse = await fetch('/api/admin/articles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ articles: updatedArticles, password: ADMIN_PASSWORD })
+        body: JSON.stringify({ articles: updatedArticles })
       });
 
       if (saveResponse.ok) {
@@ -212,7 +215,7 @@ function AdminArticlesContent() {
   const draftCount = articles.filter((article) => getStatus(article) === 'draft').length;
 
   useEffect(() => {
-    if (!isAuthenticated || isLoading) return;
+    if (status !== 'authenticated' || session?.user?.role !== 'admin' || isLoading) return;
 
     const requestedView = searchParams.get('view');
     const newFlag = searchParams.get('new');
@@ -235,56 +238,18 @@ function AdminArticlesContent() {
         handleEdit(articleToEdit);
       }
     }
-  }, [searchParams, articles, isAuthenticated, isLoading, showForm, editingId]);
+  }, [searchParams, articles, status, session, isLoading, showForm, editingId]);
 
-  // Login screen
-  if (!isAuthenticated) {
+  if (status === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="max-w-md w-full p-8 rounded-2xl bg-card border border-border">
-          <div className="flex items-center justify-center gap-3 mb-6">
-            <BookOpen className="w-8 h-8 text-glow-cyan" />
-            <h1 className="font-display text-2xl text-glow-subtle">
-              {mounted ? '文章管理' : 'Articles Admin'}
-            </h1>
-          </div>
-          
-          {message.text && (
-            <div className={`p-3 rounded-lg mb-4 ${message.type === 'error' ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
-              {message.text}
-            </div>
-          )}
-          
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-sm text-muted-foreground mb-2">
-                {mounted ? '密码' : 'Password'}
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-background/50 border border-border/50 
-                         focus:border-glow-cyan/50 focus:outline-none transition-colors"
-                placeholder={mounted ? '输入密码' : 'Enter password'}
-              />
-            </div>
-            <button
-              type="submit"
-              className="w-full px-6 py-3 rounded-full bg-glow-cyan/10 border border-glow-cyan/30 
-                       text-glow-cyan hover:bg-glow-cyan/20 hover:box-glow transition-all duration-300"
-            >
-              <Lock className="w-4 h-4 inline mr-2" />
-              {mounted ? '登录' : 'Login'}
-            </button>
-          </form>
-          
-          <p className="mt-4 text-xs text-muted-foreground text-center">
-            Default password: yuki123
-          </p>
-        </div>
+        <Loader2 className="w-8 h-8 text-glow-cyan animate-spin" />
       </div>
     );
+  }
+
+  if (!session?.user || session.user.role !== 'admin') {
+    return null;
   }
 
   if (isLoading) {
@@ -314,7 +279,7 @@ function AdminArticlesContent() {
               {mounted ? '查看博客前台' : 'View Blog'}
             </a>
             <button
-              onClick={() => setIsAuthenticated(false)}
+              onClick={() => signOut({ callbackUrl: '/' })}
               className="text-sm text-muted-foreground hover:text-red-400 transition-colors"
             >
               {mounted ? '退出' : 'Logout'}
@@ -590,6 +555,15 @@ function AdminArticlesContent() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
+                  {getStatus(article) === 'published' && (
+                    <button
+                      onClick={() => router.push(`/admin/newsletter?shareArticleId=${article.id}`)}
+                      className="p-2 rounded-lg text-muted-foreground/60 hover:text-glow-cyan hover:bg-glow-cyan/10 transition-all"
+                      title={mounted ? '分享给学生' : 'Share with Students'}
+                    >
+                      <Send className="w-4 h-4" />
+                    </button>
+                  )}
                   <button
                     onClick={() => handleEdit(article)}
                     className="p-2 rounded-lg text-muted-foreground/60 hover:text-glow-cyan hover:bg-glow-cyan/10 transition-all"

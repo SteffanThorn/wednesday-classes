@@ -1,21 +1,29 @@
-import { promises as fs } from 'fs';
-import path from 'path';
 import { NextResponse } from 'next/server';
+import dbConnect from '@/lib/mongodb';
+import Article from '@/lib/models/Article';
 
-const articlesFilePath = path.join(process.cwd(), 'data', 'articles.json');
+function toPlainArticle(doc) {
+  return {
+    id: doc.id,
+    title: doc.title,
+    content: doc.content,
+    tags: doc.tags,
+    category: doc.category,
+    status: doc.status,
+    author: doc.author,
+    createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
+  };
+}
 
 export async function GET() {
   try {
-    const fileContents = await fs.readFile(articlesFilePath, 'utf8');
-    const articles = JSON.parse(fileContents);
+    await dbConnect();
+    const articles = await Article.find({ status: 'published' })
+      .sort({ createdAt: -1 })
+      .lean();
 
-    const sortedArticles = Array.isArray(articles)
-      ? articles
-          .filter((article) => (article.status || 'published') === 'published')
-          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-      : [];
-
-    return NextResponse.json(sortedArticles);
+    return NextResponse.json(articles.map(toPlainArticle));
   } catch (error) {
     console.error('Error reading public articles:', error);
     return NextResponse.json([]);
