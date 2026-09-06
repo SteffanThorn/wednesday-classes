@@ -5,6 +5,7 @@ import dbConnect from '@/lib/mongodb';
 import NewsletterCampaign from '@/lib/models/NewsletterCampaign';
 import User from '@/lib/models/User';
 import HealthIntake from '@/lib/models/HealthIntake';
+import SendLog from '@/lib/models/SendLog';
 import { getWeekSchedule } from '@/lib/newsletter-schedule';
 import { appendBrandLogo, getCompanyLogoUrl } from '@/lib/email-branding';
 import { personalizeTextForRecipient } from '@/lib/email-personalization';
@@ -252,24 +253,75 @@ export async function POST(request) {
     let totalSent = 0;
     const errors = [];
 
+    // Per-recipient tracking rows (aligned with `recipients` / `emailBatch` by
+    // index). Start everyone as 'failed'; flip to 'accepted' once Resend takes
+    // the chunk. The /api/webhooks/resend endpoint later advances 'accepted' to
+    // 'delivered' / 'bounced' / etc.
+    const sendStartedAt = new Date();
+    const logRecipients = recipients.map((r) => ({
+      email: r.email,
+      name: r.name || '',
+      resendId: null,
+      status: 'failed',
+      error: '',
+      lastEventAt: null,
+    }));
+
     for (let i = 0; i < emailBatch.length; i += BATCH_SIZE) {
       const chunk = emailBatch.slice(i, i + BATCH_SIZE);
+      const chunkNo = i / BATCH_SIZE + 1;
       try {
         const { data, error } = await resend.batch.send(chunk);
         if (error) {
           const message = withResendGuidance(extractResendErrorMessage(error));
-          console.error(`Batch send error (chunk ${i / BATCH_SIZE + 1}):`, error);
-          errors.push(`Chunk ${i / BATCH_SIZE + 1}: ${message}`);
+          console.error(`Batch send error (chunk ${chunkNo}):`, error);
+          errors.push(`Chunk ${chunkNo}: ${message}`);
+          for (let j = 0; j < chunk.length; j++) {
+            logRecipients[i + j].error = message;
+          }
           continue;
         }
 
-        const sentInChunk = Array.isArray(data) ? data.length : chunk.length;
-        totalSent += sentInChunk;
+        // batch.send has returned the id array both as `data` and as `data.data`
+        // across Resend SDK versions — handle either.
+        const ids = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
+        for (let j = 0; j < chunk.length; j++) {
+          logRecipients[i + j].status = 'accepted';
+          logRecipients[i + j].resendId = ids[j]?.id || null;
+          logRecipients[i + j].lastEventAt = sendStartedAt;
+        }
+        totalSent += ids.length || chunk.length;
       } catch (err) {
-        console.error(`Batch send error (chunk ${i / BATCH_SIZE + 1}):`, err);
-        errors.push(`Chunk ${i / BATCH_SIZE + 1}: ${withResendGuidance(extractResendErrorMessage(err))}`);
+        const message = withResendGuidance(extractResendErrorMessage(err));
+        console.error(`Batch send error (chunk ${chunkNo}):`, err);
+        errors.push(`Chunk ${chunkNo}: ${message}`);
+        for (let j = 0; j < chunk.length; j++) {
+          logRecipients[i + j].error = message;
+        }
       }
     }
+
+    // Record the send run (real sends only — test mode returned earlier).
+    let logId = null;
+    try {
+      const log = await SendLog.create({
+        kind: 'weekly',
+        subject: campaign.subject,
+        weekNumber: campaign.weekNumber,
+        sentByEmail: session.user.email || '',
+        sentByName: session.user.name || '',
+        mode: isSelectedMode ? 'selected' : 'all',
+        totalRecipients: recipients.length,
+        recipients: logRecipients,
+      });
+      logId = log._id.toString();
+    } catch (logErr) {
+      console.error('Failed to write SendLog (weekly send):', logErr);
+    }
+
+    const failures = logRecipients
+      .filter((r) => r.status === 'failed')
+      .map((r) => ({ email: r.email, message: r.error || 'Send failed' }));
 
     if (totalSent === 0) {
       const firstError = errors[0] ? ` ${errors[0]}` : '';
@@ -278,6 +330,8 @@ export async function POST(request) {
           success: false,
           error: `All newsletter deliveries failed.${firstError}`,
           errors,
+          failures,
+          logId,
         },
         { status: 500 }
       );
@@ -299,6 +353,8 @@ export async function POST(request) {
       sent: totalSent,
       total: recipients.length,
       errors: errors.length > 0 ? errors : undefined,
+      failures,
+      logId,
       message:
         errors.length > 0
           ? `Newsletter partially sent: ${totalSent}/${recipients.length}`

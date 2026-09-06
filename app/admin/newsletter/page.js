@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
 import FloatingParticles from '@/components/FloatingParticle';
+import SendResultPanel from '@/components/SendResultPanel';
 import { useLanguage } from '@/hooks/useLanguage';
 import { stripHtmlToPlainText } from '@/lib/html-sanitize';
 import {
@@ -120,6 +121,7 @@ function NewsletterAdminPageContent() {
     videoUrl: '',
   });
   const [toast, setToast] = useState(null); // { type: 'success'|'error', message }
+  const [sendResult, setSendResult] = useState(null); // { logId, kind, sent, total, failures[] } — see SendResultPanel
   const [confirmSend, setConfirmSend] = useState(false);
   const [confirmSendInput, setConfirmSendInput] = useState('');
   const [confirmSendSelected, setConfirmSendSelected] = useState(false);
@@ -240,6 +242,21 @@ function NewsletterAdminPageContent() {
   function showToast(type, message) {
     setToast({ type, message });
     setTimeout(() => setToast(null), 4500);
+  }
+
+  // Persistent send confirmation. Feeds SendResultPanel, which polls the send
+  // log so delivered / bounced counts fill in over the next few minutes.
+  function showSendResult(data, kind, fallbackTotal = 0) {
+    if (!data) return;
+    setSendResult({
+      logId: data.logId || null,
+      kind,
+      sent: Number(data.sent || 0),
+      total: Number(data.total || fallbackTotal || data.sent || 0),
+      failures: Array.isArray(data.failures) ? data.failures : [],
+    });
+    // Bring it into view.
+    setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50);
   }
 
   function openCustomComposer() {
@@ -521,11 +538,14 @@ function NewsletterAdminPageContent() {
       });
 
       const data = await res.json();
-      if (res.ok && data.success) {
-        showToast('success', `自定义邮件已发送给 ${data.sent} 位学生 ✓`);
+      if (res.ok || data.logId) {
+        showSendResult(data, 'custom');
         setCustomModalOpen(false);
+      }
+      if (res.ok && data.success) {
+        showToast('success', `自定义邮件已发送给 ${data.sent} 位学生`);
       } else if (res.ok && data.partialSuccess) {
-        showToast('error', `部分发送成功：${data.sent}/${data.total}`);
+        showToast('error', `部分发送成功：${data.sent}/${data.total}，详见发送结果`);
       } else {
         showToast('error', data.error || '发送失败，请重试');
       }
@@ -566,11 +586,14 @@ function NewsletterAdminPageContent() {
       });
 
       const data = await res.json();
-      if (res.ok && data.success) {
-        showToast('success', `自定义邮件已发送给已选择客户（${data.sent} 位）✓`);
+      if (res.ok || data.logId) {
+        showSendResult(data, 'custom', customSelectedEmails.length);
         setCustomModalOpen(false);
+      }
+      if (res.ok && data.success) {
+        showToast('success', `自定义邮件已发送给已选择客户（${data.sent} 位）`);
       } else if (res.ok && data.partialSuccess) {
-        showToast('error', `部分发送成功：${data.sent}/${data.total}`);
+        showToast('error', `部分发送成功：${data.sent}/${data.total}，详见发送结果`);
       } else {
         showToast('error', data.error || '发送失败，请重试');
       }
@@ -708,12 +731,13 @@ function NewsletterAdminPageContent() {
         }),
       });
       const data = await res.json();
+      if (res.ok || data.logId) showSendResult(data, 'weekly');
       if (res.ok && data.success) {
         showToast('success', `✓ 已成功发送给 ${data.sent} 位学生！`);
         fetchWeeks();
         setSelectedWeek((prev) => ({ ...prev, campaign: { ...prev.campaign, status: 'sent' } }));
       } else if (res.ok && data.partialSuccess) {
-        showToast('error', `部分发送成功：${data.sent}/${data.total}。请检查邮箱配置。`);
+        showToast('error', `部分发送成功：${data.sent}/${data.total}，详见发送结果`);
         fetchWeeks();
       } else {
         showToast('error', data.error || '发送失败，请重试');
@@ -778,11 +802,11 @@ function NewsletterAdminPageContent() {
         }),
       });
       const data = await res.json();
-
+      if (res.ok || data.logId) showSendResult(data, 'weekly', customSelectedEmails.length);
       if (res.ok && data.success) {
         showToast('success', `✓ 已发送给已选择客户（${data.sent} 位）`);
       } else if (res.ok && data.partialSuccess) {
-        showToast('error', `部分发送成功：${data.sent}/${data.total}。请检查邮箱配置。`);
+        showToast('error', `部分发送成功：${data.sent}/${data.total}，详见发送结果`);
       } else {
         showToast('error', data.error || '发送失败，请重试');
       }
@@ -1015,6 +1039,15 @@ function NewsletterAdminPageContent() {
                   </button>
                 )}
 
+                <a
+                  href="/admin/send-logs"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium
+                    border border-white/10 text-muted-foreground hover:text-foreground hover:border-white/20 transition-all"
+                >
+                  <Clock className="w-4 h-4" />
+                  发送记录
+                </a>
+
                 <button
                   onClick={openCustomComposer}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium
@@ -1025,6 +1058,10 @@ function NewsletterAdminPageContent() {
                 </button>
               </div>
             </div>
+
+            {sendResult && (
+              <SendResultPanel result={sendResult} onClose={() => setSendResult(null)} />
+            )}
 
             {!selectedWeek && confirmSendAllWeeks && (
               <div className="mb-6 p-4 rounded-xl border border-red-500/25 bg-red-950/15">

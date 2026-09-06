@@ -6,6 +6,7 @@ import { Resend } from 'resend';
 import dbConnect from '@/lib/mongodb';
 import User from '@/lib/models/User';
 import HealthIntake from '@/lib/models/HealthIntake';
+import SendLog from '@/lib/models/SendLog';
 import { appendBrandLogo, getCompanyLogoUrl } from '@/lib/email-branding';
 import { personalizeTextForRecipient } from '@/lib/email-personalization';
 import { escapeHtml } from '@/lib/html-escape';
@@ -491,6 +492,41 @@ export async function POST(request) {
     const totalSent = results.filter((r) => r.ok).length;
     const errors = results.filter((r) => !r.ok).map((r) => `${r.to}: ${r.message}`);
 
+    // Record this send so the admin can confirm delivery now and later. Each
+    // recipient starts as 'accepted' (Resend took it) or 'failed' (Resend
+    // rejected it); the /api/webhooks/resend endpoint later advances 'accepted'
+    // to 'delivered' / 'bounced' / etc. as events arrive.
+    const now = new Date();
+    let logId = null;
+    try {
+      const log = await SendLog.create({
+        kind: 'custom',
+        subject: subject.trim(),
+        sentByEmail: session.user.email || '',
+        sentByName: session.user.name || '',
+        mode: selectedRecipientEmails.length > 0 ? 'selected' : 'all',
+        totalRecipients: recipients.length,
+        recipients: recipients.map((recipient, i) => {
+          const r = results[i] || {};
+          return {
+            email: recipient.email,
+            name: recipient.name || '',
+            resendId: r.ok ? r.id || null : null,
+            status: r.ok ? 'accepted' : 'failed',
+            error: r.ok ? '' : r.message || 'Send failed',
+            lastEventAt: now,
+          };
+        }),
+      });
+      logId = log._id.toString();
+    } catch (logErr) {
+      console.error('Failed to write SendLog (custom send):', logErr);
+    }
+
+    const failures = results
+      .filter((r) => !r.ok)
+      .map((r) => ({ email: r.to, message: r.message }));
+
     if (totalSent === 0) {
       const firstError = errors[0] ? ` ${errors[0]}` : '';
       return NextResponse.json(
@@ -498,6 +534,8 @@ export async function POST(request) {
           success: false,
           error: `All deliveries failed.${firstError}`,
           errors,
+          failures,
+          logId,
         },
         { status: 500 }
       );
@@ -509,6 +547,8 @@ export async function POST(request) {
       sent: totalSent,
       total: recipients.length,
       errors: errors.length > 0 ? errors : undefined,
+      failures,
+      logId,
     });
   } catch (error) {
     return NextResponse.json(
