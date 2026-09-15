@@ -432,6 +432,7 @@ function buildNewsletterHtml({
   const SLOT_STYLES = {
     'Wed 9:15':  { icon: '☀️', accent: '#f97316', bg: '#fff7ed', border: '#fed7aa', label: 'Morning · Pain Relief',   labelColor: '#c2410c' },
     'Thu 17:30': { icon: '🌿', accent: '#0d9488', bg: '#f0fdfa', border: '#99f6e4', label: 'Thursday · Alignment',     labelColor: '#0f766e' },
+    'Fri 18:00': { icon: '🔔', accent: '#8b5cf6', bg: '#faf5ff', border: '#e9d5ff', label: 'Friday · Sound Healing',   labelColor: '#7e22ce' },
   };
 
   const classSummariesHtml =
@@ -584,8 +585,8 @@ function buildNewsletterHtml({
                   <td style="padding-top: 20px; text-align: left;">
                     <p style="margin:0 0 12px;color:#111827;font-size:14px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;">CLASS DETAILS</p>
                     <p style="margin:0 0 8px;color:#374151;font-size:14px;line-height:1.7;">📍 <strong>Venue:</strong> Village Valley Centre, Ashhurst</p>
-                    <p style="margin:0 0 8px;color:#374151;font-size:14px;line-height:1.7;">⏱ <strong>Duration:</strong> 60 minutes per class</p>
-                    <p style="margin:0 0 12px;color:#374151;font-size:14px;line-height:1.7;">👥 <strong>Evening class:</strong> Small group</p>
+                    <p style="margin:0 0 8px;color:#374151;font-size:14px;line-height:1.7;">⏱ <strong>Duration:</strong> 60 min (Wed &amp; Thu) · 75 min (Fri Sound Healing)</p>
+                    <p style="margin:0 0 12px;color:#374151;font-size:14px;line-height:1.7;">👥 <strong>Evening classes:</strong> Small group</p>
 
                     <p style="margin:0;color:#374151;font-size:14px;line-height:1.7;">Looking forward to seeing you on the mat 🙏</p>
                   </td>

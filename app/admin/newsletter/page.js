@@ -1548,7 +1548,8 @@ function NewsletterAdminPageContent() {
                             {week.classSummaries.slice(0, 3).map((item, idx) => {
                               const dotColor =
                                 item.slot === 'Wed 9:15'  ? 'bg-orange-400' :
-                                item.slot === 'Thu 17:30' ? 'bg-glow-teal' : 'bg-white/30';
+                                item.slot === 'Thu 17:30' ? 'bg-glow-teal' :
+                                item.slot === 'Fri 18:00' ? 'bg-glow-purple' : 'bg-white/30';
                               return (
                                 <p key={`${week.week}-${item.slot}-${idx}`} className="flex items-center gap-1.5 text-[11px] text-muted-foreground/75 leading-snug">
                                   <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
@@ -1616,7 +1617,8 @@ function NewsletterAdminPageContent() {
                         {selectedWeek.classSummaries.map((item, idx) => {
                           const accentColor =
                             item.slot === 'Wed 9:15'  ? 'text-orange-400 border-orange-400/40 bg-orange-400/10' :
-                            item.slot === 'Thu 17:30' ? 'text-glow-teal border-glow-teal/40 bg-glow-teal/10' : 'text-muted-foreground';
+                            item.slot === 'Thu 17:30' ? 'text-glow-teal border-glow-teal/40 bg-glow-teal/10' :
+                            item.slot === 'Fri 18:00' ? 'text-glow-purple border-glow-purple/40 bg-glow-purple/10' : 'text-muted-foreground';
                           return (
                             <div key={`summary-${selectedWeek.week}-${item.slot}-${idx}`}
                               className={`flex items-start gap-2 px-3 py-2 rounded-lg border ${accentColor}`}>
