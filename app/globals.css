@@ -976,6 +976,16 @@ body {
   }
 }
 
+/* Marquee (continuous horizontal auto-scroll, e.g. guestbook cards) */
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
 /* ============================================
    ANIMATION UTILITY CLASSES
    ============================================ */
@@ -1020,6 +1030,22 @@ body {
 /* Soft Pulse */
 .animate-soft-pulse {
   animation: soft-pulse 3s ease-in-out infinite;
+}
+
+/* Marquee — speed via --marquee-duration custom property; pauses on hover so
+   visitors can actually read a card. */
+.animate-marquee {
+  animation: marquee var(--marquee-duration, 40s) linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee {
+    animation: none;
+  }
 }
 
 /* ============================================

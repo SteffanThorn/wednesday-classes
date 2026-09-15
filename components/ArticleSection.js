@@ -13,7 +13,7 @@ import {
   getCategoryLabel,
 } from '@/lib/blog';
 
-export default function ArticleSection({ tag = null, title = null, maxItems = 3, showEmptyState = true }) {
+export default function ArticleSection({ tag = null, title = null, maxItems = 3, showEmptyState = true, pinnedTitle = null }) {
   const { language } = useLanguage();
   const [articles, setArticles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -24,6 +24,22 @@ export default function ArticleSection({ tag = null, title = null, maxItems = 3,
         const response = await fetch('/api/articles');
         if (response.ok) {
           const data = await response.json();
+
+          // pinnedTitle: show only this one article (matched by its English
+          // title) regardless of recency, e.g. the homepage's featured post.
+          // Falls back to the normal "latest N" behavior if it can't be found,
+          // so the section never ends up empty.
+          if (pinnedTitle) {
+            const needle = pinnedTitle.trim().toLowerCase();
+            const pinned = data.find(
+              (article) => getArticleTitle(article, 'en').trim().toLowerCase() === needle
+            );
+            if (pinned) {
+              setArticles([pinned]);
+              return;
+            }
+          }
+
           const filtered = tag
             ? data.filter(article => article.tags && article.tags.includes(tag))
             : data;
@@ -41,7 +57,7 @@ export default function ArticleSection({ tag = null, title = null, maxItems = 3,
       }
     };
     loadArticles();
-  }, [tag, maxItems]);
+  }, [tag, maxItems, pinnedTitle]);
 
 
 

@@ -13,12 +13,14 @@ import BookingModal from '@/components/BookingModal';
 import YogaBenefitsColumn from '@/components/YogaBenefitsColumn';
 import TeacherStoryColumn from '@/components/TeacherStoryColumn';
 import ArticleSection from '@/components/ArticleSection';
+import GuestbookSection from '@/components/GuestbookSection';
 // import TestimonialsColumn from '@/components/TestimonialsColumn'; // Temporarily disabled - confirming with students
 import { useLanguage } from '@/hooks/useLanguage';
 
 const Index = () => {
   const { language, t, mounted } = useLanguage();
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [philosophyOpen, setPhilosophyOpen] = useState(false);
   const { data: session, status } = useSession();
   const router = useRouter();
 
@@ -163,17 +165,28 @@ const Index = () => {
               <div className="h-px w-16 bg-gradient-to-l from-transparent to-glow-purple/50" />
             </div>
 
-            <p className="text-muted-foreground leading-loose whitespace-pre-line text-left md:text-center animate-fade-in-up">
-              {language === 'zh'
-                ? `八年前，我曾以为，那次受伤会结束我的瑜伽之路。
+            {/* Short teaser is always visible; the full story only reveals on hover
+                (desktop) or tap (touch), so the homepage stays short by default. */}
+            <div
+              className="group relative animate-fade-in-up cursor-pointer select-none"
+              onClick={() => setPhilosophyOpen((v) => !v)}
+              onMouseEnter={() => setPhilosophyOpen(true)}
+              onMouseLeave={() => setPhilosophyOpen(false)}
+            >
+              <p className="text-muted-foreground leading-loose text-left md:text-center">
+                {language === 'zh'
+                  ? '八年前，我曾以为，那次受伤会结束我的瑜伽之路。但现在回头看，我才发现——它并没有结束我的路，只是让我走向了另一条路。'
+                  : "Eight years ago, I thought that injury would end my yoga journey. But looking back now, I realize — it didn't end my path. It simply led me onto another one."}
+              </p>
 
-但现在回头看，我才发现：
-
-它并没有结束我的路。
-
-它只是让我走向了另一条路。
-
-它让我开始更深入地理解身体。
+              <div
+                className={`overflow-hidden transition-all duration-700 ease-out ${
+                  philosophyOpen ? 'max-h-[3000px] opacity-100 mt-6' : 'max-h-0 opacity-0'
+                }`}
+              >
+                <p className="text-muted-foreground leading-loose whitespace-pre-line text-left md:text-center">
+                  {language === 'zh'
+                    ? `它让我开始更深入地理解身体。
 
 教会我更加认真地倾听身体，
 教会我耐心，
@@ -206,15 +219,7 @@ const Index = () => {
 倾听身体。
 理解身体。
 与身体一起运动。`
-                : `Eight years ago, I thought that injury would end my yoga journey.
-
-But looking back now, I realize:
-
-It didn't end my path.
-
-It simply led me onto another one.
-
-It made me understand the body more deeply.
+                    : `It made me understand the body more deeply.
 
 It taught me to listen to my body more carefully,
 taught me patience,
@@ -247,7 +252,15 @@ This is the heart of Inner Light —
 Listen to the body.
 Understand the body.
 Move with the body.`}
-            </p>
+                </p>
+              </div>
+
+              <span className="mt-4 inline-block text-xs tracking-wide text-glow-purple/60 group-hover:text-glow-purple transition-colors">
+                {philosophyOpen
+                  ? (language === 'zh' ? '移开鼠标（或再次点击）收起 ▲' : 'Move away — or tap again — to collapse ▲')
+                  : (language === 'zh' ? '鼠标悬停（或点击）阅读完整心路历程 ▾' : 'Hover — or tap — to read the full story ▾')}
+              </span>
+            </div>
 
             {/* Links to Yuki's personal injury-to-therapist story on the blog */}
             <div className="mt-10 animate-fade-in-up">
@@ -279,6 +292,7 @@ Move with the body.`}
               title={language === 'zh' ? '最新文章' : 'Latest Posts'}
               maxItems={3}
               showEmptyState={true}
+              pinnedTitle="What's Your Constitution? Know Your Dosha, Read Your Body's Language"
             />
 
             <div className="text-center mt-2">
@@ -313,6 +327,9 @@ Move with the body.`}
             </div>
           </div>
         </section>
+
+        {/* Student Guestbook — real student-submitted feedback, admin-moderated */}
+        <GuestbookSection />
 
         {/* Footer accent */}
         <footer className="relative z-10 py-12 px-6 border-t border-border/30">
