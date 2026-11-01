@@ -51,6 +51,14 @@ export default function AdminBookingsPage() {
   const [sendingAdminBookingTest, setSendingAdminBookingTest] = useState(false);
   const [assistedConfirmOpen, setAssistedConfirmOpen] = useState(false);
   const [pendingAssistedBooking, setPendingAssistedBooking] = useState(null);
+  // "All Bookings" tab: upcoming only (default) or the full booking history
+  const [historyMode, setHistoryMode] = useState(false);
+  const [historyBookings, setHistoryBookings] = useState([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const savedLanguage = String(window.localStorage.getItem('language') || '').toLowerCase();
@@ -133,6 +141,34 @@ export default function AdminBookingsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchHistory = async () => {
+    try {
+      setHistoryLoading(true);
+      setHistoryError('');
+      const response = await fetch('/api/admin/bookings?scope=history');
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to load booking history');
+      setHistoryBookings(data.bookings || []);
+      setHistoryLoaded(true);
+    } catch (error) {
+      console.error('Error fetching booking history:', error);
+      setHistoryError(error.message || 'Failed to load booking history');
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  // Refresh whichever booking lists are in use after an admin action
+  const refreshBookings = async () => {
+    await fetchBookings();
+    if (historyLoaded) await fetchHistory();
+  };
+
+  const handleToggleHistory = (enabled) => {
+    setHistoryMode(enabled);
+    if (enabled && !historyLoaded && !historyLoading) fetchHistory();
   };
 
   const fetchIntakeForms = async () => {
@@ -442,7 +478,7 @@ export default function AdminBookingsPage() {
       setAttendanceMessage(txt('已删除该预约。', 'Booking removed.'));
       setSelectedBookedStudent('');
       await fetchAttendanceData(selectedAttendanceSession);
-      await fetchBookings();
+      await refreshBookings();
     } catch (error) {
       console.error('Error removing booking:', error);
       setAttendanceError(error.message || 'Failed to remove booking');
@@ -451,8 +487,27 @@ export default function AdminBookingsPage() {
     }
   };
 
+  // Local YYYY-MM-DD for a class date (used for date-range filters and CSV)
+  const toDateKey = (value) => {
+    if (!value) return '';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+  const toDateTimeText = (value) => {
+    if (!value) return '';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '';
+    return `${toDateKey(d)} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  };
+  const isPaidBooking = (b) => b.paymentStatus === 'completed' || b.paymentStatus === 'paid';
+
+  // The table shows upcoming bookings by default, or the full history when toggled on
+  const tableBookings = historyMode ? historyBookings : bookings;
+
   // Filter bookings
-  const filteredBookings = bookings.filter(booking => {
+  const filteredBookings = tableBookings.filter(booking => {
     const matchesSearch = searchTerm === '' || 
       booking.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       booking.userEmail?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -460,34 +515,82 @@ export default function AdminBookingsPage() {
     
     const matchesStatus = statusFilter === 'all' || booking.status === statusFilter;
     const matchesPayment = paymentFilter === 'all' || booking.paymentStatus === paymentFilter;
+
+    let matchesDate = true;
+    if (historyMode && (dateFrom || dateTo)) {
+      const key = toDateKey(booking.classDate);
+      if (dateFrom && key < dateFrom) matchesDate = false;
+      if (dateTo && key > dateTo) matchesDate = false;
+    }
     
-    return matchesSearch && matchesStatus && matchesPayment;
+    return matchesSearch && matchesStatus && matchesPayment && matchesDate;
   });
 
-  // Export to CSV
+  // Income summary for the rows currently shown (full history view)
+  const incomeSummary = filteredBookings.reduce(
+    (acc, b) => {
+      const amount = Number(b.amount) || 0;
+      if (isPaidBooking(b)) {
+        acc.paidCount += 1;
+        acc.paidTotal += amount;
+      }
+      if (b.paymentStatus === 'refunded') {
+        acc.refundedCount += 1;
+        acc.refundedTotal += amount;
+      }
+      acc.cancellationFees += Number(b.cancellationFee) || 0;
+      return acc;
+    },
+    { paidCount: 0, paidTotal: 0, refundedCount: 0, refundedTotal: 0, cancellationFees: 0 }
+  );
+  const formatMoney = (n) => `$${(Number(n) || 0).toFixed(2)}`;
+
+  // Export to CSV - exports exactly the rows currently shown in the table
   const exportToCSV = () => {
-    const headers = ['Date', 'Name', 'Email', 'Class', 'Time', 'Location', 'Amount', 'Status', 'Payment', 'Bring a Friend', 'Friend Confirmed'];
+    const headers = [
+      'Booking ID', 'Class Date', 'Class Time', 'Student', 'Email', 'Class', 'Location',
+      'Amount (NZD)', 'Counts as Income', 'Status', 'Payment Status', 'Payment Method',
+      'Paid At', 'Booked At', 'Refunded At', 'Cancelled At', 'Cancellation Fee (NZD)',
+      'No Show', 'Bring a Friend', 'Friend Confirmed', 'Notes',
+    ];
     const rows = filteredBookings.map(b => [
-      new Date(b.classDate).toLocaleDateString(),
+      b._id,
+      toDateKey(b.classDate),
+      b.classTime,
       b.userName,
       b.userEmail,
       b.className,
-      b.classTime,
       b.location,
-      b.amount,
+      (Number(b.amount) || 0).toFixed(2),
+      isPaidBooking(b) ? 'yes' : 'no',
       b.status,
       b.paymentStatus,
+      b.paymentMethod || '',
+      toDateTimeText(b.paidAt),
+      toDateTimeText(b.createdAt),
+      toDateTimeText(b.refundedAt),
+      toDateTimeText(b.cancelledAt),
+      (Number(b.cancellationFee) || 0).toFixed(2),
+      b.noShow ? 'yes' : 'no',
       b.bringAFriend ? 'yes' : 'no',
-      b.bringAFriendConfirmed ? 'yes' : 'no'
+      b.bringAFriendConfirmed ? 'yes' : 'no',
+      b.notes || '',
     ]);
-    
-    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
+
+    // Quote every cell so commas, quotes and line breaks in names/notes don't break columns
+    const escapeCell = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const csv = [headers, ...rows].map(row => row.map(escapeCell).join(',')).join('\r\n');
+    // BOM so Excel opens accented / Chinese names correctly
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
+    const today = toDateKey(new Date());
+    let name = historyMode ? 'bookings-full-history' : 'bookings-upcoming';
+    if (historyMode && (dateFrom || dateTo)) name += `_${dateFrom || 'start'}_to_${dateTo || 'today'}`;
     a.href = url;
-    a.download = `bookings-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `${name}-${today}.csv`;
     a.click();
+    URL.revokeObjectURL(url);
   };
 
   if (status === 'loading' || loading) {
@@ -993,6 +1096,7 @@ export default function AdminBookingsPage() {
                   <option value="processing">{txt('处理中', 'Processing')}</option>
                   <option value="completed">{txt('已支付', 'Completed')}</option>
                   <option value="failed">{txt('支付失败', 'Payment Failed')}</option>
+                  <option value="refunded">{txt('已退款', 'Refunded')}</option>
                 </select>
               </div>
             </div>
@@ -1725,6 +1829,119 @@ export default function AdminBookingsPage() {
 
             {/* Bookings Table - Hidden when in weekly or attendance view */}
             {!showWeeklyView && !showAttendanceView && !showIntakeView && (
+            <>
+            {/* Upcoming / Full History toggle */}
+            <div className="mb-4 p-4 rounded-xl bg-card/60 border border-glow-cyan/20 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="inline-flex rounded-lg border border-glow-cyan/30 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => handleToggleHistory(false)}
+                    className={`px-4 py-2 text-sm transition-all ${
+                      !historyMode ? 'bg-glow-cyan/20 text-glow-cyan' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {txt('即将到来', 'Upcoming')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleHistory(true)}
+                    className={`px-4 py-2 text-sm border-l border-glow-cyan/30 transition-all ${
+                      historyMode ? 'bg-glow-cyan/20 text-glow-cyan' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {txt('全部历史记录', 'Full History')}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={exportToCSV}
+                  disabled={historyMode && historyLoading}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm bg-glow-cyan/10 border border-glow-cyan/30 text-glow-cyan hover:bg-glow-cyan/20 transition-all disabled:opacity-50"
+                >
+                  <Download className="w-4 h-4" />
+                  {historyMode
+                    ? txt(`导出历史 CSV（${filteredBookings.length} 条）`, `Export History CSV (${filteredBookings.length})`)
+                    : txt(`导出 CSV（${filteredBookings.length} 条）`, `Export CSV (${filteredBookings.length})`)}
+                </button>
+              </div>
+
+              {historyMode && (
+                <>
+                  <div className="flex flex-wrap items-end gap-3">
+                    <label className="text-xs text-muted-foreground">
+                      {txt('课程日期从', 'Class date from')}
+                      <input
+                        type="date"
+                        value={dateFrom}
+                        onChange={(e) => setDateFrom(e.target.value)}
+                        className="block mt-1 px-3 py-2 rounded-lg bg-card/60 border border-glow-cyan/20 focus:border-glow-cyan/50 focus:outline-none text-foreground"
+                      />
+                    </label>
+                    <label className="text-xs text-muted-foreground">
+                      {txt('至', 'to')}
+                      <input
+                        type="date"
+                        value={dateTo}
+                        onChange={(e) => setDateTo(e.target.value)}
+                        className="block mt-1 px-3 py-2 rounded-lg bg-card/60 border border-glow-cyan/20 focus:border-glow-cyan/50 focus:outline-none text-foreground"
+                      />
+                    </label>
+                    {(dateFrom || dateTo) && (
+                      <button
+                        type="button"
+                        onClick={() => { setDateFrom(''); setDateTo(''); }}
+                        className="px-3 py-2 text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        {txt('清除日期', 'Clear dates')}
+                      </button>
+                    )}
+                  </div>
+
+                  {historyLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      {txt('正在加载全部预约记录...', 'Loading full booking history...')}
+                    </div>
+                  ) : historyError ? (
+                    <div className="text-sm text-red-400">
+                      {historyError}{' '}
+                      <button type="button" onClick={fetchHistory} className="underline">{txt('重试', 'Retry')}</button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className="p-3 rounded-lg bg-card/40 border border-green-500/20">
+                        <div className="text-lg font-bold text-green-400">{formatMoney(incomeSummary.paidTotal)}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {txt(`已支付收入（${incomeSummary.paidCount} 笔）`, `Paid income (${incomeSummary.paidCount} bookings)`)}
+                        </div>
+                      </div>
+                      <div className="p-3 rounded-lg bg-card/40 border border-red-500/20">
+                        <div className="text-lg font-bold text-red-400">{formatMoney(incomeSummary.refundedTotal)}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {txt(`已退款（${incomeSummary.refundedCount} 笔）`, `Refunded (${incomeSummary.refundedCount} bookings)`)}
+                        </div>
+                      </div>
+                      <div className="p-3 rounded-lg bg-card/40 border border-yellow-500/20">
+                        <div className="text-lg font-bold text-yellow-400">{formatMoney(incomeSummary.cancellationFees)}</div>
+                        <div className="text-xs text-muted-foreground">{txt('取消费用', 'Cancellation fees')}</div>
+                      </div>
+                      <div className="p-3 rounded-lg bg-card/40 border border-glow-cyan/20">
+                        <div className="text-lg font-bold text-glow-cyan">{filteredBookings.length}</div>
+                        <div className="text-xs text-muted-foreground">{txt('显示的预约', 'Bookings shown')}</div>
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    {txt(
+                      '收入仅统计支付状态为“已支付”的预约，并随上方搜索、筛选和日期范围变化。',
+                      'Income counts bookings with a completed payment, and follows the search, filters and date range above.'
+                    )}
+                  </p>
+                </>
+              )}
+            </div>
+
             <div className="overflow-x-auto rounded-xl bg-card/60 border border-glow-cyan/20">
               <table className="w-full">
                 <thead>
@@ -1744,7 +1961,9 @@ export default function AdminBookingsPage() {
                   {filteredBookings.length === 0 ? (
                     <tr>
                       <td colSpan={9} className="p-8 text-center text-muted-foreground">
-                        {txt('未找到预约记录', 'No bookings found')}
+                        {historyMode && historyLoading
+                          ? txt('正在加载...', 'Loading...')
+                          : txt('未找到预约记录', 'No bookings found')}
                       </td>
                     </tr>
                   ) : (
@@ -1845,7 +2064,7 @@ export default function AdminBookingsPage() {
                                     const data = await res.json();
                                     if (!res.ok) throw new Error(data.error || 'Failed to confirm');
                                     // Refresh bookings
-                                    await fetch('/api/admin/bookings').then(r => r.json()).then(j => setBookings(j.bookings));
+                                    await refreshBookings();
                                   } catch (err) {
                                     console.error('Confirm cash error:', err);
                                   }
@@ -1879,7 +2098,7 @@ export default function AdminBookingsPage() {
                                       });
                                       const data = await res.json();
                                       if (!res.ok) throw new Error(data.error || 'Failed to confirm');
-                                      await fetch('/api/admin/bookings').then(r => r.json()).then(j => setBookings(j.bookings));
+                                      await refreshBookings();
                                     } catch (err) {
                                       console.error('Confirm bring-a-friend error:', err);
                                     }
@@ -1916,10 +2135,11 @@ export default function AdminBookingsPage() {
                 </tbody>
               </table>
             </div>
+            </>
             )}
             
             <div className="mt-4 text-sm text-muted-foreground text-center">
-              {txt('显示', 'Showing')} {filteredBookings.length} / {bookings.length} {txt('条预约记录', 'bookings')}
+              {txt('显示', 'Showing')} {filteredBookings.length} / {tableBookings.length} {txt('条预约记录', 'bookings')}
             </div>
           </div>
         </section>
