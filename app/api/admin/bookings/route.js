@@ -4,6 +4,7 @@ import dbConnect from '@/lib/mongodb';
 import Booking from '@/lib/models/Booking';
 import User from '@/lib/models/User';
 import HealthIntake from '@/lib/models/HealthIntake';
+import PackagePurchase from '@/lib/models/PackagePurchase';
 import { sendBookingConfirmationEmail } from '@/lib/email';
 
 const MAX_STUDENTS_PER_CLASS = 10;
@@ -26,8 +27,58 @@ function formatWeekRange(wednesday) {
   return `${wednesday.toLocaleDateString('en-NZ', options)} - ${endOfWeek.toLocaleDateString('en-NZ', options)}`;
 }
 
+// Full history: every booking ever made, plus package purchases and
+// manual credit top-ups, so the admin can export a complete income record.
+async function getFullHistory() {
+  const [bookings, packagePurchases, usersWithAdjustments] = await Promise.all([
+    Booking.find({}).sort({ classDate: -1, createdAt: -1 }).lean(),
+    PackagePurchase.find({}).sort({ processedAt: -1 }).lean(),
+    User.find({ 'classCreditHistory.type': 'adjustment' })
+      .select('name email classCreditHistory')
+      .lean(),
+  ]);
+
+  const creditAdjustments = [];
+  usersWithAdjustments.forEach((user) => {
+    (user.classCreditHistory || []).forEach((entry) => {
+      if (entry.type !== 'adjustment' || !(entry.change > 0)) return;
+      // Credit given back after a cancelled check-in is not a sale
+      if (String(entry.description || '').startsWith('Attendance canceled')) return;
+      creditAdjustments.push({
+        id: entry._id?.toString(),
+        userName: user.name || '',
+        userEmail: user.email,
+        change: entry.change,
+        description: entry.description || '',
+        createdAt: entry.createdAt,
+      });
+    });
+  });
+  creditAdjustments.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  const buyerIds = [...new Set(packagePurchases.map((p) => String(p.userId)))];
+  const buyers = await User.find({ _id: { $in: buyerIds } }).select('name').lean();
+  const buyerNames = new Map(buyers.map((u) => [String(u._id), u.name || '']));
+
+  return {
+    bookings: bookings.map((booking) => ({
+      ...booking,
+      _id: booking._id.toString(),
+      id: booking._id.toString(),
+    })),
+    packagePurchases: packagePurchases.map((p) => ({
+      ...p,
+      _id: p._id.toString(),
+      id: p._id.toString(),
+      userName: buyerNames.get(String(p.userId)) || '',
+    })),
+    creditAdjustments,
+  };
+}
+
 // GET - Fetch all bookings (admin only)
-export async function GET() {
+// Default: upcoming bookings only. ?history=all returns the full history.
+export async function GET(request) {
   try {
     const session = await auth();
     
@@ -54,6 +105,11 @@ export async function GET() {
         { error: 'Database not available. Please configure MONGODB_URI.' },
         { status: 503 }
       );
+    }
+
+    const historyParam = new URL(request.url).searchParams.get('history');
+    if (historyParam === 'all') {
+      return NextResponse.json(await getFullHistory());
     }
 
     // Get today's date at midnight (start of day)

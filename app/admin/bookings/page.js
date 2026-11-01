@@ -51,6 +51,10 @@ export default function AdminBookingsPage() {
   const [sendingAdminBookingTest, setSendingAdminBookingTest] = useState(false);
   const [assistedConfirmOpen, setAssistedConfirmOpen] = useState(false);
   const [pendingAssistedBooking, setPendingAssistedBooking] = useState(null);
+  const [showFullHistory, setShowFullHistory] = useState(false);
+  const [historyData, setHistoryData] = useState(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState('');
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const savedLanguage = String(window.localStorage.getItem('language') || '').toLowerCase();
@@ -132,6 +136,35 @@ export default function AdminBookingsPage() {
       console.error('Error fetching bookings:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchFullHistory = async () => {
+    try {
+      setHistoryLoading(true);
+      setHistoryError('');
+      const response = await fetch('/api/admin/bookings?history=all');
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to load full history');
+      setHistoryData(data);
+    } catch (error) {
+      console.error('Error fetching full booking history:', error);
+      setHistoryError(error.message || 'Failed to load full history');
+      setShowFullHistory(false);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const toggleFullHistory = () => {
+    const next = !showFullHistory;
+    setShowFullHistory(next);
+    if (next) {
+      // History is shown in the bookings table, so switch to that view
+      setShowWeeklyView(false);
+      setShowAttendanceView(false);
+      setShowIntakeView(false);
+      fetchFullHistory();
     }
   };
 
@@ -452,7 +485,9 @@ export default function AdminBookingsPage() {
   };
 
   // Filter bookings
-  const filteredBookings = bookings.filter(booking => {
+  const tableBookings = showFullHistory && historyData ? historyData.bookings : bookings;
+
+  const filteredBookings = tableBookings.filter(booking => {
     const matchesSearch = searchTerm === '' || 
       booking.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       booking.userEmail?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -464,8 +499,115 @@ export default function AdminBookingsPage() {
     return matchesSearch && matchesStatus && matchesPayment;
   });
 
+  // Quote CSV cells so names/notes containing commas, quotes or newlines don't break columns
+  const csvCell = (value) => {
+    const text = value === null || value === undefined ? '' : String(value);
+    return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  };
+
+  const csvDate = (value) => {
+    if (!value) return '';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '';
+    // YYYY-MM-DD in NZ time, which spreadsheets sort correctly
+    return d.toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' });
+  };
+
+  const downloadCSV = (headers, rows, filename) => {
+    const csv = [headers, ...rows].map(row => row.map(csvCell).join(',')).join('\r\n');
+    // BOM so Excel reads names with accents / Chinese characters correctly
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const isPaidBooking = (b) => b.paymentStatus === 'completed' || b.paymentStatus === 'paid';
+
+  // Full income record: every booking + every package purchase + manual credit top-ups.
+  // Bookings paid with package credits are stored as $0, so income is not double counted.
+  const exportFullHistoryCSV = () => {
+    if (!historyData) return;
+    const headers = [
+      'Type', 'Payment Date', 'Class Date', 'Name', 'Email', 'Item', 'Class Time', 'Location',
+      'Amount (NZD)', 'Income (NZD)', 'Payment Method', 'Payment Status', 'Booking Status',
+      'Cancellation Fee', 'Notes', 'Reference',
+    ];
+
+    const bookingRows = filteredBookings.map(b => [
+      'Class booking',
+      csvDate(b.paidAt || b.createdAt),
+      csvDate(b.classDate),
+      b.userName,
+      b.userEmail,
+      b.className,
+      b.classTime,
+      b.location,
+      b.amount ?? 0,
+      isPaidBooking(b) ? (b.amount ?? 0) : 0,
+      b.paymentMethod || (b.paymentIntentId || b.checkoutSessionId ? 'stripe' : ''),
+      b.paymentStatus,
+      b.status,
+      b.cancellationFee || '',
+      [b.notes, b.cancellationReason].filter(Boolean).join(' | '),
+      b.paymentIntentId || b.stripePaymentId || b.id,
+    ]);
+
+    const packageRows = (historyData.packagePurchases || []).map(p => [
+      `${p.packageSize}-class package`,
+      csvDate(p.processedAt),
+      '',
+      p.userName,
+      p.userEmail,
+      `${p.packageSize}-class package`,
+      '',
+      '',
+      p.amount ?? 0,
+      p.amount ?? 0,
+      'stripe',
+      'completed',
+      '',
+      '',
+      '',
+      p.paymentIntentId,
+    ]);
+
+    // Credits added by hand (e.g. a package paid in cash). No amount is stored,
+    // so these are listed for you to check and fill in.
+    const adjustmentRows = (historyData.creditAdjustments || []).map(c => [
+      'Manual credit top-up (check payment)',
+      csvDate(c.createdAt),
+      '',
+      c.userName,
+      c.userEmail,
+      `+${c.change} class credits`,
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      c.description,
+      c.id,
+    ]);
+
+    const rows = [...bookingRows, ...packageRows, ...adjustmentRows]
+      .sort((a, b) => String(a[1]).localeCompare(String(b[1])));
+
+    downloadCSV(headers, rows, `income-history-${new Date().toISOString().split('T')[0]}.csv`);
+  };
+
   // Export to CSV
   const exportToCSV = () => {
+    if (showFullHistory) {
+      exportFullHistoryCSV();
+      return;
+    }
     const headers = ['Date', 'Name', 'Email', 'Class', 'Time', 'Location', 'Amount', 'Status', 'Payment', 'Bring a Friend', 'Friend Confirmed'];
     const rows = filteredBookings.map(b => [
       new Date(b.classDate).toLocaleDateString(),
@@ -480,14 +622,8 @@ export default function AdminBookingsPage() {
       b.bringAFriend ? 'yes' : 'no',
       b.bringAFriendConfirmed ? 'yes' : 'no'
     ]);
-    
-    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `bookings-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
+
+    downloadCSV(headers, rows, `bookings-${new Date().toISOString().split('T')[0]}.csv`);
   };
 
   if (status === 'loading' || loading) {
@@ -882,15 +1018,71 @@ export default function AdminBookingsPage() {
                   {txt('查看并管理所有课程预约', 'View and manage all class bookings')}
                 </p>
               </div>
-              <button
-                onClick={exportToCSV}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-glow-cyan/10 border border-glow-cyan/30 
-                         text-glow-cyan hover:bg-glow-cyan/20 transition-all"
-              >
-                <Download className="w-4 h-4" />
-                {txt('导出 CSV', 'Export CSV')}
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={toggleFullHistory}
+                  disabled={historyLoading}
+                  aria-pressed={showFullHistory}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all disabled:opacity-50 ${
+                    showFullHistory
+                      ? 'bg-glow-cyan/30 border-glow-cyan text-foreground'
+                      : 'bg-card/60 border-glow-cyan/30 text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {historyLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calendar className="w-4 h-4" />}
+                  {showFullHistory ? txt('完整历史：开', 'Full history: On') : txt('完整历史：关', 'Full history: Off')}
+                </button>
+                <button
+                  onClick={exportToCSV}
+                  disabled={showFullHistory && !historyData}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-glow-cyan/10 border border-glow-cyan/30
+                           text-glow-cyan hover:bg-glow-cyan/20 transition-all disabled:opacity-50"
+                >
+                  <Download className="w-4 h-4" />
+                  {showFullHistory ? txt('导出收入 CSV', 'Export Income CSV') : txt('导出 CSV', 'Export CSV')}
+                </button>
+              </div>
             </div>
+
+            {historyError && (
+              <div className="mb-4 p-3 rounded-lg border border-red-500/30 bg-red-500/10 text-sm text-red-300">
+                {historyError}
+              </div>
+            )}
+
+            {showFullHistory && historyData && (() => {
+              const bookingIncome = filteredBookings.reduce(
+                (sum, b) => sum + (isPaidBooking(b) ? Number(b.amount) || 0 : 0), 0
+              );
+              const packages = historyData.packagePurchases || [];
+              const packageIncome = packages.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+              const adjustments = historyData.creditAdjustments || [];
+              return (
+                <div className="mb-6 p-4 rounded-xl bg-card/60 border border-glow-cyan/30 text-sm space-y-1">
+                  <p className="text-foreground font-medium">
+                    {txt('完整历史（自开业起所有记录）', 'Full history — every record since the start')}
+                  </p>
+                  <p className="text-muted-foreground">
+                    {txt('课程预约', 'Class bookings')}: {filteredBookings.length} · {txt('已付收入', 'paid income')} ${bookingIncome.toFixed(2)}
+                  </p>
+                  <p className="text-muted-foreground">
+                    {txt('课程套餐', 'Class packages')}: {packages.length} · {txt('收入', 'income')} ${packageIncome.toFixed(2)}
+                  </p>
+                  <p className="text-foreground">
+                    {txt('合计', 'Total')}: ${(bookingIncome + packageIncome).toFixed(2)} NZD
+                  </p>
+                  {adjustments.length > 0 && (
+                    <p className="text-yellow-400/90 text-xs pt-1">
+                      {txt(
+                        `另有 ${adjustments.length} 条手动添加课时记录（无金额），已列入 CSV 供核对。`,
+                        `${adjustments.length} manual credit top-ups have no amount stored (e.g. packages paid in cash). They're listed in the CSV for you to check.`
+                      )}
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
             
             {/* Stats Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -1919,7 +2111,7 @@ export default function AdminBookingsPage() {
             )}
             
             <div className="mt-4 text-sm text-muted-foreground text-center">
-              {txt('显示', 'Showing')} {filteredBookings.length} / {bookings.length} {txt('条预约记录', 'bookings')}
+              {txt('显示', 'Showing')} {filteredBookings.length} / {tableBookings.length} {txt('条预约记录', 'bookings')}
             </div>
           </div>
         </section>
