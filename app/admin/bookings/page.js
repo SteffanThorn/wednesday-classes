@@ -37,6 +37,9 @@ export default function AdminBookingsPage() {
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [bulkCheckInLoading, setBulkCheckInLoading] = useState(false);
   const [cancelAttendanceLoadingId, setCancelAttendanceLoadingId] = useState('');
+  // Payment for students checked in without class credits (single $15 class)
+  const [checkInPayment, setCheckInPayment] = useState('paid');
+  const [paymentUpdatingId, setPaymentUpdatingId] = useState('');
   const [attendanceMessage, setAttendanceMessage] = useState('');
   const [attendanceError, setAttendanceError] = useState('');
   const [selectedBookedStudent, setSelectedBookedStudent] = useState('');
@@ -240,6 +243,7 @@ export default function AdminBookingsPage() {
           location: selectedSession.location,
           studentEmail,
           bookingId: bookingId || undefined,
+          paid: checkInPayment === 'paid',
         }),
       });
 
@@ -367,6 +371,39 @@ export default function AdminBookingsPage() {
     }
   };
 
+  const handleTogglePayment = async (record) => {
+    if (!record?.id || record.usedCredit) return;
+    const nextStatus = record.paymentStatus === 'unpaid' ? 'paid' : 'unpaid';
+
+    setAttendanceMessage('');
+    setAttendanceError('');
+    setPaymentUpdatingId(record.id);
+
+    try {
+      const response = await fetch('/api/admin/attendance', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attendanceId: record.id, paymentStatus: nextStatus }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to update payment');
+
+      setAttendanceRecords((prev) =>
+        prev.map((r) => (r.id === record.id ? { ...r, paymentStatus: nextStatus } : r))
+      );
+      setAttendanceMessage(
+        nextStatus === 'paid'
+          ? txt(`${record.userName || record.userEmail} 已标记为已付款。`, `${record.userName || record.userEmail} marked as paid.`)
+          : txt(`${record.userName || record.userEmail} 已标记为待付款。`, `${record.userName || record.userEmail} marked as yet to pay.`)
+      );
+    } catch (error) {
+      console.error('Error updating payment:', error);
+      setAttendanceError(error.message || txt('更新付款状态失败', 'Failed to update payment'));
+    } finally {
+      setPaymentUpdatingId('');
+    }
+  };
+
   const handleBulkMarkAttendance = async () => {
     if (!selectedAttendanceSession || !selectedSessionData) {
       setAttendanceError(txt('请先选择课程场次。', 'Please select a class session first.'));
@@ -402,6 +439,7 @@ export default function AdminBookingsPage() {
             location: selectedSessionData.location,
             studentEmail: student.userEmail,
             bookingId: student.bookingId || undefined,
+            paid: checkInPayment === 'paid',
           }),
         });
 
@@ -1525,6 +1563,29 @@ export default function AdminBookingsPage() {
                                     ? new Date(record.createdAt).toLocaleTimeString(isZh ? 'zh-CN' : 'en-NZ', { hour: '2-digit', minute: '2-digit' })
                                     : txt('已签到', 'Checked in')}
                                 </span>
+                                {record.usedCredit ? (
+                                  <span className="px-2 py-0.5 rounded-full text-[11px] bg-glow-cyan/10 text-glow-cyan whitespace-nowrap">
+                                    {txt('课程包', 'Package credit')}
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleTogglePayment(record)}
+                                    disabled={paymentUpdatingId === record.id}
+                                    title={txt('点击切换付款状态', 'Click to switch payment status')}
+                                    className={`px-2 py-0.5 rounded-full text-[11px] whitespace-nowrap border disabled:opacity-50 ${
+                                      record.paymentStatus === 'unpaid'
+                                        ? 'bg-red-500/15 text-red-300 border-red-500/40 hover:bg-red-500/25'
+                                        : 'bg-green-500/15 text-green-300 border-green-500/30 hover:bg-green-500/25'
+                                    }`}
+                                  >
+                                    {paymentUpdatingId === record.id
+                                      ? txt('更新中...', 'Updating...')
+                                      : record.paymentStatus === 'unpaid'
+                                        ? txt('待付款 $15 · 标为已付', 'Yet to pay $15 · Mark paid')
+                                        : txt('已付款 $15', 'Paid $15')}
+                                  </button>
+                                )}
                                 <button
                                   type="button"
                                   onClick={() =>
@@ -1586,6 +1647,35 @@ export default function AdminBookingsPage() {
                         </p>
                       </div>
                     )}
+                  </div>
+
+                  <div className="mb-3 p-3 rounded-lg bg-card/40 border border-glow-cyan/10 flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between">
+                    <div>
+                      <p className="text-sm text-foreground font-medium">{txt('无课次学员的付款', 'Payment for students without class credits')}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {txt('有课次的学员会自动扣除 1 节课次；无课次的按单次课 $15 记录。', 'Students with credits use 1 package credit automatically; others are recorded as a $15 single class.')}
+                      </p>
+                    </div>
+                    <div className="inline-flex rounded-lg border border-glow-cyan/20 overflow-hidden shrink-0" role="radiogroup">
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={checkInPayment === 'paid'}
+                        onClick={() => setCheckInPayment('paid')}
+                        className={`px-3 py-1.5 text-xs transition-colors ${checkInPayment === 'paid' ? 'bg-green-500/20 text-green-300' : 'text-muted-foreground hover:text-foreground'}`}
+                      >
+                        {txt('已付款', 'Paid')}
+                      </button>
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={checkInPayment === 'unpaid'}
+                        onClick={() => setCheckInPayment('unpaid')}
+                        className={`px-3 py-1.5 text-xs border-l border-glow-cyan/20 transition-colors ${checkInPayment === 'unpaid' ? 'bg-red-500/20 text-red-300' : 'text-muted-foreground hover:text-foreground'}`}
+                      >
+                        {txt('待付款', 'Yet to pay')}
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid md:grid-cols-2 gap-4">

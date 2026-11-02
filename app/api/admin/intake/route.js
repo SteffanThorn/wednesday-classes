@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import dbConnect from '@/lib/mongodb';
 import HealthIntake from '@/lib/models/HealthIntake';
+import User from '@/lib/models/User';
+import { getSpendByUser, EMPTY_SPEND } from '@/lib/customer-spend';
 import mongoose from 'mongoose';
 
 const DEFAULT_PACKAGE_TOTAL_CLASSES = 5;
@@ -44,6 +46,24 @@ export async function GET(request) {
     .sort({ createdAt: -1 })
     .lean();
 
+  // Some intakes aren't linked to an account yet; match those by email.
+  const unlinkedEmails = intakes
+    .filter((i) => !i.userId?._id && i.userEmail)
+    .map((i) => i.userEmail.toLowerCase());
+  const usersByEmail = new Map(
+    (unlinkedEmails.length
+      ? await User.find({ email: { $in: unlinkedEmails } }).select('email classCredits').lean()
+      : []
+    ).map((u) => [u.email, u])
+  );
+  const accountFor = (i) => i.userId?._id ? i.userId : usersByEmail.get(i.userEmail?.toLowerCase()) || null;
+  const spendByUser = await getSpendByUser(
+    intakes.map((i) => {
+      const account = accountFor(i);
+      return { userId: account?._id, remainingCredits: account?.classCredits ?? 0 };
+    })
+  );
+
   return NextResponse.json({
     intakes: intakes.map((i) => {
       const storedTotalClasses = Number.isFinite(Number(i.totalPackageClasses))
@@ -75,6 +95,7 @@ export async function GET(request) {
         totalPackageClasses,
         remainingClassCredits,
         usedPackageClasses: Math.max(0, totalPackageClasses - remainingClassCredits),
+        spend: spendByUser.get(accountFor(i)?._id?.toString()) || EMPTY_SPEND,
         createdAt: i.createdAt,
       };
     }),
