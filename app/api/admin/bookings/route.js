@@ -26,8 +26,10 @@ function formatWeekRange(wednesday) {
   return `${wednesday.toLocaleDateString('en-NZ', options)} - ${endOfWeek.toLocaleDateString('en-NZ', options)}`;
 }
 
-// GET - Fetch all bookings (admin only)
-export async function GET() {
+// GET - Fetch bookings (admin only)
+// Default: upcoming bookings + weekly capacity.
+// ?scope=history: every booking ever made, newest class first (for records / income export).
+export async function GET(request) {
   try {
     const session = await auth();
     
@@ -54,6 +56,22 @@ export async function GET() {
         { error: 'Database not available. Please configure MONGODB_URI.' },
         { status: 503 }
       );
+    }
+
+    const scope = new URL(request.url).searchParams.get('scope');
+    if (scope === 'history') {
+      const allBookings = await Booking.find({})
+        .sort({ classDate: -1, createdAt: -1 })
+        .lean();
+
+      return NextResponse.json({
+        bookings: allBookings.map(booking => ({
+          ...booking,
+          _id: booking._id.toString(),
+          id: booking._id.toString(),
+          userId: booking.userId?.toString(),
+        })),
+      });
     }
 
     // Get today's date at midnight (start of day)

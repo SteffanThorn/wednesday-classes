@@ -4,6 +4,7 @@ import dbConnect from '@/lib/mongodb';
 import Booking from '@/lib/models/Booking';
 import User from '@/lib/models/User';
 import ClassAttendance from '@/lib/models/ClassAttendance';
+import mongoose from 'mongoose';
 import { inferDayFromClassName, getClassNameForDay, getClassTimeForDay } from '@/lib/class-schedule';
 
 const DEFAULT_CLASS_LOCATION = 'Village Valley Centre, Ashhurst';
@@ -572,6 +573,7 @@ export async function GET(request) {
         userName: a.userName,
         status: a.status || 'attended',
         usedCredit: a.usedCredit,
+        paymentStatus: a.usedCredit ? null : (a.paymentStatus || 'paid'),
         bookingId: a.bookingId ? a.bookingId.toString() : null,
         createdAt: a.createdAt,
       })),
@@ -601,6 +603,7 @@ export async function POST(request) {
       location,
       studentEmail,
       bookingId,
+      paid,
     } = body;
 
     if (!classDate || !classTime || !className || !studentEmail) {
@@ -673,6 +676,9 @@ export async function POST(request) {
       bookingId: bookingId || undefined,
       status: 'attended',
       usedCredit,
+      // Without a package credit this is a single $15 class; paid unless the admin chose "yet to pay".
+      paymentStatus: usedCredit ? undefined : (paid === false ? 'unpaid' : 'paid'),
+      paidAt: usedCredit || paid === false ? undefined : new Date(),
       markedByAdminId: session.user.id,
       markedByAdminEmail: session.user.email,
     });
@@ -682,8 +688,11 @@ export async function POST(request) {
     return NextResponse.json({
       message: usedCredit
         ? 'Attendance marked and 1 class credit used.'
-        : 'Attendance marked. Student had no class credits.',
+        : paid === false
+          ? 'Attendance marked. No class credits — single class marked as yet to pay.'
+          : 'Attendance marked. No class credits — single class marked as paid.',
       usedCredit,
+      paymentStatus: attendanceRecord.paymentStatus || null,
       student: {
         name: user.name,
         email: user.email,
@@ -706,6 +715,46 @@ export async function POST(request) {
     }
 
     return NextResponse.json({ error: 'Failed to mark attendance' }, { status: 500 });
+  }
+}
+
+/**
+ * PATCH /api/admin/attendance
+ * Switch a single (non-package) class between paid and yet to pay.
+ * Body: { attendanceId, paymentStatus: 'paid' | 'unpaid' }
+ */
+export async function PATCH(request) {
+  try {
+    const { error } = await ensureAdmin();
+    if (error) return error;
+
+    const { attendanceId, paymentStatus } = await request.json();
+
+    if (!attendanceId || !mongoose.Types.ObjectId.isValid(attendanceId) || !['paid', 'unpaid'].includes(paymentStatus)) {
+      return NextResponse.json({ error: 'attendanceId and paymentStatus (paid or unpaid) are required' }, { status: 400 });
+    }
+
+    await dbConnect();
+
+    const record = await ClassAttendance.findById(attendanceId);
+    if (!record) {
+      return NextResponse.json({ error: 'Attendance record not found' }, { status: 404 });
+    }
+    if (record.usedCredit) {
+      return NextResponse.json({ error: 'This class was covered by a package credit' }, { status: 400 });
+    }
+
+    record.paymentStatus = paymentStatus;
+    record.paidAt = paymentStatus === 'paid' ? new Date() : undefined;
+    await record.save();
+
+    return NextResponse.json({
+      message: paymentStatus === 'paid' ? 'Marked as paid.' : 'Marked as yet to pay.',
+      paymentStatus,
+    });
+  } catch (error) {
+    console.error('Error updating attendance payment:', error);
+    return NextResponse.json({ error: 'Failed to update payment' }, { status: 500 });
   }
 }
 

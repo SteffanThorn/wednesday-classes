@@ -10,6 +10,8 @@ import { Loader2, ChevronRight, Eye, Download, UserPlus, UserCog } from 'lucide-
 
 const PACKAGE_TOTAL_CLASSES = 5;
 
+const formatMoney = (value) => `$${(Number(value) || 0).toLocaleString('en-NZ')}`;
+
 export const dynamic = 'force-dynamic';
 
 function AdminCustomersPageFallback() {
@@ -103,6 +105,8 @@ function AdminCustomersPageContent() {
 
 	const emptyCreditCount = customers.filter((customer) => (customer.remainingClassCredits ?? 0) === 0).length;
 
+	const shownSpendTotal = filteredCustomers.reduce((sum, customer) => sum + (customer.spend?.totalSpent ?? 0), 0);
+
 	const downloadCSV = () => {
 		const headers = [
 			'Name',
@@ -115,6 +119,10 @@ function AdminCustomersPageContent() {
 			'Total Classes',
 			'Remaining Classes',
 			'Used Classes',
+			'Single Classes Bought',
+			'5-Class Packs Bought',
+			'Total Spent (NZD)',
+			'Yet To Pay (NZD)',
 			'Signed Date',
 			'Comments',
 			'Created At',
@@ -131,6 +139,10 @@ function AdminCustomersPageContent() {
 			customer.totalPackageClasses ?? PACKAGE_TOTAL_CLASSES,
 			customer.remainingClassCredits ?? 0,
 			customer.usedPackageClasses ?? Math.max(0, (customer.totalPackageClasses ?? PACKAGE_TOTAL_CLASSES) - (customer.remainingClassCredits ?? 0)),
+			customer.spend?.singleClasses ?? 0,
+			customer.spend?.packages ?? 0,
+			customer.spend?.totalSpent ?? 0,
+			customer.spend?.amountOwed ?? 0,
 			customer.signedAt ? new Date(customer.signedAt).toLocaleDateString() : '',
 			`"${customer.comments}"`,
 			new Date(customer.createdAt).toLocaleDateString(),
@@ -281,6 +293,7 @@ function AdminCustomersPageContent() {
 												<th className="px-4 py-3 text-left font-medium text-glow-cyan">免责协议 / Waiver</th>
 												<th className="px-4 py-3 text-left font-medium text-glow-cyan">课程包 / Package</th>
 												<th className="px-4 py-3 text-left font-medium text-glow-cyan">剩余课次 / Remaining</th>
+												<th className="px-4 py-3 text-left font-medium text-glow-cyan">消费 / Spent</th>
 												<th className="px-4 py-3 text-left font-medium text-glow-cyan">签署日期 / Signed Date</th>
 												<th className="px-4 py-3 text-left font-medium text-glow-cyan">录入日期 / Added</th>
 												<th className="px-4 py-3 text-center font-medium text-glow-cyan">操作 / Action</th>
@@ -331,6 +344,19 @@ function AdminCustomersPageContent() {
 																{isLow && <span className="text-[11px] text-yellow-300">课次偏低 / Low balance</span>}
 															</div>
 														</td>
+														<td className="px-4 py-3">
+															<div className="flex flex-col gap-1">
+																<span className="text-foreground font-medium">{formatMoney(customer.spend?.totalSpent)}</span>
+																<span className="text-[11px] text-muted-foreground whitespace-nowrap">
+																	{customer.spend?.singleClasses ?? 0} × $15 · {customer.spend?.packages ?? 0} × 5-pack
+																</span>
+																{(customer.spend?.amountOwed ?? 0) > 0 && (
+																	<span className="inline-flex w-fit px-2 py-0.5 rounded text-[11px] bg-red-500/20 text-red-300">
+																		待付 Owes {formatMoney(customer.spend.amountOwed)}
+																	</span>
+																)}
+															</div>
+														</td>
 														<td className="px-4 py-3 text-muted-foreground text-xs">
 															{customer.signedAt ? new Date(customer.signedAt).toLocaleDateString() : '-'}
 														</td>
@@ -364,6 +390,7 @@ function AdminCustomersPageContent() {
 									<span className="text-glow-cyan font-medium">{customers.length}</span> 位客户（Showing customers）
 								</p>
 								<div className="flex flex-wrap gap-3 text-xs">
+									<span className="text-glow-cyan">总消费 Total spent: {formatMoney(shownSpendTotal)}</span>
 									<span className="text-yellow-300">课次偏低 Low credits: {lowCreditCount}</span>
 									<span className="text-red-300">课次为零 No credits: {emptyCreditCount}</span>
 								</div>
