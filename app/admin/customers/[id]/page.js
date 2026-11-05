@@ -6,6 +6,7 @@ import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import FloatingParticles from '@/components/FloatingParticle';
+import CustomerPayments from '@/components/admin/CustomerPayments';
 import { Loader2, ChevronRight, ChevronDown, ChevronUp, Mail, Phone, Calendar, FileText, Edit2 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -275,33 +276,21 @@ export default function CustomerDetailPage() {
               <p className="mt-4 text-xs text-muted-foreground">每完成 1 节课会自动扣除 1 节剩余课次。/ Each completed class automatically deducts 1 remaining class.</p>
             </div>
 
-            {customer.spend && (
-              <div className="p-6 rounded-lg border border-glow-cyan/20 bg-card/60 mb-6">
-                <h2 className="font-semibold text-foreground mb-4">消费记录 / Spending</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="rounded-lg border border-glow-cyan/20 bg-glow-cyan/5 p-4">
-                    <p className="text-xs text-muted-foreground mb-1">单次课 / Single Classes</p>
-                    <p className="text-2xl font-light text-foreground">${customer.spend.singleTotal}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{customer.spend.singleClasses} × $15</p>
-                  </div>
-                  <div className="rounded-lg border border-glow-cyan/20 bg-glow-cyan/5 p-4">
-                    <p className="text-xs text-muted-foreground mb-1">5 节课程包 / 5-Class Packs</p>
-                    <p className="text-2xl font-light text-foreground">${customer.spend.packageTotal}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{customer.spend.packages} × $65</p>
-                  </div>
-                  <div className="rounded-lg border border-glow-cyan/40 bg-glow-cyan/10 p-4">
-                    <p className="text-xs text-muted-foreground mb-1">总消费 / Total Spent</p>
-                    <p className="text-2xl font-light text-glow-cyan">${customer.spend.totalSpent}</p>
-                    {customer.spend.amountOwed > 0 && (
-                      <p className="text-xs text-red-300 mt-1">待付 / Yet to pay: ${customer.spend.amountOwed} ({customer.spend.unpaidClasses} × $15)</p>
-                    )}
-                  </div>
-                </div>
-                <p className="mt-4 text-xs text-muted-foreground">
-                  未使用课次的到课按单次课 $15 计算；课程包按已用 + 剩余课次计算（每 5 节 $65）。/ Classes attended without a package credit count as $15 singles; packs are worked out from used + remaining credits ($65 per 5).
-                </p>
-              </div>
-            )}
+            <CustomerPayments
+              userId={customer.userId}
+              onCreditsChange={(credits) =>
+                setCustomer((prev) => {
+                  if (!prev || !Number.isFinite(Number(credits))) return prev;
+                  const total = Math.max(prev.totalPackageClasses ?? 5, Number(credits));
+                  return {
+                    ...prev,
+                    totalPackageClasses: total,
+                    remainingClassCredits: Number(credits),
+                    usedPackageClasses: Math.max(0, total - Number(credits)),
+                  };
+                })
+              }
+            />
 
             {/* Health Notes Section */}
             <div className="rounded-lg border border-glow-cyan/20 bg-card/60 overflow-hidden mb-4">

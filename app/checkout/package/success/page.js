@@ -5,6 +5,7 @@ import { FIVE_CLASS_PACKAGE_SIZE } from '@/lib/pricing';
 import dbConnect from '@/lib/mongodb';
 import User from '@/lib/models/User';
 import PackagePurchase from '@/lib/models/PackagePurchase';
+import Payment from '@/lib/models/Payment';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,6 +57,22 @@ async function processPackageCredits(paymentIntentId) {
       packageSize: FIVE_CLASS_PACKAGE_SIZE,
       amount: (paymentIntent.amount || 0) / 100,
     });
+
+    const paidAt = paymentIntent.created ? new Date(paymentIntent.created * 1000) : new Date();
+    await Payment.create({
+      userId: user._id,
+      userEmail: user.email,
+      userName: user.name,
+      type: 'package',
+      classes: FIVE_CLASS_PACKAGE_SIZE,
+      amount: (paymentIntent.amount || 0) / 100,
+      status: 'paid',
+      paidAt,
+      year: paidAt.getFullYear(),
+      method: 'stripe',
+      source: 'stripe',
+      paymentIntentId,
+    }).catch((err) => console.error('Failed to save package payment record:', err));
 
     return { ok: true, alreadyProcessed: false, creditsAdded: FIVE_CLASS_PACKAGE_SIZE };
   } catch (error) {

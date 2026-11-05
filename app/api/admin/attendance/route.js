@@ -4,6 +4,9 @@ import dbConnect from '@/lib/mongodb';
 import Booking from '@/lib/models/Booking';
 import User from '@/lib/models/User';
 import ClassAttendance from '@/lib/models/ClassAttendance';
+import Payment from '@/lib/models/Payment';
+import { SINGLE_CLASS_PRICE } from '@/lib/pricing';
+import { nzDay } from '@/lib/nz-date';
 import mongoose from 'mongoose';
 import { inferDayFromClassName, getClassNameForDay, getClassTimeForDay } from '@/lib/class-schedule';
 
@@ -685,6 +688,25 @@ export async function POST(request) {
 
     await attendanceRecord.save();
 
+    // A class without a package credit is a $15 single class: add it to the payment records.
+    if (!usedCredit) {
+      await Payment.create({
+        userId: user._id,
+        userEmail: user.email,
+        userName: user.name,
+        type: 'single',
+        classes: 1,
+        amount: SINGLE_CLASS_PRICE,
+        status: attendanceRecord.paymentStatus,
+        paidAt: attendanceRecord.paymentStatus === 'paid' ? dayStart : undefined,
+        year: dayStart.getUTCFullYear(),
+        source: 'check-in',
+        attendanceId: attendanceRecord._id,
+        note: `${className} (${toDateKey(classDate)} ${classTime})`,
+        createdByEmail: session.user.email,
+      });
+    }
+
     return NextResponse.json({
       message: usedCredit
         ? 'Attendance marked and 1 class credit used.'
@@ -747,6 +769,15 @@ export async function PATCH(request) {
     record.paymentStatus = paymentStatus;
     record.paidAt = paymentStatus === 'paid' ? new Date() : undefined;
     await record.save();
+
+    // Keep the matching payment record in step (older check-ins have none; their
+    // history comes from the imported member list).
+    await Payment.updateOne(
+      { attendanceId: record._id },
+      paymentStatus === 'paid'
+        ? { $set: { status: 'paid', paidAt: nzDay(), year: nzDay().getUTCFullYear() } }
+        : { $set: { status: 'unpaid' }, $unset: { paidAt: '' } }
+    );
 
     return NextResponse.json({
       message: paymentStatus === 'paid' ? 'Marked as paid.' : 'Marked as yet to pay.',
@@ -935,6 +966,7 @@ export async function DELETE(request) {
     }
 
     await ClassAttendance.deleteOne({ _id: attendanceRecord._id });
+    await Payment.deleteOne({ attendanceId: attendanceRecord._id });
 
     return NextResponse.json({
       message:

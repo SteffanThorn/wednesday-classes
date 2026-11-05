@@ -95,6 +95,7 @@ export async function GET(request) {
         totalPackageClasses,
         remainingClassCredits,
         usedPackageClasses: Math.max(0, totalPackageClasses - remainingClassCredits),
+        userId: accountFor(i)?._id?.toString() || '',
         spend: spendByUser.get(accountFor(i)?._id?.toString()) || EMPTY_SPEND,
         createdAt: i.createdAt,
       };

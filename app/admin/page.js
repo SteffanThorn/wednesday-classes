@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { useLanguage } from '@/hooks/useLanguage';
 import Header from '@/components/Header';
 import FloatingParticles from '@/components/FloatingParticle';
-import { Loader2, CalendarCheck2, TicketPercent, UserPlus, ChevronRight, Users, Mail, UserCog, ClipboardList, MessageCircle } from 'lucide-react';
+import { Loader2, CalendarCheck2, TicketPercent, UserPlus, ChevronRight, Users, Mail, UserCog, ClipboardList, MessageCircle, BarChart3 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -176,6 +176,19 @@ export default function AdminDashboardPage() {
                 <div className="flex items-center gap-3">
                   <Users className="w-5 h-5 text-glow-cyan" />
                   <span className="font-medium">{txt('客户资料', 'Customer Data')}</span>
+                </div>
+                <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-glow-cyan transition-colors" />
+              </Link>
+
+              <Link
+                href="/admin/reports"
+                className="p-6 rounded-3xl border border-glow-cyan/20 bg-card/60 backdrop-blur-sm
+                         hover:border-glow-cyan/40 hover:box-glow transition-all duration-500
+                         flex items-center justify-between group"
+              >
+                <div className="flex items-center gap-3">
+                  <BarChart3 className="w-5 h-5 text-glow-cyan" />
+                  <span className="font-medium">{txt('消费统计', 'Spending Report')}</span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-glow-cyan transition-colors" />
               </Link>
