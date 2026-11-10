@@ -20,9 +20,9 @@ import {
 export const dynamic = 'force-dynamic';
 
 const DEMO_TEMPLATE = [
-  'name,email,phone,notes',
-  '张三,zhangsan@example.com,0211234567,以前上过流瑜伽',
-  '李四,lisi@example.com,+64 21 765 432,可优先联系周三课程',
+  'name,email,phone,notes,remaining',
+  '张三,zhangsan@example.com,0211234567,以前上过流瑜伽,0',
+  '李四,lisi@example.com,+64 21 765 432,可优先联系周三课程,2',
 ].join('\n');
 
 // Quote one CSV cell so commas, quotes or line breaks in a value can't split the row.
@@ -30,7 +30,7 @@ function csvCell(value) {
   return `"${String(value || '').replace(/[\r\n]+/g, ' ').replace(/"/g, '""')}"`;
 }
 
-const EMPTY_MANUAL = { name: '', email: '', phone: '', notes: '' };
+const EMPTY_MANUAL = { name: '', email: '', phone: '', notes: '', remaining: '0' };
 
 function normalizeError(payload, fallbackMessage) {
   if (!payload) return fallbackMessage;
@@ -141,6 +141,7 @@ export default function AdminFutureCustomersPage() {
     const email = manual.email.trim();
     const phone = manual.phone.trim();
     const notes = manual.notes.trim();
+    const remaining = String(Math.max(0, Number.parseInt(manual.remaining, 10) || 0));
 
     if (!name) {
       setError('请填写姓名。/ Please enter a name.');
@@ -156,7 +157,7 @@ export default function AdminFutureCustomersPage() {
     setMessage('');
 
     try {
-      const rawText = ['name,email,phone,notes', [name, email, phone, notes].map(csvCell).join(',')].join('\n');
+      const rawText = ['name,email,phone,notes,remaining', [name, email, phone, notes, remaining].map(csvCell).join(',')].join('\n');
       const res = await fetch('/api/admin/future-customers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -292,7 +293,7 @@ export default function AdminFutureCustomersPage() {
                 </p>
               </div>
 
-              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3">
                 <input
                   value={manual.name}
                   onChange={(e) => setManual((m) => ({ ...m, name: e.target.value }))}
@@ -323,6 +324,18 @@ export default function AdminFutureCustomersPage() {
                   maxLength={500}
                   className="w-full px-3 py-2 rounded-lg bg-card/70 border border-glow-cyan/20 focus:outline-none focus:border-glow-cyan/50 text-sm"
                 />
+                <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span className="whitespace-nowrap">剩余课次 / Classes left</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    inputMode="numeric"
+                    value={manual.remaining}
+                    onChange={(e) => setManual((m) => ({ ...m, remaining: e.target.value }))}
+                    className="w-20 px-3 py-2 rounded-lg bg-card/70 border border-glow-cyan/20 focus:outline-none focus:border-glow-cyan/50 text-sm text-foreground"
+                  />
+                </label>
               </div>
 
               <button
@@ -361,7 +374,7 @@ export default function AdminFutureCustomersPage() {
                     placeholder={DEMO_TEMPLATE}
                   />
                   <p className="text-xs text-muted-foreground">
-                    格式示例：name,email,phone,notes（第一行可带表头）
+                    格式示例：name,email,phone,notes,remaining（第一行可带表头；remaining 为剩余课次，不填默认为 0）
                   </p>
                 </div>
 
@@ -461,6 +474,7 @@ export default function AdminFutureCustomersPage() {
                         <th className="text-left px-4 py-3 font-medium text-glow-cyan">邮箱</th>
                         <th className="text-left px-4 py-3 font-medium text-glow-cyan">电话</th>
                         <th className="text-left px-4 py-3 font-medium text-glow-cyan">备注</th>
+                        <th className="text-left px-4 py-3 font-medium text-glow-cyan">剩余课次</th>
                         <th className="text-left px-4 py-3 font-medium text-glow-cyan">来源</th>
                         <th className="text-left px-4 py-3 font-medium text-glow-cyan">添加时间</th>
                         <th className="text-center px-4 py-3 font-medium text-glow-cyan">操作</th>
@@ -473,6 +487,7 @@ export default function AdminFutureCustomersPage() {
                           <td className="px-4 py-3 text-muted-foreground break-all">{item.email || '-'}</td>
                           <td className="px-4 py-3 text-foreground">{item.phone || '-'}</td>
                           <td className="px-4 py-3 text-muted-foreground max-w-[320px]">{item.notes || '-'}</td>
+                          <td className="px-4 py-3 text-foreground">{item.remainingClasses ?? 0}</td>
                           <td className="px-4 py-3 text-muted-foreground">{item.source || '-'}</td>
                           <td className="px-4 py-3 text-muted-foreground">{new Date(item.createdAt).toLocaleDateString()}</td>
                           <td className="px-4 py-3 text-center">

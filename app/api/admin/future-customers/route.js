@@ -3,6 +3,7 @@ import { auth } from '@/auth';
 import dbConnect from '@/lib/mongodb';
 import HealthIntake from '@/lib/models/HealthIntake';
 import FutureCustomer from '@/lib/models/FutureCustomer';
+import User from '@/lib/models/User';
 
 function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
@@ -72,6 +73,7 @@ function resolveHeaderIndexes(headerRow) {
     email: matchIndex(['email', '邮箱', '邮件'], 1),
     phone: matchIndex(['phone', '电话', '手机号', 'mobile'], 2),
     notes: matchIndex(['notes', 'note', '备注', '说明', 'comment'], 3),
+    remaining: matchIndex(['remaining', '剩余', 'credits', '课次'], 4),
   };
 }
 
@@ -98,6 +100,9 @@ function parseRows(rawText) {
     const email = normalizeEmail(cells[headerIndexes?.email ?? 1]);
     const phone = normalizePhone(cells[headerIndexes?.phone ?? 2]);
     const notes = String(cells[headerIndexes?.notes ?? 3] || '').trim();
+    // Remaining classes: blank or not a number means 0.
+    const remainingRaw = Number.parseInt(String(cells[headerIndexes?.remaining ?? 4] || '').trim(), 10);
+    const remainingClasses = Number.isFinite(remainingRaw) && remainingRaw > 0 ? Math.min(remainingRaw, 100) : 0;
 
     if (!name || (!email && !phone)) {
       invalidRows.push({
@@ -108,7 +113,7 @@ function parseRows(rawText) {
       return;
     }
 
-    rows.push({ name, email, phone, notes });
+    rows.push({ name, email, phone, notes, remainingClasses });
   });
 
   return { rows, invalidRows };
@@ -130,7 +135,13 @@ async function ensureAdmin() {
 }
 
 async function getActiveMaps() {
-  const active = await HealthIntake.find({}, { userName: 1, userEmail: 1, phone: 1 }).lean();
+  const intakes = await HealthIntake.find({}, { userName: 1, userEmail: 1, phone: 1 }).lean();
+  // Website accounts count as existing customers too, even without a health form.
+  const accounts = await User.find({ role: { $ne: 'admin' } }, { name: 1, email: 1, phone: 1 }).lean();
+  const active = [
+    ...intakes,
+    ...accounts.map((u) => ({ userName: u.name, userEmail: u.email, phone: u.phone })),
+  ];
 
   const activeByEmail = new Map();
   const activeByPhone = new Map();
@@ -250,6 +261,7 @@ export async function GET() {
       email: item.email || '',
       phone: item.phone || '',
       notes: item.notes || '',
+      remainingClasses: item.remainingClasses ?? 0,
       source: item.source || 'manual-import',
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
@@ -326,6 +338,7 @@ export async function POST(request) {
       email: row.email,
       phone: row.phone,
       notes: row.notes,
+      remainingClasses: row.remainingClasses,
       source,
       addedByAdminId: session.user.id,
       addedByAdminEmail: session.user.email || '',
