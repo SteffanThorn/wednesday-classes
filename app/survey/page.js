@@ -93,6 +93,15 @@ const SLEEP_OPTIONS = [
   { val: 'Poor — difficulty falling or staying asleep', icon: '😞' },
 ];
 
+const REFERRAL_OPTIONS = [
+  'Ashhurst Voice',
+  'Facebook',
+  'Instagram',
+  'Friend or family',
+  'Flyer / brochure',
+  'Other',
+];
+
 // ── Initial state ──────────────────────────────────────────────────
 
 const INITIAL = {
@@ -115,6 +124,8 @@ const INITIAL = {
   bodyFeel: [],
   goals: [],
   waiverAccepted: null,
+  referralSources: [],
+  referralOther: '',
 };
 
 // ── Step order (linear baseline) ──────────────────────────────────
@@ -128,6 +139,7 @@ const STEP_ORDER = [
   'q10', 'q11',
   'q12',
   'q13',
+  'q14',
   'done',
 ];
 
@@ -139,9 +151,10 @@ const QUESTION_NUM = {
   q10: 16, q11: 17,
   q12: 18,
   q13: 19,
+  q14: 20,
 };
 
-const TOTAL = 19;
+const TOTAL = 20;
 
 function getNextStep(step, answers) {
   if (step === 'q4b') {
@@ -214,6 +227,7 @@ export default function SurveyPage() {
       case 'q11': return answers.bodyFeel.length > 0;
       case 'q12': return answers.goals.length > 0;
       case 'q13': return answers.waiverAccepted !== null;
+      case 'q14': return answers.referralSources.length > 0;
       default:    return true;
     }
   };
@@ -752,6 +766,30 @@ export default function SurveyPage() {
                     </button>
                   ))}
                 </div>
+                <Nav />
+              </div>
+            )}
+
+            {/* ── Q14 How did you hear about us ── */}
+            {step === 'q14' && (
+              <div className="space-y-6 animate-fade-in-up">
+                <QuestionHeader
+                  section="⑦ About You" num={14} total={TOTAL}
+                  question="Where did you hear about us?"
+                  hint="Select all that apply"
+                />
+                <MultiSelect field="referralSources" options={REFERRAL_OPTIONS} />
+                {answers.referralSources.includes('Other') && (
+                  <input
+                    type="text"
+                    value={answers.referralOther}
+                    onChange={(e) => setField('referralOther', e.target.value)}
+                    placeholder="Please tell us where (optional)"
+                    maxLength={200}
+                    className="w-full max-w-sm px-4 py-3 rounded-xl bg-card/40 border border-glow-cyan/20 text-foreground
+                               placeholder:text-muted-foreground/50 focus:outline-none focus:border-glow-cyan/60 transition-colors"
+                  />
+                )}
                 <Nav />
               </div>
             )}

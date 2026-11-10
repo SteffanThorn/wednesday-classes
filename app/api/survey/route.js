@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { Resend } from 'resend';
 import dbConnect from '@/lib/mongodb';
 import FutureCustomer from '@/lib/models/FutureCustomer';
@@ -21,6 +21,17 @@ function normalizePhone(value) {
 
 function fmt(val) {
   return Array.isArray(val) ? val.join(', ') || '—' : String(val || '') || '—';
+}
+
+// "Facebook, Other (Library noticeboard)" — the free-text note is attached to "Other".
+// Commas/pipes are removed from the note so it can't break the notes string format.
+function formatReferral(sources, other) {
+  if (!Array.isArray(sources) || !sources.length) return '';
+  const note = String(other || '').replace(/[|,]/g, ' ').trim().slice(0, 200);
+  return sources
+    .map((s) => String(s))
+    .map((s) => (s === 'Other' && note ? `Other (${note})` : s))
+    .join(', ');
 }
 
 function buildAdminNotificationEmail({ name, email, phone, answers, bodyTypeName, bodyType, riskAreas }) {
@@ -48,6 +59,7 @@ function buildAdminNotificationEmail({ name, email, phone, answers, bodyTypeName
     ['Body Feel',       fmt(answers.bodyFeel)],
     ['Goals',           fmt(answers.goals)],
     ['Waiver Accepted', answers.waiverAccepted ? 'Yes' : 'No'],
+    ['Heard About Us',  formatReferral(answers.referralSources, answers.referralOther) || '—'],
   ];
 
   const rowsHtml = rows.map(([label, val], i) => `
@@ -107,6 +119,7 @@ export async function POST(request) {
       ageRange, gender, hasBirthExperience, lastBirthTime, pelvicFloorIssues,
       painAreas, painLevel, painType, painFrequency, painDetail,
       injuries, injuryDetail, lifestyle, bodyFeel, goals, waiverAccepted,
+      referralSources, referralOther,
     } = body;
 
     const trimmedName     = String(name || '').trim();
@@ -140,6 +153,8 @@ export async function POST(request) {
     if (Array.isArray(goals)      && goals.length)       parts.push(`Goals: ${goals.join(', ')}`);
     if (waiverAccepted !== null && waiverAccepted !== undefined)
                                                parts.push(`Waiver accepted: ${waiverAccepted ? 'yes' : 'no'}`);
+    const heardFrom = formatReferral(referralSources, referralOther);
+    if (heardFrom)                             parts.push(`Heard about us: ${heardFrom}`);
 
     // Classify body type for the notification
     const answers = { painAreas, injuries, painFrequency, lifestyle, bodyFeel };
@@ -156,14 +171,14 @@ export async function POST(request) {
       source: 'questionnaire',
     });
 
-    // Send admin notification (fire and forget — don't block the response)
+    // Send admin notification after the response (after() keeps it alive on Vercel)
     const adminEmail  = process.env.COMPANY_EMAIL || 'innerlightyuki@gmail.com';
     const senderEmail = (process.env.EMAIL_FROM_PRODUCTION || '').trim()
       || (process.env.EMAIL_FROM_LOCAL || '').trim()
       || 'onboarding@resend.dev';
     const senderLabel = process.env.EMAIL_FROM_PRODUCTION ? 'INNER LIGHT Yoga' : 'INNER LIGHT Yoga (Test)';
 
-    resend.emails.send({
+    after(resend.emails.send({
       from:    `${senderLabel} <${senderEmail}>`,
       to:      [adminEmail],
       subject: `📋 New Survey — ${trimmedName} (${bodyTypeName})`,
@@ -172,7 +187,7 @@ export async function POST(request) {
         answers: body, bodyTypeName, bodyType, riskAreas,
       }),
       replyTo: normalizedEmail,
-    }).catch((err) => console.error('Admin survey notification error:', err));
+    }).catch((err) => console.error('Admin survey notification error:', err)));
 
     return NextResponse.json({ success: true });
   } catch (err) {
