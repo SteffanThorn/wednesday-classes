@@ -18,6 +18,7 @@ const ClassCard = ({
   href,
   maxCapacity,
   spotsRemaining,
+  bookingEmail,
 }) => {
   const { t, mounted } = useLanguage();
 
@@ -48,18 +49,24 @@ const ClassCard = ({
       </p>
 
       <div className="flex flex-wrap gap-4 mb-6">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Clock className="w-4 h-4 text-glow-cyan" />
-          <span>{duration}</span>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Users className="w-4 h-4 text-glow-cyan" />
-          <span>{level}</span>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-glow-cyan font-medium">
-          <Zap className="w-4 h-4" />
-          <span>{price}</span>
-        </div>
+        {duration && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Clock className="w-4 h-4 text-glow-cyan" />
+            <span>{duration}</span>
+          </div>
+        )}
+        {level && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Users className="w-4 h-4 text-glow-cyan" />
+            <span>{level}</span>
+          </div>
+        )}
+        {price && (
+          <div className="flex items-center gap-2 text-sm text-glow-cyan font-medium">
+            <Zap className="w-4 h-4" />
+            <span>{price}</span>
+          </div>
+        )}
         {maxCapacity != null && (
           <div className={`flex items-center gap-1.5 text-sm font-medium px-2 py-0.5 rounded-full border ${
             spotsRemaining === 0
@@ -78,11 +85,23 @@ const ClassCard = ({
         )}
       </div>
 
-      <button className="w-full py-3 rounded-xl bg-glow-cyan/10 border border-glow-cyan/30 
-                       text-glow-cyan font-medium hover:bg-glow-cyan/20 hover:box-glow
-                       transition-all duration-300">
-        {mounted ? t('bookNow') : 'Book Now'}
-      </button>
+      {bookingEmail ? (
+        // Email-only classes: the button opens the visitor's email app
+        <a
+          href={`mailto:${bookingEmail}?subject=${encodeURIComponent(`Class booking: ${titleEn}`)}`}
+          className="block w-full py-3 px-4 rounded-xl bg-glow-cyan/10 border border-glow-cyan/30 
+                   text-glow-cyan font-medium text-center break-words hover:bg-glow-cyan/20 hover:box-glow
+                   transition-all duration-300"
+        >
+          {mounted && t('language') === 'zh' ? '邮件预约' : 'Book by email'}: {bookingEmail}
+        </a>
+      ) : (
+        <button className="w-full py-3 rounded-xl bg-glow-cyan/10 border border-glow-cyan/30 
+                         text-glow-cyan font-medium hover:bg-glow-cyan/20 hover:box-glow
+                         transition-all duration-300">
+          {mounted ? t('bookNow') : 'Book Now'}
+        </button>
+      )}
     </div>
   );
 

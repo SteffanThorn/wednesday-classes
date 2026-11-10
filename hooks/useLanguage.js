@@ -541,6 +541,23 @@ mental: '心理',
   },
 };
 
+// Some mobile browsers (private mode, in-app browsers) throw on localStorage access.
+const readStoredLanguage = () => {
+  try {
+    return window.localStorage.getItem('language');
+  } catch {
+    return null;
+  }
+};
+
+const storeLanguage = (lang) => {
+  try {
+    window.localStorage.setItem('language', lang);
+  } catch {
+    // Not saved; the choice still applies for this visit.
+  }
+};
+
 // Language Context
 const LanguageContext = createContext();
 
@@ -559,12 +576,12 @@ export function LanguageProvider({ children }) {
 
   useEffect(() => {
     // Check for saved preference
-    const savedLanguage = localStorage.getItem('language');
+    const savedLanguage = readStoredLanguage();
     if (savedLanguage) {
       setLanguage(normalizeLanguage(savedLanguage));
     } else {
       // Check browser language
-      const browserLang = normalizeLanguage(navigator.language);
+      const browserLang = normalizeLanguage(navigator?.language);
       if (browserLang === 'zh') {
         setLanguage('zh');
       }
@@ -580,14 +597,14 @@ export function LanguageProvider({ children }) {
   const toggleLanguage = () => {
     const newLanguage = language === 'en' ? 'zh' : 'en';
     setLanguage(newLanguage);
-    localStorage.setItem('language', newLanguage);
+    storeLanguage(newLanguage);
   };
 
   const setLanguageTo = (lang) => {
     const normalized = normalizeLanguage(lang);
     if (normalized === 'en' || normalized === 'zh') {
       setLanguage(normalized);
-      localStorage.setItem('language', normalized);
+      storeLanguage(normalized);
     }
   };
 

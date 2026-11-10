@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { headers } from 'next/headers';
 import Stripe from 'stripe';
 import dbConnect from '@/lib/mongodb';
@@ -192,7 +192,7 @@ async function handlePaymentSucceeded(paymentIntent) {
         day: 'numeric'
       });
 
-      User.findOne({ email: booking.userEmail.toLowerCase() }).select('classCredits preferredLanguage').lean()
+      after(User.findOne({ email: booking.userEmail.toLowerCase() }).select('classCredits preferredLanguage').lean()
         .then(bookingUser => sendBookingConfirmationEmail({
           userEmail: booking.userEmail,
           userName: booking.userName,
@@ -205,17 +205,18 @@ async function handlePaymentSucceeded(paymentIntent) {
           remainingClasses: bookingUser?.classCredits ?? 0,
           preferredLanguage: bookingUser?.preferredLanguage || 'en',
         }))
-        .catch(err => console.error('Failed to send booking confirmation email:', err));
+        .catch(err => console.error('Failed to send booking confirmation email:', err)));
 
-      sendAdminNewBookingNotification({
+      after(sendAdminNewBookingNotification({
         bookingId: booking._id.toString(),
         userName: booking.userName,
         userEmail: booking.userEmail,
         className: booking.className,
         classDate: formattedDate,
         classTime: booking.classTime,
+        location: booking.location,
         amount: booking.amount,
-      }).catch(err => console.error('Failed to send admin booking notification email:', err));
+      }).catch(err => console.error('Failed to send admin booking notification email:', err)));
     }
 
     console.log(`   Booking ${booking._id} payment completed`);
@@ -478,7 +479,7 @@ async function handleCheckoutSessionCompleted(session) {
     });
 
     if (!wasAlreadyConfirmed) {
-      User.findOne({ email: booking.userEmail.toLowerCase() }).select('classCredits preferredLanguage').lean()
+      after(User.findOne({ email: booking.userEmail.toLowerCase() }).select('classCredits preferredLanguage').lean()
         .then(bookingUser => sendBookingConfirmationEmail({
           userEmail: booking.userEmail,
           userName: booking.userName,
@@ -491,17 +492,18 @@ async function handleCheckoutSessionCompleted(session) {
           remainingClasses: bookingUser?.classCredits ?? 0,
           preferredLanguage: bookingUser?.preferredLanguage || 'en',
         }))
-        .catch(err => console.error('Failed to send booking confirmation email:', err));
+        .catch(err => console.error('Failed to send booking confirmation email:', err)));
 
-      sendAdminNewBookingNotification({
+      after(sendAdminNewBookingNotification({
         bookingId: booking._id.toString(),
         userName: booking.userName,
         userEmail: booking.userEmail,
         className: booking.className,
         classDate: formattedDate,
         classTime: booking.classTime,
+        location: booking.location,
         amount: booking.amount,
-      }).catch(err => console.error('Failed to send admin booking notification email:', err));
+      }).catch(err => console.error('Failed to send admin booking notification email:', err)));
     }
     
     console.log(`   Booking ${booking._id} confirmed`);
