@@ -151,15 +151,14 @@ const ClassesPage = () => {
               <div className="relative group cursor-pointer" onClick={() => setIsWedMorningModalOpen(true)}>
                 <ClassCard
                   icon={Zap}
-                  titleEn="Functional Pain Relief Series"
-                  titleZh="Functional Pain Relief Series"
-                  descriptionEn={'Wednesday 9:15 AM\nFunctional Pain Relief Series\nCourse Address: (Village Valley Centre Ashhurst )'}
-                  descriptionZh={'每周三早上9:15\nFunctional Pain Relief Series\n课程地址：(Village Valley Centre Ashhurst )'}
+                  titleEn="Wednesday"
+                  titleZh="周三"
+                  descriptionEn={'Wednesday 9:15 AM\nCourse Address: (Village Valley Centre Ashhurst )'}
+                  descriptionZh={'每周三早上9:15\n课程地址：(Village Valley Centre Ashhurst )'}
                   duration="60 min"
                   level="Beginner"
                   price="$15/class · 5 for $65"
                   additionalInfo="B.Y.O mat"
-                  href="/wednesday-classes"
                   onClick={(e) => {
                     e.preventDefault();
                     setIsWedMorningModalOpen(true);
@@ -171,15 +170,14 @@ const ClassesPage = () => {
               <div className="relative group cursor-pointer" onClick={() => setIsThuEveningModalOpen(true)}>
                 <ClassCard
                   icon={Heart}
-                  titleEn="Structural Alignment & Deep Mobility Series"
-                  titleZh="Structural Alignment & Deep Mobility Series"
-                  descriptionEn={'Thursday 5:30 PM\nStructural Alignment & Deep Mobility Series\nCourse Address: (Village Valley Centre Ashhurst )'}
-                  descriptionZh={'每周四下午5:30\nStructural Alignment & Deep Mobility Series\n课程地址：(Village Valley Centre Ashhurst )'}
+                  titleEn="Thursday"
+                  titleZh="周四"
+                  descriptionEn={'Thursday 5:30 PM\nCourse Address: (Village Valley Centre Ashhurst )'}
+                  descriptionZh={'每周四下午5:30\n课程地址：(Village Valley Centre Ashhurst )'}
                   duration="60 min"
                   level="Beginner"
                   price="$15/class · 5 for $65"
                   additionalInfo="B.Y.O mat"
-                  href="/wednesday-classes"
                   onClick={(e) => {
                     e.preventDefault();
                     setIsThuEveningModalOpen(true);

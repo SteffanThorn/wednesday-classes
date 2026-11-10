@@ -804,18 +804,6 @@ export default function AdminBookingsPage() {
     router.push(`/admin/customers/${customer.id}?${params.toString()}`);
   };
 
-  const handleOpenBookingHomepage = () => {
-    const params = new URLSearchParams({ fromAdmin: '1' });
-
-    if (selectedAttendanceSession) {
-      const [classDate, classTime] = selectedAttendanceSession.split('|');
-      params.set('classDate', classDate || '');
-      params.set('classTime', classTime || '');
-    }
-
-    window.open(`/wednesday-classes?${params.toString()}`, '_blank', 'noopener,noreferrer');
-  };
-
   const handleGoToAssistedBookingPanel = (customer) => {
     setShowWeeklyView(false);
     setShowAttendanceView(true);
