@@ -43,8 +43,36 @@ export default function RootLayout({ children }) {
   return (
     // HTML document structure with English language
     <html lang="en">
-      {process.env.NODE_ENV === "development" ? (
-        <head>
+      <head>
+        {/*
+          Browser page translation (e.g. Chrome on iPhone translating to Chinese) swaps
+          the page's text nodes for its own. React then fails to find nodes it is
+          updating and the page crashes with "NotFoundError". This guard makes those
+          two DOM calls skip nodes the translator has already moved, instead of throwing.
+          See https://github.com/facebook/react/issues/11538
+        */}
+        <Script
+          id="translate-dom-guard"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                if (typeof Node !== "function" || !Node.prototype) return;
+                var originalRemoveChild = Node.prototype.removeChild;
+                Node.prototype.removeChild = function (child) {
+                  if (child && child.parentNode !== this) return child;
+                  return originalRemoveChild.apply(this, arguments);
+                };
+                var originalInsertBefore = Node.prototype.insertBefore;
+                Node.prototype.insertBefore = function (newNode, referenceNode) {
+                  if (referenceNode && referenceNode.parentNode !== this) return newNode;
+                  return originalInsertBefore.apply(this, arguments);
+                };
+              })();
+            `,
+          }}
+        />
+        {process.env.NODE_ENV === "development" ? (
           <Script
             id="dev-extension-ethereum-guard"
             strategy="beforeInteractive"
@@ -90,8 +118,8 @@ export default function RootLayout({ children }) {
               `,
             }}
           />
-        </head>
-      ) : null}
+        ) : null}
+      </head>
       {/* Body element - applies fonts and smooth text rendering */}
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
