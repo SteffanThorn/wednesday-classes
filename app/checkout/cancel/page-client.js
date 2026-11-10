@@ -87,7 +87,7 @@ function CheckoutCancelContent({ bookingIds, sessionId }) {
                     Go to Dashboard
                   </button>
                   <button
-                    onClick={() => router.push('/wednesday-classes')}
+                    onClick={() => router.push('/classes')}
                     className="w-full py-3 rounded-xl bg-muted/20 border border-border/40 
                              text-muted-foreground font-medium hover:bg-muted/40 transition-all
                              flex items-center justify-center gap-2"
@@ -109,7 +109,7 @@ function CheckoutCancelContent({ bookingIds, sessionId }) {
                   Your payment was cancelled. No booking was created.
                 </p>
                 <button
-                  onClick={() => router.push('/wednesday-classes')}
+                  onClick={() => router.push('/classes')}
                   className="w-full py-3 rounded-xl bg-glow-cyan/20 border border-glow-cyan/40 
                            text-glow-cyan font-medium hover:bg-glow-cyan/30 transition-all
                            flex items-center justify-center gap-2"
