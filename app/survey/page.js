@@ -273,24 +273,14 @@ export default function SurveyPage() {
     </div>
   );
 
-  // checkboxRight: show a larger tick box on the right of each option instead of the left
-  const MultiSelect = ({ field, options, checkboxRight = false }) => (
+  const MultiSelect = ({ field, options }) => (
     <div className="flex flex-col gap-2 w-full max-w-sm">
       {options.map((opt) => {
         const selected = answers[field].includes(opt);
-        const box = (
-          <span className={`${checkboxRight ? 'w-5 h-5 border-2' : 'w-4 h-4 border'} rounded flex-shrink-0 flex items-center justify-center transition-all ${
-            selected ? 'bg-glow-cyan border-glow-cyan' : 'border-glow-cyan/40'
-          }`}>
-            {selected && <Check className={`${checkboxRight ? 'w-4 h-4' : 'w-3 h-3'} text-background`} />}
-          </span>
-        );
         return (
           <button
             key={opt}
             type="button"
-            role="checkbox"
-            aria-checked={selected}
             onClick={() => toggleMulti(field, opt)}
             className={`w-full px-5 py-3 rounded-xl border text-sm text-left flex items-center gap-3 transition-all ${
               selected
@@ -298,9 +288,12 @@ export default function SurveyPage() {
                 : 'bg-card/40 border-glow-cyan/20 text-muted-foreground hover:border-glow-cyan/40 hover:bg-card/60'
             }`}
           >
-            {!checkboxRight && box}
-            <span className={checkboxRight ? 'flex-1' : undefined}>{opt}</span>
-            {checkboxRight && box}
+            <span className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-all ${
+              selected ? 'bg-glow-cyan border-glow-cyan' : 'border-glow-cyan/40'
+            }`}>
+              {selected && <Check className="w-3 h-3 text-background" />}
+            </span>
+            {opt}
           </button>
         );
       })}
@@ -785,7 +778,7 @@ export default function SurveyPage() {
                   question="Where did you hear about us?"
                   hint="Select all that apply"
                 />
-                <MultiSelect field="referralSources" options={REFERRAL_OPTIONS} checkboxRight />
+                <MultiSelect field="referralSources" options={REFERRAL_OPTIONS} />
                 {answers.referralSources.includes('Other') && (
                   <input
                     type="text"
