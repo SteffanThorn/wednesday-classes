@@ -39,12 +39,22 @@ export async function GET(request) {
       ? intake.userId
       : usersByEmail.get(intake.userEmail?.toLowerCase()) || null;
 
-    const spendByUser = await getSpendByUser(
-      intakes.map((intake) => {
+    // Students who registered on the website but haven't filled in a health
+    // intake form yet. Without this they would not appear in Customer Data at all.
+    const intakeUserIds = new Set(intakes.map((i) => accountFor(i)?._id?.toString()).filter(Boolean));
+    const intakeEmails = new Set(intakes.map((i) => i.userEmail?.toLowerCase()).filter(Boolean));
+    const accountOnlyUsers = (await User.find({ role: { $ne: 'admin' } })
+      .select('name email phone classCredits')
+      .lean())
+      .filter((u) => !intakeUserIds.has(u._id.toString()) && !intakeEmails.has(u.email?.toLowerCase()));
+
+    const spendByUser = await getSpendByUser([
+      ...intakes.map((intake) => {
         const account = accountFor(intake);
         return { userId: account?._id, remainingCredits: account?.classCredits ?? 0 };
-      })
-    );
+      }),
+      ...accountOnlyUsers.map((u) => ({ userId: u._id, remainingCredits: u.classCredits ?? 0 })),
+    ]);
 
     const customers = intakes.map((intake) => {
       const storedTotalClasses = Number.isFinite(Number(intake.totalPackageClasses))
@@ -81,6 +91,35 @@ export async function GET(request) {
         updatedAt: intake.updatedAt,
       };
     });
+
+    for (const user of accountOnlyUsers) {
+      const remainingClassCredits = Math.max(0, Math.floor(Number(user.classCredits) || 0));
+      customers.push({
+        id: `account-${user._id.toString()}`,
+        accountOnly: true,
+        userId: user._id.toString(),
+        userName: user.name || '',
+        userEmail: user.email || '',
+        phone: user.phone || '',
+        healthNotes: '',
+        emergencyContactName: '',
+        emergencyContactPhone: '',
+        waiverAccepted: false,
+        comments: '',
+        signatureName: '',
+        signedAt: null,
+        totalPackageClasses: remainingClassCredits,
+        remainingClassCredits,
+        usedPackageClasses: 0,
+        spend: spendByUser.get(user._id.toString()) || EMPTY_SPEND,
+        // Users have no createdAt field; the record id carries its creation time.
+        createdAt: user._id.getTimestamp(),
+        updatedAt: user._id.getTimestamp(),
+      });
+    }
+
+    // Newest first, so fresh sign-ups show at the top.
+    customers.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     return NextResponse.json({
       success: true,

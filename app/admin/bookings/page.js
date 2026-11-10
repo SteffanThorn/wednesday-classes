@@ -121,7 +121,9 @@ export default function AdminBookingsPage() {
       const response = await fetch('/api/admin/customers');
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to load customers');
-      setCustomerLookupPool(data.customers || []);
+      // Check-in and assisted booking work off health intake records, so leave out
+      // sign-ups that haven't filled in the form yet.
+      setCustomerLookupPool((data.customers || []).filter((c) => !c.accountOnly));
     } catch (error) {
       console.error('Error loading customers for quick lookup:', error);
       setAttendanceError(error.message || 'Failed to load customer lookup data');
