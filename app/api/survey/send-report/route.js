@@ -110,6 +110,8 @@ function buildAdminEmail({ name, email, phone, answers, bodyTypeName, bodyType, 
     ['Body Feel', fmt(answers.bodyFeel)],
     ['Goals', fmt(answers.goals)],
     ['Waiver Accepted', answers.waiverAccepted ? 'Yes' : 'No'],
+    ['Heard About Us', fmt((answers.referralSources || []).map((s) =>
+      s === 'Other' && String(answers.referralOther || '').trim() ? `Other (${String(answers.referralOther).trim()})` : s))],
   ];
 
   const rowsHtml = rows.map(([label, val], i) => `
