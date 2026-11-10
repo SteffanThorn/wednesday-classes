@@ -58,7 +58,7 @@ function AdminCustomersPageContent() {
 
 	useEffect(() => {
 		const queryFilter = searchParams.get('filter');
-		if (queryFilter === 'low' || queryFilter === 'empty' || queryFilter === 'all') {
+		if (['low', 'empty', 'all', 'noform'].includes(queryFilter)) {
 			setCourseFilter(queryFilter);
 		}
 	}, [searchParams]);
@@ -90,20 +90,25 @@ function AdminCustomersPageContent() {
 		);
 
 		const remainingCredits = customer.remainingClassCredits ?? 0;
+		// Accounts with no health form haven't started a package, so they aren't counted as low/empty.
+		const isPackageCustomer = !customer.accountOnly;
 		const matchesFilter =
 			courseFilter === 'all' ||
-			(courseFilter === 'low' && remainingCredits > 0 && remainingCredits <= 2) ||
-			(courseFilter === 'empty' && remainingCredits === 0);
+			(courseFilter === 'noform' && customer.accountOnly) ||
+			(courseFilter === 'low' && isPackageCustomer && remainingCredits > 0 && remainingCredits <= 2) ||
+			(courseFilter === 'empty' && isPackageCustomer && remainingCredits === 0);
 
 		return matchesSearch && matchesFilter;
 	});
 
+	const noFormCount = customers.filter((customer) => customer.accountOnly).length;
 	const lowCreditCount = customers.filter((customer) => {
+		if (customer.accountOnly) return false;
 		const remainingCredits = customer.remainingClassCredits ?? 0;
 		return remainingCredits > 0 && remainingCredits <= 2;
 	}).length;
 
-	const emptyCreditCount = customers.filter((customer) => (customer.remainingClassCredits ?? 0) === 0).length;
+	const emptyCreditCount = customers.filter((customer) => !customer.accountOnly && (customer.remainingClassCredits ?? 0) === 0).length;
 
 	const shownSpendTotal = filteredCustomers.reduce((sum, customer) => sum + (customer.spend?.totalSpent ?? 0), 0);
 
@@ -259,6 +264,12 @@ function AdminCustomersPageContent() {
 								>
 									课次为零 / No Credits ({emptyCreditCount})
 								</button>
+								<button
+									onClick={() => setCourseFilter('noform')}
+									className={`px-4 py-2 rounded-lg border text-sm transition-colors ${courseFilter === 'noform' ? 'bg-purple-500/20 border-purple-500/40 text-purple-300' : 'bg-card/60 border-purple-500/20 text-muted-foreground hover:border-purple-500/40 hover:text-purple-300'}`}
+								>
+									已注册未填健康表 / Signed up, no health form ({noFormCount})
+								</button>
 							</div>
 
 							<div className="flex flex-wrap gap-3 text-xs">
@@ -302,8 +313,9 @@ function AdminCustomersPageContent() {
 										<tbody>
 											{filteredCustomers.map((customer, idx) => {
 												const remainingCredits = customer.remainingClassCredits ?? 0;
-												const isEmpty = remainingCredits === 0;
-												const isLow = remainingCredits > 0 && remainingCredits <= 2;
+												const accountOnly = Boolean(customer.accountOnly);
+												const isEmpty = !accountOnly && remainingCredits === 0;
+												const isLow = !accountOnly && remainingCredits > 0 && remainingCredits <= 2;
 
 												return (
 													<tr
@@ -322,20 +334,29 @@ function AdminCustomersPageContent() {
 														<td className="px-4 py-3 text-muted-foreground text-xs break-all">{customer.userEmail}</td>
 														<td className="px-4 py-3 text-foreground">{customer.phone || '-'}</td>
 														<td className="px-4 py-3">
-															<span
-																className={`inline-flex px-2 py-1 rounded text-xs font-medium ${
-																	customer.waiverAccepted
-																		? 'bg-green-500/20 text-green-400'
-																		: 'bg-yellow-500/20 text-yellow-400'
-																}`}
-															>
-																{customer.waiverAccepted ? '已签署 / Accepted' : '待确认 / Pending'}
-															</span>
+															{accountOnly ? (
+																<span className="inline-flex px-2 py-1 rounded text-xs font-medium bg-purple-500/20 text-purple-300">
+																	未填健康表 / No health form
+																</span>
+															) : (
+																<span
+																	className={`inline-flex px-2 py-1 rounded text-xs font-medium ${
+																		customer.waiverAccepted
+																			? 'bg-green-500/20 text-green-400'
+																			: 'bg-yellow-500/20 text-yellow-400'
+																	}`}
+																>
+																	{customer.waiverAccepted ? '已签署 / Accepted' : '待确认 / Pending'}
+																</span>
+															)}
 														</td>
 														<td className="px-4 py-3 text-foreground text-xs">
-															{(customer.totalPackageClasses ?? PACKAGE_TOTAL_CLASSES)} 节 / classes
+															{accountOnly ? '-' : `${customer.totalPackageClasses ?? PACKAGE_TOTAL_CLASSES} 节 / classes`}
 														</td>
 														<td className="px-4 py-3">
+															{accountOnly && remainingCredits === 0 ? (
+																<span className="text-muted-foreground">-</span>
+															) : (
 															<div className="flex flex-col gap-1">
 																<span className={`inline-flex w-fit px-2 py-1 rounded text-xs font-medium ${isEmpty ? 'bg-red-500/20 text-red-400' : isLow ? 'bg-yellow-500/20 text-yellow-300' : 'bg-glow-cyan/10 text-glow-cyan'}`}>
 																	剩余 {remainingCredits} / {remainingCredits} left
@@ -343,6 +364,7 @@ function AdminCustomersPageContent() {
 																{isEmpty && <span className="text-[11px] text-red-300">需补课次 / Needs top-up</span>}
 																{isLow && <span className="text-[11px] text-yellow-300">课次偏低 / Low balance</span>}
 															</div>
+															)}
 														</td>
 														<td className="px-4 py-3">
 															<div className="flex flex-col gap-1">
@@ -364,6 +386,9 @@ function AdminCustomersPageContent() {
 															{new Date(customer.createdAt).toLocaleDateString()}
 														</td>
 														<td className="px-4 py-3 text-center">
+															{accountOnly ? (
+																<span className="text-xs text-muted-foreground">新注册 / New sign-up</span>
+															) : (
 															<div className="inline-flex items-center gap-2">
 																<Link
 																	href={`/admin/customers/${customer.id}`}
@@ -373,6 +398,7 @@ function AdminCustomersPageContent() {
 																	查看 / View
 																</Link>
 															</div>
+															)}
 														</td>
 													</tr>
 												);

@@ -69,7 +69,8 @@ export default function AdminDashboardPage() {
         throw new Error(data.error || 'Failed to load class-credit summary');
       }
 
-      const customers = data.customers || [];
+      // Sign-ups without a health form have no package yet, so leave them out of the credit reminder.
+      const customers = (data.customers || []).filter((c) => !c.accountOnly);
       const low = customers.filter((c) => {
         const remaining = c.remainingClassCredits ?? 0;
         return remaining > 0 && remaining <= 2;
