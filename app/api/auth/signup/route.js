@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import User from '@/lib/models/User';
 import { sendAdminNewMemberNotification, sendWelcomeEmail } from '@/lib/email';
@@ -50,13 +50,13 @@ export async function POST(request) {
       preferredLanguage: normalizedLanguage,
     });
 
-    // Send welcome email (non-blocking - don't wait for it)
-    sendWelcomeEmail({ email: user.email, name: user.name }).catch(err => {
+    // Send welcome email after the response (after() keeps it alive on serverless)
+    after(sendWelcomeEmail({ email: user.email, name: user.name }).catch(err => {
       console.error('Failed to send welcome email:', err);
-    });
+    }));
 
-    // Send admin signup notification (non-blocking)
-    sendAdminNewMemberNotification({
+    // Alert the admin about the new student (sent after the response)
+    after(sendAdminNewMemberNotification({
       userId: user._id.toString(),
       name: user.name,
       email: user.email,
@@ -64,7 +64,7 @@ export async function POST(request) {
       preferredLanguage: user.preferredLanguage,
     }).catch(err => {
       console.error('Failed to send admin signup notification email:', err);
-    });
+    }));
 
     return NextResponse.json(
       { 

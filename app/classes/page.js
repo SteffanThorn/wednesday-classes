@@ -24,58 +24,18 @@ const THU_EVENING_CLASS = {
   price: 15
 };
 
-const FRI_MORNING_CLASS = {
-  name: 'Beginner Yoga',
-  time: '10:30 AM',
-  location: 'Bella Vista Motel, Palmerston North',
-  price: 15
-};
-
-const FRI_AFTERNOON_CLASS = {
-  name: 'Postnatal Recovery (Mat Pilates)',
-  time: '1:30 PM',
-  location: 'Bella Vista Motel, Palmerston North',
-  price: 25,
-  packagePrice: 115
-};
-
-const SAT_MORNING_CLASS = {
-  name: 'Beginner Yoga',
-  time: '10:30 AM',
-  location: 'Bella Vista Motel, Palmerston North',
-  price: 15
-};
-
-const SAT_AFTERNOON_CLASS = {
-  name: 'Postnatal Recovery (Mat Pilates)',
-  time: '1:30 PM',
-  location: 'Bella Vista Motel, Palmerston North',
-  price: 25,
-  packagePrice: 115
-};
-
-const FRI_EVENING_CLASS = {
-  name: 'Functional Integrative Yoga',
-  time: '6:00 PM',
-  location: 'Bella Vista Motel, Palmerston North',
-  price: 15
-};
+const BOOKING_EMAIL = 'innerlightyuki@gmail.com';
 
 const ClassesPage = () => {
   const { t, mounted } = useLanguage();
   const [isWedMorningModalOpen, setIsWedMorningModalOpen] = useState(false);
   const [isThuEveningModalOpen, setIsThuEveningModalOpen] = useState(false);
-  const [isFriMorningModalOpen, setIsFriMorningModalOpen] = useState(false);
-  const [isFriAfternoonModalOpen, setIsFriAfternoonModalOpen] = useState(false);
-  const [isFriEveningModalOpen, setIsFriEveningModalOpen] = useState(false);
-  const [isSatMorningModalOpen, setIsSatMorningModalOpen] = useState(false);
-  const [isSatAfternoonModalOpen, setIsSatAfternoonModalOpen] = useState(false);
 
-  // Remaining spots for capped Bella Vista slots (keyed by slot name)
+  // Remaining spots for capped slots that are booked online (keyed by slot name)
   const [spots, setSpots] = useState({});
 
   useEffect(() => {
-    const CAPPED = ['thursday-evening', 'friday-morning', 'friday-afternoon', 'friday-evening', 'saturday-morning', 'saturday-afternoon'];
+    const CAPPED = ['thursday-evening'];
     Promise.all(
       CAPPED.map(async (slot) => {
         const dates = getAvailableDatesByDay(slot, 1);
@@ -175,6 +135,18 @@ const ClassesPage = () => {
         <section className="px-6 py-16">
           <div className="max-w-7xl mx-auto">
             <div className="grid md:grid-cols-2 gap-6">
+              {/* Monday 2:00 PM – book by email */}
+              <div className="relative group">
+                <ClassCard
+                  icon={Heart}
+                  titleEn="Monday"
+                  titleZh="周一"
+                  descriptionEn={'Monday 2:00 PM\nCourse Address: (Metlifecare Palmerston North Village)\nNon-residents welcome'}
+                  descriptionZh={'每周一下午2:00\n课程地址：(Metlifecare Palmerston North Village)\n非住户也欢迎参加'}
+                  bookingEmail={BOOKING_EMAIL}
+                />
+              </div>
+
               {/* Wednesday 9:15 AM */}
               <div className="relative group cursor-pointer" onClick={() => setIsWedMorningModalOpen(true)}>
                 <ClassCard
@@ -217,87 +189,16 @@ const ClassesPage = () => {
                 />
               </div>
 
-              {/* Friday 10:30 AM */}
-              <div className="relative group cursor-pointer" onClick={() => setIsFriMorningModalOpen(true)}>
+              {/* Friday 6:00 PM – book by email */}
+              <div className="relative group">
                 <ClassCard
                   icon={Zap}
-                  titleEn="Beginner Yoga"
-                  titleZh="新手瑜伽"
-                  descriptionEn={'Friday 10:30 AM\nBeginner Yoga\nCourse Address: (Bella Vista Motel, Palmerston North)'}
-                  descriptionZh={'每周五上午10:30\n新手瑜伽\n课程地址：(Bella Vista Motel, Palmerston North)'}
-                  duration="60 min"
-                  level="Beginner"
-                  price="$15/class · 5 for $65"
+                  titleEn="Friday"
+                  titleZh="周五"
+                  descriptionEn={'Friday 6:00 PM\nCourse Address: (Bella Vista Motel, Palmerston North)\nLimited to 8 students'}
+                  descriptionZh={'每周五晚上6:00\n课程地址：(Bella Vista Motel, Palmerston North)\n每班限8人'}
                   maxCapacity={8}
-                  spotsRemaining={spots['friday-morning']}
-                />
-              </div>
-
-              {/* Friday 1:30 PM */}
-              <div className="relative group cursor-pointer" onClick={() => setIsFriAfternoonModalOpen(true)}>
-                <ClassCard
-                  icon={Heart}
-                  titleEn="Postnatal Recovery (Mat Pilates)"
-                  titleZh="产后修复（Mat普拉提）"
-                  subtitleEn="Small-group class"
-                  subtitleZh="适合产后妈妈"
-                  descriptionEn={'Friday 1:30 PM\nAddresses pelvic discomfort, core weakness & rebuilds stability\n75-minute small-group class\nCourse Address: (Bella Vista Motel, Palmerston North)'}
-                  descriptionZh={'每周五下午1:30\n解决盆腔不适、核心肌群无力，重建稳定性与安全\n75分钟小班课教学\n课程地址：(Bella Vista Motel, Palmerston North)'}
-                  duration="75 min"
-                  level="Beginner"
-                  price="$25/class · 5 for $115"
-                  maxCapacity={6}
-                  spotsRemaining={spots['friday-afternoon']}
-                />
-              </div>
-
-              {/* Friday 6:00 PM */}
-              <div className="relative group cursor-pointer" onClick={() => setIsFriEveningModalOpen(true)}>
-                <ClassCard
-                  icon={Zap}
-                  titleEn="Functional Integrative Yoga"
-                  titleZh="功能整合瑜伽"
-                  descriptionEn={'Friday 6:00 PM\nFunctional Integrative Yoga\nCourse Address: (Bella Vista Motel, Palmerston North)'}
-                  descriptionZh={'每周五晚上6:00\n功能整合瑜伽\n课程地址：(Bella Vista Motel, Palmerston North)'}
-                  duration="60 min"
-                  level="Beginner"
-                  price="$15/class · 5 for $65"
-                  maxCapacity={8}
-                  spotsRemaining={spots['friday-evening']}
-                />
-              </div>
-
-              {/* Saturday 10:30 AM */}
-              <div className="relative group cursor-pointer" onClick={() => setIsSatMorningModalOpen(true)}>
-                <ClassCard
-                  icon={Zap}
-                  titleEn="Beginner Yoga"
-                  titleZh="新手瑜伽"
-                  descriptionEn={'Saturday 10:30 AM\nBeginner Yoga\nCourse Address: (Bella Vista Motel, Palmerston North)'}
-                  descriptionZh={'每周六上午10:30\n新手瑜伽\n课程地址：(Bella Vista Motel, Palmerston North)'}
-                  duration="60 min"
-                  level="Beginner"
-                  price="$15/class · 5 for $65"
-                  maxCapacity={8}
-                  spotsRemaining={spots['saturday-morning']}
-                />
-              </div>
-
-              {/* Saturday 1:30 PM */}
-              <div className="relative group cursor-pointer" onClick={() => setIsSatAfternoonModalOpen(true)}>
-                <ClassCard
-                  icon={Heart}
-                  titleEn="Postnatal Recovery (Mat Pilates)"
-                  titleZh="产后修复（Mat普拉提）"
-                  subtitleEn="Small-group class"
-                  subtitleZh="适合产后妈妈"
-                  descriptionEn={'Saturday 1:30 PM\nAddresses pelvic discomfort, core weakness & rebuilds stability\n75-minute small-group class\nCourse Address: (Bella Vista Motel, Palmerston North)'}
-                  descriptionZh={'每周六下午1:30\n解决盆腔不适、核心肌群无力，重建稳定性与安全\n75分钟小班课教学\n课程地址：(Bella Vista Motel, Palmerston North)'}
-                  duration="75 min"
-                  level="Beginner"
-                  price="$25/class · 5 for $115"
-                  maxCapacity={6}
-                  spotsRemaining={spots['saturday-afternoon']}
+                  bookingEmail={BOOKING_EMAIL}
                 />
               </div>
 
@@ -434,40 +335,6 @@ const ClassesPage = () => {
         dayOfWeek="thursday-evening"
       />
 
-      <BookingModal
-        isOpen={isFriMorningModalOpen}
-        onClose={() => setIsFriMorningModalOpen(false)}
-        classDetails={FRI_MORNING_CLASS}
-        dayOfWeek="friday-morning"
-      />
-
-      <BookingModal
-        isOpen={isFriAfternoonModalOpen}
-        onClose={() => setIsFriAfternoonModalOpen(false)}
-        classDetails={FRI_AFTERNOON_CLASS}
-        dayOfWeek="friday-afternoon"
-      />
-
-      <BookingModal
-        isOpen={isFriEveningModalOpen}
-        onClose={() => setIsFriEveningModalOpen(false)}
-        classDetails={FRI_EVENING_CLASS}
-        dayOfWeek="friday-evening"
-      />
-
-      <BookingModal
-        isOpen={isSatMorningModalOpen}
-        onClose={() => setIsSatMorningModalOpen(false)}
-        classDetails={SAT_MORNING_CLASS}
-        dayOfWeek="saturday-morning"
-      />
-
-      <BookingModal
-        isOpen={isSatAfternoonModalOpen}
-        onClose={() => setIsSatAfternoonModalOpen(false)}
-        classDetails={SAT_AFTERNOON_CLASS}
-        dayOfWeek="saturday-afternoon"
-      />
     </div>
   );
 };

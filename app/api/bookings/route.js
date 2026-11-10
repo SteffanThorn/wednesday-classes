@@ -1,9 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { auth } from '@/auth';
 import dbConnect from '@/lib/mongodb';
 import Booking from '@/lib/models/Booking';
 import User from '@/lib/models/User';
 import {
+  formatNzd,
   sendAdminNewBookingNotification,
   sendBookingConfirmationEmail,
   sendCancellationEmail,
@@ -234,7 +235,7 @@ export async function POST(request) {
         }))
         .catch(() => ({ classCredits: null, preferredLanguage: 'en' }));
     
-    sendBookingConfirmationEmail({
+    after(sendBookingConfirmationEmail({
       userEmail: booking.userEmail,
       userName: booking.userName,
       className: booking.className,
@@ -245,17 +246,30 @@ export async function POST(request) {
       bookingId: booking._id.toString(),
       remainingClasses: emailUserData.classCredits,
       preferredLanguage: emailUserData.preferredLanguage,
-    }).catch(err => console.error('Failed to send booking confirmation email:', err));
+    }).catch(err => console.error('Failed to send booking confirmation email:', err)));
 
-    sendAdminNewBookingNotification({
-      bookingId: booking._id.toString(),
-      userName: booking.userName,
-      userEmail: booking.userEmail,
-      className: booking.className,
-      classDate: formattedDate,
-      classTime: booking.classTime,
-      amount: booking.amount,
-    }).catch(err => console.error('Failed to send admin booking notification email:', err));
+    // Alert the admin. Bookings waiting on online payment are announced by the
+    // Stripe webhook once paid, so only instantly confirmed ones are sent here.
+    if (isInstantlyConfirmed) {
+      const paymentLabel = isBringAFriend
+        ? 'Bring-a-friend (free)'
+        : isPaymentMethodMemberCard
+          ? `Class package credit (${emailUserData.classCredits ?? '?'} credits on account)`
+          : `${formatNzd(booking.amount)} cash – to pay at class`;
+
+      after(sendAdminNewBookingNotification({
+        bookingId: booking._id.toString(),
+        userName: booking.userName,
+        userEmail: booking.userEmail,
+        className: booking.className,
+        classDate: formattedDate,
+        classTime: booking.classTime,
+        location: booking.location,
+        amount: booking.amount,
+        paymentLabel,
+        notes: booking.notes,
+      }).catch(err => console.error('Failed to send admin booking notification email:', err)));
+    }
 
     // Return the created booking
     const formattedBooking = {

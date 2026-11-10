@@ -20,7 +20,7 @@ export default function AdminLeadsPage() {
 	useEffect(() => {
 		if (typeof window === 'undefined') return;
 
-		const savedLanguage = String(window.localStorage.getItem('language') || '').toLowerCase();
+		const savedLanguage = String((() => { try { return window.localStorage.getItem('language'); } catch { return ''; } })() || '').toLowerCase();
 		const browserLanguage = String(window.navigator?.language || '').toLowerCase();
 		const shouldUseZh =
 			savedLanguage === 'zh' ||

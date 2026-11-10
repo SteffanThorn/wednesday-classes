@@ -1,9 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { auth } from '@/auth';
 import Stripe from 'stripe';
 import dbConnect from '@/lib/mongodb';
 import Booking from '@/lib/models/Booking';
 import Coupon from '@/lib/models/Coupon';
+import { sendAdminNewBookingNotification } from '@/lib/email';
 import { inferDayFromClassName, getCapacityForSlot, getClassTimeForDay } from '@/lib/class-schedule';
 import { calculateClassBookingTotal } from '@/lib/pricing';
 
@@ -190,6 +191,20 @@ export async function POST(request) {
       await booking.save();
 
       console.log(`Interested booking created: ${booking._id}`);
+
+      after(sendAdminNewBookingNotification({
+        kind: 'interested',
+        bookingId: booking._id.toString(),
+        userName: booking.userName,
+        userEmail: booking.userEmail,
+        className: booking.className,
+        classDate: new Date(booking.classDate).toLocaleDateString('en-NZ', {
+          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+        }),
+        classTime: booking.classTime,
+        location: booking.location,
+        notes: booking.notes,
+      }).catch(err => console.error('Failed to send admin interest notification email:', err)));
 
       return NextResponse.json({
         success: true,
