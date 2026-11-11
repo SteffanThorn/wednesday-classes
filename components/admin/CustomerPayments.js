@@ -245,7 +245,7 @@ export default function CustomerPayments({ userId, onCreditsChange }) {
                 <tr key={p.id} className="border-b border-glow-cyan/10">
                   <td className="px-2 py-2 whitespace-nowrap">{formatDate(p)}</td>
                   <td className="px-2 py-2">
-                    {TYPE_LABEL[p.type]}
+                    {p.type === 'package' ? `${p.classes} 节课包 / ${p.classes}-class pack` : TYPE_LABEL[p.type]}
                     {p.note && <span className="block text-[11px] text-muted-foreground">{p.note}</span>}
                   </td>
                   <td className="px-2 py-2 text-right whitespace-nowrap">

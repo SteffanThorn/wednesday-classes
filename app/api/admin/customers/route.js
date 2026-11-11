@@ -72,7 +72,8 @@ export async function GET(request) {
 
       return {
         id: intake._id.toString(),
-        userId: intake.userId?._id?.toString() || '',
+        // Also use the account matched by email, so admin actions work for unlinked intakes.
+        userId: accountFor(intake)?._id?.toString() || '',
         userName: intake.userName,
         userEmail: intake.userEmail,
         phone: intake.phone || '',

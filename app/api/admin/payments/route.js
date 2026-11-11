@@ -1,11 +1,47 @@
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 import mongoose from 'mongoose';
 import { auth } from '@/auth';
 import dbConnect from '@/lib/mongodb';
 import User from '@/lib/models/User';
 import Payment from '@/lib/models/Payment';
-import { SINGLE_CLASS_PRICE, FIVE_CLASS_PACKAGE_SIZE, FIVE_CLASS_PACKAGE_PRICE } from '@/lib/pricing';
+import { SINGLE_CLASS_PRICE, FIVE_CLASS_PACKAGE_SIZE, CLASS_PACKAGE_PRICES } from '@/lib/pricing';
 import { nzDay, dayFromKey } from '@/lib/nz-date';
+import HealthIntake from '@/lib/models/HealthIntake';
+
+/**
+ * Find the website account for a health-form customer, creating one from the
+ * form's name/email/phone if it's missing (e.g. a walk-in whose account was
+ * removed). The student never needs to log in; the account just holds their
+ * classes and payments. Returns null if the intake doesn't exist.
+ */
+async function accountForIntake(intakeId) {
+  const intake = await HealthIntake.findById(intakeId);
+  if (!intake) return null;
+
+  const email = String(intake.userEmail || '').toLowerCase().trim();
+  let user = (intake.userId && await User.findById(intake.userId))
+    || (email && await User.findOne({ email }));
+
+  if (!user) {
+    user = await User.create({
+      name: intake.userName,
+      email,
+      phone: intake.phone || '',
+      role: 'student',
+      password: `${crypto.randomBytes(8).toString('hex')}Aa1!`,
+      classCredits: 0,
+      classCreditHistory: [],
+    });
+  }
+  if (user.role === 'admin') return null;
+
+  if (!intake.userId || intake.userId.toString() !== user._id.toString()) {
+    intake.userId = user._id;
+    await intake.save();
+  }
+  return user;
+}
 
 async function ensureAdmin() {
   const session = await auth();
@@ -48,8 +84,8 @@ export async function GET(request) {
 
 /**
  * POST /api/admin/payments — record a payment.
- * Body: { userId, type: 'package' | 'single', paidAt: 'YYYY-MM-DD', method, status, note }
- * A paid 5-class pack also adds 5 class credits to the student.
+ * Body: { userId, type: 'package' | 'single', packageSize: 5 | 10, paidAt: 'YYYY-MM-DD', method, status, note }
+ * A pack also adds its classes (5 or 10) to the student's remaining classes.
  */
 export async function POST(request) {
   const { session, error } = await ensureAdmin();
@@ -57,11 +93,13 @@ export async function POST(request) {
 
   try {
     const body = await request.json();
-    const { userId, type, method = '', note = '' } = body || {};
+    const { userId, intakeId, type, method = '', note = '' } = body || {};
     const status = body?.status === 'unpaid' ? 'unpaid' : 'paid';
+    const hasUserId = userId && mongoose.Types.ObjectId.isValid(userId);
+    const hasIntakeId = intakeId && mongoose.Types.ObjectId.isValid(intakeId);
 
-    if (!userId || !mongoose.Types.ObjectId.isValid(userId) || !['package', 'single'].includes(type)) {
-      return NextResponse.json({ error: 'userId and type (package or single) are required' }, { status: 400 });
+    if ((!hasUserId && !hasIntakeId) || !['package', 'single'].includes(type)) {
+      return NextResponse.json({ error: 'userId (or intakeId) and type (package or single) are required' }, { status: 400 });
     }
 
     const paidAt = body?.paidAt ? dayFromKey(body.paidAt) : nzDay();
@@ -70,19 +108,25 @@ export async function POST(request) {
     }
 
     await dbConnect();
-    const user = await User.findById(userId);
+    const user = hasUserId ? await User.findById(userId) : await accountForIntake(intakeId);
     if (!user) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
 
     const isPackage = type === 'package';
+    const packageSize = Number(body?.packageSize ?? FIVE_CLASS_PACKAGE_SIZE);
+    const packagePrice = CLASS_PACKAGE_PRICES[packageSize];
+    if (isPackage && !packagePrice) {
+      return NextResponse.json({ error: 'packageSize must be 5 or 10' }, { status: 400 });
+    }
+
     const payment = await Payment.create({
       userId: user._id,
       userEmail: user.email,
       userName: user.name,
       type,
-      classes: isPackage ? FIVE_CLASS_PACKAGE_SIZE : 1,
-      amount: isPackage ? FIVE_CLASS_PACKAGE_PRICE : SINGLE_CLASS_PRICE,
+      classes: isPackage ? packageSize : 1,
+      amount: isPackage ? packagePrice : SINGLE_CLASS_PRICE,
       status,
       paidAt: status === 'paid' ? paidAt : undefined,
       year: paidAt.getUTCFullYear(),
@@ -93,19 +137,19 @@ export async function POST(request) {
     });
 
     if (isPackage) {
-      user.classCredits = (user.classCredits || 0) + FIVE_CLASS_PACKAGE_SIZE;
+      user.classCredits = (user.classCredits || 0) + packageSize;
       user.classCreditHistory = user.classCreditHistory || [];
       user.classCreditHistory.push({
-        change: FIVE_CLASS_PACKAGE_SIZE,
+        change: packageSize,
         type: 'purchase',
-        description: `${FIVE_CLASS_PACKAGE_SIZE}-class package recorded by admin${status === 'unpaid' ? ' (yet to pay)' : ''}`,
+        description: `${packageSize}-class package recorded by admin${status === 'unpaid' ? ' (yet to pay)' : ''}`,
       });
       await user.save();
     }
 
     return NextResponse.json({
       message: isPackage
-        ? `Recorded a 5-class pack ($${FIVE_CLASS_PACKAGE_PRICE}) and added ${FIVE_CLASS_PACKAGE_SIZE} classes.`
+        ? `Recorded a ${packageSize}-class pack ($${packagePrice}) and added ${packageSize} classes.`
         : `Recorded a single class ($${SINGLE_CLASS_PRICE}).`,
       payment: serialize(payment),
       classCredits: user.classCredits || 0,
