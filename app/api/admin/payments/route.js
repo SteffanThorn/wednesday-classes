@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 import mongoose from 'mongoose';
 import { auth } from '@/auth';
 import dbConnect from '@/lib/mongodb';
@@ -6,6 +7,41 @@ import User from '@/lib/models/User';
 import Payment from '@/lib/models/Payment';
 import { SINGLE_CLASS_PRICE, FIVE_CLASS_PACKAGE_SIZE, CLASS_PACKAGE_PRICES } from '@/lib/pricing';
 import { nzDay, dayFromKey } from '@/lib/nz-date';
+import HealthIntake from '@/lib/models/HealthIntake';
+
+/**
+ * Find the website account for a health-form customer, creating one from the
+ * form's name/email/phone if it's missing (e.g. a walk-in whose account was
+ * removed). The student never needs to log in; the account just holds their
+ * classes and payments. Returns null if the intake doesn't exist.
+ */
+async function accountForIntake(intakeId) {
+  const intake = await HealthIntake.findById(intakeId);
+  if (!intake) return null;
+
+  const email = String(intake.userEmail || '').toLowerCase().trim();
+  let user = (intake.userId && await User.findById(intake.userId))
+    || (email && await User.findOne({ email }));
+
+  if (!user) {
+    user = await User.create({
+      name: intake.userName,
+      email,
+      phone: intake.phone || '',
+      role: 'student',
+      password: `${crypto.randomBytes(8).toString('hex')}Aa1!`,
+      classCredits: 0,
+      classCreditHistory: [],
+    });
+  }
+  if (user.role === 'admin') return null;
+
+  if (!intake.userId || intake.userId.toString() !== user._id.toString()) {
+    intake.userId = user._id;
+    await intake.save();
+  }
+  return user;
+}
 
 async function ensureAdmin() {
   const session = await auth();
@@ -57,11 +93,13 @@ export async function POST(request) {
 
   try {
     const body = await request.json();
-    const { userId, type, method = '', note = '' } = body || {};
+    const { userId, intakeId, type, method = '', note = '' } = body || {};
     const status = body?.status === 'unpaid' ? 'unpaid' : 'paid';
+    const hasUserId = userId && mongoose.Types.ObjectId.isValid(userId);
+    const hasIntakeId = intakeId && mongoose.Types.ObjectId.isValid(intakeId);
 
-    if (!userId || !mongoose.Types.ObjectId.isValid(userId) || !['package', 'single'].includes(type)) {
-      return NextResponse.json({ error: 'userId and type (package or single) are required' }, { status: 400 });
+    if ((!hasUserId && !hasIntakeId) || !['package', 'single'].includes(type)) {
+      return NextResponse.json({ error: 'userId (or intakeId) and type (package or single) are required' }, { status: 400 });
     }
 
     const paidAt = body?.paidAt ? dayFromKey(body.paidAt) : nzDay();
@@ -70,7 +108,7 @@ export async function POST(request) {
     }
 
     await dbConnect();
-    const user = await User.findById(userId);
+    const user = hasUserId ? await User.findById(userId) : await accountForIntake(intakeId);
     if (!user) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }

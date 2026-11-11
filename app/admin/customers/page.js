@@ -402,6 +402,7 @@ function AdminCustomersPageContent() {
 																)}
 																<BuyPackageMenu
 																	userId={customer.userId}
+																	intakeId={accountOnly ? '' : customer.id}
 																	customerName={customer.userName}
 																	onPurchased={() => fetchCustomers({ silent: true })}
 																/>

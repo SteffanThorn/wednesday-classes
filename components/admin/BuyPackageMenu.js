@@ -34,7 +34,9 @@ function todayNZ() {
  * opens a panel: pick a pack, then a payment method and an optional date
  * (blank = today), then confirm. Records the payment and adds the classes.
  */
-export default function BuyPackageMenu({ userId, customerName, onPurchased }) {
+// intakeId: health-form id. If the customer has no website account yet, the
+// server creates one from the form when the pack is recorded.
+export default function BuyPackageMenu({ userId, intakeId, customerName, onPurchased }) {
   const [open, setOpen] = useState(false);
   const [pack, setPack] = useState(null);
   const [method, setMethod] = useState('');
@@ -123,7 +125,8 @@ export default function BuyPackageMenu({ userId, customerName, onPurchased }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId,
+          userId: userId || undefined,
+          intakeId: userId ? undefined : intakeId,
           type: 'package',
           packageSize: pack.size,
           method,
@@ -142,18 +145,6 @@ export default function BuyPackageMenu({ userId, customerName, onPurchased }) {
       setSaving(false);
     }
   };
-
-  if (!userId) {
-    return (
-      <span
-        className="inline-flex items-center gap-1 px-3 py-1 rounded border border-glow-cyan/10 text-muted-foreground/50 text-xs cursor-not-allowed"
-        title="该客户没有网站账号，无法记录课包 / No website account"
-      >
-        <PackagePlus className="w-3 h-3" />
-        购买新课包
-      </span>
-    );
-  }
 
   const choiceClass = (active) =>
     `w-full text-left px-3 py-2 rounded-lg border text-xs transition-colors ${
