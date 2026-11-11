@@ -13,16 +13,24 @@ import {
   Loader2,
   Trash2,
   Upload,
+  UserPlus,
   Users,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
 const DEMO_TEMPLATE = [
-  'name,email,phone,notes',
-  '张三,zhangsan@example.com,0211234567,以前上过流瑜伽',
-  '李四,lisi@example.com,+64 21 765 432,可优先联系周三课程',
+  'name,email,phone,notes,remaining',
+  '张三,zhangsan@example.com,0211234567,以前上过流瑜伽,0',
+  '李四,lisi@example.com,+64 21 765 432,可优先联系周三课程,2',
 ].join('\n');
+
+// Quote one CSV cell so commas, quotes or line breaks in a value can't split the row.
+function csvCell(value) {
+  return `"${String(value || '').replace(/[\r\n]+/g, ' ').replace(/"/g, '""')}"`;
+}
+
+const EMPTY_MANUAL = { name: '', email: '', phone: '', notes: '', remaining: '0' };
 
 function normalizeError(payload, fallbackMessage) {
   if (!payload) return fallbackMessage;
@@ -42,6 +50,8 @@ export default function AdminFutureCustomersPage() {
   const [rawText, setRawText] = useState('');
   const [source, setSource] = useState('legacy-members');
   const [preview, setPreview] = useState(null);
+  const [manual, setManual] = useState(EMPTY_MANUAL);
+  const [manualBusy, setManualBusy] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -120,6 +130,60 @@ export default function AdminFutureCustomersPage() {
       setError(apiError.message || 'Import failed');
     } finally {
       setBusy(false);
+    }
+  }
+
+  // Add one person typed in by hand. Sends a one-row CSV through the same
+  // import endpoint so the usual duplicate checks still apply.
+  async function addManual(event) {
+    event.preventDefault();
+    const name = manual.name.trim();
+    const email = manual.email.trim();
+    const phone = manual.phone.trim();
+    const notes = manual.notes.trim();
+    const remaining = String(Math.max(0, Number.parseInt(manual.remaining, 10) || 0));
+
+    if (!name) {
+      setError('请填写姓名。/ Please enter a name.');
+      return;
+    }
+    if (!email && !phone) {
+      setError('请至少填写邮箱或电话其中一项。/ Please enter an email or phone number.');
+      return;
+    }
+
+    setManualBusy(true);
+    setError('');
+    setMessage('');
+
+    try {
+      const rawText = ['name,email,phone,notes,remaining', [name, email, phone, notes, remaining].map(csvCell).join(',')].join('\n');
+      const res = await fetch('/api/admin/future-customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rawText, source: 'manual-entry', confirmOverlap: false }),
+      });
+      const data = await res.json();
+
+      if (res.status === 409 && data.needsConfirmation) {
+        setError(`${name} 已经在“客户资料”里（已是现有客户），所以没有添加。/ Already an existing customer, not added.`);
+        return;
+      }
+      if (!res.ok || !data.success) {
+        throw new Error(normalizeError(data, 'Failed to add'));
+      }
+      if ((data.summary?.imported ?? 0) === 0) {
+        setError(`${name} 已经在未来客户名单里了，没有重复添加。/ Already on the list, not added again.`);
+        return;
+      }
+
+      setMessage(`已添加 ${name} 到未来客户名单。/ Added to the list.`);
+      setManual(EMPTY_MANUAL);
+      await fetchList();
+    } catch (apiError) {
+      setError(apiError.message || 'Failed to add');
+    } finally {
+      setManualBusy(false);
     }
   }
 
@@ -215,6 +279,75 @@ export default function AdminFutureCustomersPage() {
               </div>
             )}
 
+            <form
+              onSubmit={addManual}
+              className="mb-6 rounded-2xl border border-glow-cyan/20 bg-card/60 p-5 space-y-4"
+            >
+              <div>
+                <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                  <UserPlus className="w-5 h-5 text-glow-cyan" />
+                  手动添加学员 / Add a Person Manually
+                </h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  不需要上传文件。填写想来但还没来过的学员信息，姓名必填，邮箱或电话至少填一项。
+                </p>
+              </div>
+
+              <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                <input
+                  value={manual.name}
+                  onChange={(e) => setManual((m) => ({ ...m, name: e.target.value }))}
+                  placeholder="姓名 / Name *"
+                  maxLength={100}
+                  className="w-full px-3 py-2 rounded-lg bg-card/70 border border-glow-cyan/20 focus:outline-none focus:border-glow-cyan/50 text-sm"
+                />
+                <input
+                  type="email"
+                  value={manual.email}
+                  onChange={(e) => setManual((m) => ({ ...m, email: e.target.value }))}
+                  placeholder="邮箱 / Email"
+                  maxLength={200}
+                  className="w-full px-3 py-2 rounded-lg bg-card/70 border border-glow-cyan/20 focus:outline-none focus:border-glow-cyan/50 text-sm"
+                />
+                <input
+                  type="tel"
+                  value={manual.phone}
+                  onChange={(e) => setManual((m) => ({ ...m, phone: e.target.value }))}
+                  placeholder="电话 / Phone"
+                  maxLength={40}
+                  className="w-full px-3 py-2 rounded-lg bg-card/70 border border-glow-cyan/20 focus:outline-none focus:border-glow-cyan/50 text-sm"
+                />
+                <input
+                  value={manual.notes}
+                  onChange={(e) => setManual((m) => ({ ...m, notes: e.target.value }))}
+                  placeholder="备注 / Notes（例如：想上周五课）"
+                  maxLength={500}
+                  className="w-full px-3 py-2 rounded-lg bg-card/70 border border-glow-cyan/20 focus:outline-none focus:border-glow-cyan/50 text-sm"
+                />
+                <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span className="whitespace-nowrap">剩余课次 / Classes left</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    inputMode="numeric"
+                    value={manual.remaining}
+                    onChange={(e) => setManual((m) => ({ ...m, remaining: e.target.value }))}
+                    className="w-20 px-3 py-2 rounded-lg bg-card/70 border border-glow-cyan/20 focus:outline-none focus:border-glow-cyan/50 text-sm text-foreground"
+                  />
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                disabled={manualBusy}
+                className="px-4 py-2 rounded-lg bg-glow-cyan/20 border border-glow-cyan/40 text-glow-cyan hover:bg-glow-cyan/30 disabled:opacity-60 text-sm transition-colors inline-flex items-center gap-2"
+              >
+                {manualBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+                {manualBusy ? '添加中... / Adding...' : '添加到名单 / Add to List'}
+              </button>
+            </form>
+
             <div className="grid lg:grid-cols-2 gap-6 mb-6">
               <div className="rounded-2xl border border-glow-cyan/20 bg-card/60 p-5 space-y-4">
                 <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
@@ -241,7 +374,7 @@ export default function AdminFutureCustomersPage() {
                     placeholder={DEMO_TEMPLATE}
                   />
                   <p className="text-xs text-muted-foreground">
-                    格式示例：name,email,phone,notes（第一行可带表头）
+                    格式示例：name,email,phone,notes,remaining（第一行可带表头；remaining 为剩余课次，不填默认为 0）
                   </p>
                 </div>
 
@@ -341,6 +474,7 @@ export default function AdminFutureCustomersPage() {
                         <th className="text-left px-4 py-3 font-medium text-glow-cyan">邮箱</th>
                         <th className="text-left px-4 py-3 font-medium text-glow-cyan">电话</th>
                         <th className="text-left px-4 py-3 font-medium text-glow-cyan">备注</th>
+                        <th className="text-left px-4 py-3 font-medium text-glow-cyan">剩余课次</th>
                         <th className="text-left px-4 py-3 font-medium text-glow-cyan">来源</th>
                         <th className="text-left px-4 py-3 font-medium text-glow-cyan">添加时间</th>
                         <th className="text-center px-4 py-3 font-medium text-glow-cyan">操作</th>
@@ -353,6 +487,7 @@ export default function AdminFutureCustomersPage() {
                           <td className="px-4 py-3 text-muted-foreground break-all">{item.email || '-'}</td>
                           <td className="px-4 py-3 text-foreground">{item.phone || '-'}</td>
                           <td className="px-4 py-3 text-muted-foreground max-w-[320px]">{item.notes || '-'}</td>
+                          <td className="px-4 py-3 text-foreground">{item.remainingClasses ?? 0}</td>
                           <td className="px-4 py-3 text-muted-foreground">{item.source || '-'}</td>
                           <td className="px-4 py-3 text-muted-foreground">{new Date(item.createdAt).toLocaleDateString()}</td>
                           <td className="px-4 py-3 text-center">

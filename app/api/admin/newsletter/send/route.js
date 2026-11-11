@@ -5,6 +5,7 @@ import dbConnect from '@/lib/mongodb';
 import NewsletterCampaign from '@/lib/models/NewsletterCampaign';
 import User from '@/lib/models/User';
 import HealthIntake from '@/lib/models/HealthIntake';
+import FutureCustomer from '@/lib/models/FutureCustomer';
 import SendLog from '@/lib/models/SendLog';
 import { getWeekSchedule } from '@/lib/newsletter-schedule';
 import { appendBrandLogo, getCompanyLogoUrl } from '@/lib/email-branding';
@@ -159,6 +160,22 @@ export async function POST(request) {
             email: i.userEmail,
             name: i.userName,
             remainingClasses: normalizeRemainingClasses(i.remainingClassCredits),
+          });
+        }
+      });
+
+      // Future customers (people who want to come / used to come). Anyone whose
+      // email already belongs to a student account or health form is skipped.
+      const futureCustomers = await FutureCustomer.find({ email: { $nin: ['', null] } })
+        .select('email name remainingClasses')
+        .lean();
+      futureCustomers.forEach((f) => {
+        const key = String(f.email || '').toLowerCase();
+        if (key && !emailMap.has(key)) {
+          emailMap.set(key, {
+            email: f.email,
+            name: f.name || 'Student',
+            remainingClasses: normalizeRemainingClasses(f.remainingClasses),
           });
         }
       });
