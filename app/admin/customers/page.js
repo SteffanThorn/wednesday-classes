@@ -7,6 +7,7 @@ import Link from 'next/link';
 import Header from '@/components/Header';
 import FloatingParticles from '@/components/FloatingParticle';
 import { Loader2, ChevronRight, Eye, Download, UserPlus, UserCog } from 'lucide-react';
+import BuyPackageMenu from '@/components/admin/BuyPackageMenu';
 
 const PACKAGE_TOTAL_CLASSES = 5;
 
@@ -63,8 +64,9 @@ function AdminCustomersPageContent() {
 		}
 	}, [searchParams]);
 
-	const fetchCustomers = async () => {
-		setLoading(true);
+	// silent: refresh the numbers without swapping the table for a spinner
+	const fetchCustomers = async ({ silent = false } = {}) => {
+		if (!silent) setLoading(true);
 		setError('');
 
 		try {
@@ -370,7 +372,7 @@ function AdminCustomersPageContent() {
 															<div className="flex flex-col gap-1">
 																<span className="text-foreground font-medium">{formatMoney(customer.spend?.totalSpent)}</span>
 																<span className="text-[11px] text-muted-foreground whitespace-nowrap">
-																	{customer.spend?.singleClasses ?? 0} × $15 · {customer.spend?.packages ?? 0} × 5-pack
+																	{customer.spend?.singleClasses ?? 0} × $15 · {customer.spend?.packages ?? 0} 课包 / packs
 																</span>
 																{(customer.spend?.amountOwed ?? 0) > 0 && (
 																	<span className="inline-flex w-fit px-2 py-0.5 rounded text-[11px] bg-red-500/20 text-red-300">
@@ -386,19 +388,24 @@ function AdminCustomersPageContent() {
 															{new Date(customer.createdAt).toLocaleDateString()}
 														</td>
 														<td className="px-4 py-3 text-center">
-															{accountOnly ? (
-																<span className="text-xs text-muted-foreground">新注册 / New sign-up</span>
-															) : (
 															<div className="inline-flex items-center gap-2">
-																<Link
-																	href={`/admin/customers/${customer.id}`}
-																	className="inline-flex items-center gap-1 px-3 py-1 rounded bg-glow-cyan/10 border border-glow-cyan/30 text-glow-cyan hover:bg-glow-cyan/20 transition-colors text-xs"
-																>
-																	<Eye className="w-3 h-3" />
-																	查看 / View
-																</Link>
+																{accountOnly ? (
+																	<span className="text-xs text-muted-foreground whitespace-nowrap">新注册 / New sign-up</span>
+																) : (
+																	<Link
+																		href={`/admin/customers/${customer.id}`}
+																		className="inline-flex items-center gap-1 px-3 py-1 rounded bg-glow-cyan/10 border border-glow-cyan/30 text-glow-cyan hover:bg-glow-cyan/20 transition-colors text-xs whitespace-nowrap"
+																	>
+																		<Eye className="w-3 h-3" />
+																		查看 / View
+																	</Link>
+																)}
+																<BuyPackageMenu
+																	userId={customer.userId}
+																	customerName={customer.userName}
+																	onPurchased={() => fetchCustomers({ silent: true })}
+																/>
 															</div>
-															)}
 														</td>
 													</tr>
 												);
