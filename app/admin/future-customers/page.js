@@ -52,6 +52,7 @@ export default function AdminFutureCustomersPage() {
   const [preview, setPreview] = useState(null);
   const [manual, setManual] = useState(EMPTY_MANUAL);
   const [manualBusy, setManualBusy] = useState(false);
+  const [cleanupNote, setCleanupNote] = useState('');
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -84,6 +85,12 @@ export default function AdminFutureCustomersPage() {
         throw new Error(normalizeError(data, 'Failed to load future customers'));
       }
       setList(data.customers || []);
+      const removed = data.removedDuplicates || [];
+      if (removed.length) {
+        setCleanupNote(
+          `已自动删除 ${removed.length} 位已经是现有客户的人：${removed.map((r) => r.name || r.email).join('、')}。/ Removed ${removed.length} people who are already existing customers.`
+        );
+      }
     } catch (apiError) {
       setError(apiError.message || 'Failed to load future customers');
     } finally {
@@ -276,6 +283,12 @@ export default function AdminFutureCustomersPage() {
             {message && (
               <div className="mb-4 p-4 rounded-lg bg-glow-cyan/10 border border-glow-cyan/20 text-glow-cyan text-sm">
                 {message}
+              </div>
+            )}
+
+            {cleanupNote && (
+              <div className="mb-4 p-4 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-200 text-sm">
+                {cleanupNote}
               </div>
             )}
 
