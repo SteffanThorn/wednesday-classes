@@ -33,6 +33,12 @@ const MAX_ATTACHMENTS = 5;
 const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024; // 5MB
 const SEND_CONFIRM_PHRASE = 'SEND';
 
+// "（已跳过 2 位已退订的人）" when a send left out people who unsubscribed
+function unsubscribedNote(data) {
+  const n = Number(data?.skippedUnsubscribed || 0);
+  return n > 0 ? `（已跳过 ${n} 位已退订的人）` : '';
+}
+
 // ─── Status helpers ───────────────────────────────────────────────────────────
 
 function StatusBadge({ status }) {
@@ -120,6 +126,24 @@ function NewsletterAdminPageContent() {
     attachments: [],
     videoUrl: '',
   });
+  // 'letter' (plain personal letter, default) or 'designed'; remembered on this device
+  const [emailStyle, setEmailStyle] = useState(() => {
+    try {
+      return typeof window !== 'undefined' && window.localStorage.getItem('newsletterEmailStyle') === 'designed'
+        ? 'designed'
+        : 'letter';
+    } catch {
+      return 'letter';
+    }
+  });
+  const chooseEmailStyle = (value) => {
+    setEmailStyle(value);
+    try {
+      window.localStorage.setItem('newsletterEmailStyle', value);
+    } catch {
+      // not saved; the choice still applies until the page is reloaded
+    }
+  };
   const [toast, setToast] = useState(null); // { type: 'success'|'error', message }
   const [sendResult, setSendResult] = useState(null); // { logId, kind, sent, total, failures[] } — see SendResultPanel
   const [confirmSend, setConfirmSend] = useState(false);
@@ -495,6 +519,7 @@ function NewsletterAdminPageContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          emailStyle,
           subject: customForm.subject,
           content: customForm.content,
           testEmail: COMPANY_TEST_EMAILS,
@@ -531,6 +556,7 @@ function NewsletterAdminPageContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          emailStyle,
           subject: customForm.subject,
           content: customForm.content,
           attachments: customForm.attachments,
@@ -545,7 +571,7 @@ function NewsletterAdminPageContent() {
         setCustomModalOpen(false);
       }
       if (res.ok && data.success) {
-        showToast('success', `自定义邮件已发送给 ${data.sent} 位学生`);
+        showToast('success', `自定义邮件已发送给 ${data.sent} 位学生${unsubscribedNote(data)}`);
       } else if (res.ok && data.partialSuccess) {
         showToast('error', `部分发送成功：${data.sent}/${data.total}，详见发送结果`);
       } else {
@@ -578,6 +604,7 @@ function NewsletterAdminPageContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          emailStyle,
           subject: customForm.subject,
           content: customForm.content,
           attachments: customForm.attachments,
@@ -593,7 +620,7 @@ function NewsletterAdminPageContent() {
         setCustomModalOpen(false);
       }
       if (res.ok && data.success) {
-        showToast('success', `自定义邮件已发送给已选择客户（${data.sent} 位）`);
+        showToast('success', `自定义邮件已发送给已选择客户（${data.sent} 位）${unsubscribedNote(data)}`);
       } else if (res.ok && data.partialSuccess) {
         showToast('error', `部分发送成功：${data.sent}/${data.total}，详见发送结果`);
       } else {
@@ -688,6 +715,7 @@ function NewsletterAdminPageContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          emailStyle,
           weekNumber: selectedWeek.week,
           testEmail: COMPANY_TEST_EMAILS,
         }),
@@ -728,6 +756,7 @@ function NewsletterAdminPageContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          emailStyle,
           weekNumber: selectedWeek.week,
           confirmPhrase: SEND_CONFIRM_PHRASE,
         }),
@@ -735,7 +764,7 @@ function NewsletterAdminPageContent() {
       const data = await res.json();
       if (res.ok || data.logId) showSendResult(data, 'weekly');
       if (res.ok && data.success) {
-        showToast('success', `✓ 已成功发送给 ${data.sent} 位学生！`);
+        showToast('success', `✓ 已成功发送给 ${data.sent} 位学生！${unsubscribedNote(data)}`);
         fetchWeeks();
         setSelectedWeek((prev) => ({ ...prev, campaign: { ...prev.campaign, status: 'sent' } }));
       } else if (res.ok && data.partialSuccess) {
@@ -798,6 +827,7 @@ function NewsletterAdminPageContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          emailStyle,
           weekNumber: selectedWeek.week,
           selectedRecipients: customSelectedEmails,
           confirmPhrase: SEND_CONFIRM_PHRASE,
@@ -806,7 +836,7 @@ function NewsletterAdminPageContent() {
       const data = await res.json();
       if (res.ok || data.logId) showSendResult(data, 'weekly', customSelectedEmails.length);
       if (res.ok && data.success) {
-        showToast('success', `✓ 已发送给已选择客户（${data.sent} 位）`);
+        showToast('success', `✓ 已发送给已选择客户（${data.sent} 位）${unsubscribedNote(data)}`);
       } else if (res.ok && data.partialSuccess) {
         showToast('error', `部分发送成功：${data.sent}/${data.total}，详见发送结果`);
       } else {
@@ -846,6 +876,7 @@ function NewsletterAdminPageContent() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+              emailStyle,
               weekNumber: week.week,
               confirmPhrase: SEND_CONFIRM_PHRASE,
             }),
@@ -1008,6 +1039,27 @@ function NewsletterAdminPageContent() {
                       ? `编辑 Week ${selectedWeek.week} · ${isZh ? selectedWeek.bodyFocusZh : selectedWeek.bodyFocus}`
                       : '12周课程邮件系统 — 四月开始发送'}
                   </p>
+                  {/* Applies to every send on this page (weekly and custom, test and real) */}
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                    <span className="text-muted-foreground">邮件样式 / Email style:</span>
+                    {[
+                      { value: 'letter', label: '简洁信件风格（推荐，更容易进主要收件箱）' },
+                      { value: 'designed', label: '设计版模板' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => chooseEmailStyle(opt.value)}
+                        className={`px-3 py-1.5 rounded-lg border transition-colors ${
+                          emailStyle === opt.value
+                            ? 'bg-glow-cyan/20 border-glow-cyan text-glow-cyan'
+                            : 'border-glow-cyan/20 text-muted-foreground hover:border-glow-cyan/40'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
