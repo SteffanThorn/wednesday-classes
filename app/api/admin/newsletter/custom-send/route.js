@@ -10,6 +10,7 @@ import { appendBrandLogo, getCompanyLogoUrl } from '@/lib/email-branding';
 import { personalizeTextForRecipient } from '@/lib/email-personalization';
 import { escapeHtml } from '@/lib/html-escape';
 import { htmlToText } from '@/lib/html-to-text';
+import { buildCustomLetterHtml } from '@/lib/email-letter';
 import { getOptedOutEmails, unsubscribeHeaders, unsubscribePageUrl } from '@/lib/newsletter-unsubscribe';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -312,6 +313,8 @@ export async function POST(request) {
     const selectedRecipientEmails = normalizeSelectedRecipients(body?.selectedRecipients);
     const attachments = normalizeAttachments(body?.attachments);
     const videoUrl = normalizeVideoUrl(body?.videoUrl);
+    // 'letter' = plain personal-letter look (default), 'designed' = the colourful template
+    const emailStyle = body?.emailStyle === 'designed' ? 'designed' : 'letter';
 
     if (!subject?.trim()) {
       return NextResponse.json({ error: 'Subject is required' }, { status: 400 });
@@ -473,18 +476,27 @@ export async function POST(request) {
         })),
       ];
 
-      const html = appendBrandLogo(
-        buildCustomEmailHtml({
+      const html = emailStyle === 'letter'
+        ? buildCustomLetterHtml({
           userName: recipient.name,
           content: personalizedContent,
-          logoUrl: getCompanyLogoUrl(),
           inlineImages,
           fileAttachments,
           videoUrl,
           unsubscribeUrl: unsubscribePageUrl(recipient.email),
-        }),
-        undefined
-      );
+        })
+        : appendBrandLogo(
+          buildCustomEmailHtml({
+            userName: recipient.name,
+            content: personalizedContent,
+            logoUrl: getCompanyLogoUrl(),
+            inlineImages,
+            fileAttachments,
+            videoUrl,
+            unsubscribeUrl: unsubscribePageUrl(recipient.email),
+          }),
+          undefined
+        );
 
       return {
         from: `${SENDER_NAME} <${SENDER_EMAIL}>`,

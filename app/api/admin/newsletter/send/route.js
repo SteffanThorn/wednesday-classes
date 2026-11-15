@@ -11,6 +11,7 @@ import { getWeekSchedule } from '@/lib/newsletter-schedule';
 import { appendBrandLogo, getCompanyLogoUrl } from '@/lib/email-branding';
 import { personalizeTextForRecipient } from '@/lib/email-personalization';
 import { htmlToText } from '@/lib/html-to-text';
+import { buildWeeklyLetterHtml } from '@/lib/email-letter';
 import { getOptedOutEmails, unsubscribeHeaders, unsubscribePageUrl } from '@/lib/newsletter-unsubscribe';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -100,6 +101,8 @@ export async function POST(request) {
   try {
     const body = await request.json();
     const { weekNumber, testEmail, selectedRecipients, confirmPhrase } = body;
+    // 'letter' = plain personal-letter look (default), 'designed' = the colourful template
+    const emailStyle = body?.emailStyle === 'designed' ? 'designed' : 'letter';
 
     if (!weekNumber || weekNumber < 1 || weekNumber > 12) {
       return NextResponse.json({ error: 'Invalid weekNumber' }, { status: 400 });
@@ -232,22 +235,30 @@ export async function POST(request) {
         remainingClasses: recipient.remainingClasses,
       });
 
-      const newsletterHtml = buildNewsletterHtml({
-        userName: recipient.name,
-        weekNumber: campaign.weekNumber,
-        title: schedule.title,
-        titleZh: schedule.titleZh,
-        bodyFocus: schedule.bodyFocus,
-        bodyFocusZh: schedule.bodyFocusZh,
-        emoji: schedule.emoji,
-        logoUrl: getCompanyLogoUrl(),
-        classSummaries: schedule.classSummaries || [],
-        mainContent: personalizedMainContent,
-        practiceHighlights: campaign.practiceHighlights,
-        instructorNote: personalizedInstructorNote,
-        unsubscribeUrl: unsubscribePageUrl(recipient.email),
-      });
-      const html = appendBrandLogo(newsletterHtml);
+      const html = emailStyle === 'letter'
+        ? buildWeeklyLetterHtml({
+          userName: recipient.name,
+          classSummaries: schedule.classSummaries || [],
+          mainContent: personalizedMainContent,
+          practiceHighlights: campaign.practiceHighlights,
+          instructorNote: personalizedInstructorNote,
+          unsubscribeUrl: unsubscribePageUrl(recipient.email),
+        })
+        : appendBrandLogo(buildNewsletterHtml({
+          userName: recipient.name,
+          weekNumber: campaign.weekNumber,
+          title: schedule.title,
+          titleZh: schedule.titleZh,
+          bodyFocus: schedule.bodyFocus,
+          bodyFocusZh: schedule.bodyFocusZh,
+          emoji: schedule.emoji,
+          logoUrl: getCompanyLogoUrl(),
+          classSummaries: schedule.classSummaries || [],
+          mainContent: personalizedMainContent,
+          practiceHighlights: campaign.practiceHighlights,
+          instructorNote: personalizedInstructorNote,
+          unsubscribeUrl: unsubscribePageUrl(recipient.email),
+        }));
 
       return {
         from: `${SENDER_NAME} <${SENDER_EMAIL}>`,
