@@ -33,6 +33,12 @@ const MAX_ATTACHMENTS = 5;
 const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024; // 5MB
 const SEND_CONFIRM_PHRASE = 'SEND';
 
+// "（已跳过 2 位已退订的人）" when a send left out people who unsubscribed
+function unsubscribedNote(data) {
+  const n = Number(data?.skippedUnsubscribed || 0);
+  return n > 0 ? `（已跳过 ${n} 位已退订的人）` : '';
+}
+
 // ─── Status helpers ───────────────────────────────────────────────────────────
 
 function StatusBadge({ status }) {
@@ -545,7 +551,7 @@ function NewsletterAdminPageContent() {
         setCustomModalOpen(false);
       }
       if (res.ok && data.success) {
-        showToast('success', `自定义邮件已发送给 ${data.sent} 位学生`);
+        showToast('success', `自定义邮件已发送给 ${data.sent} 位学生${unsubscribedNote(data)}`);
       } else if (res.ok && data.partialSuccess) {
         showToast('error', `部分发送成功：${data.sent}/${data.total}，详见发送结果`);
       } else {
@@ -593,7 +599,7 @@ function NewsletterAdminPageContent() {
         setCustomModalOpen(false);
       }
       if (res.ok && data.success) {
-        showToast('success', `自定义邮件已发送给已选择客户（${data.sent} 位）`);
+        showToast('success', `自定义邮件已发送给已选择客户（${data.sent} 位）${unsubscribedNote(data)}`);
       } else if (res.ok && data.partialSuccess) {
         showToast('error', `部分发送成功：${data.sent}/${data.total}，详见发送结果`);
       } else {
@@ -735,7 +741,7 @@ function NewsletterAdminPageContent() {
       const data = await res.json();
       if (res.ok || data.logId) showSendResult(data, 'weekly');
       if (res.ok && data.success) {
-        showToast('success', `✓ 已成功发送给 ${data.sent} 位学生！`);
+        showToast('success', `✓ 已成功发送给 ${data.sent} 位学生！${unsubscribedNote(data)}`);
         fetchWeeks();
         setSelectedWeek((prev) => ({ ...prev, campaign: { ...prev.campaign, status: 'sent' } }));
       } else if (res.ok && data.partialSuccess) {
@@ -806,7 +812,7 @@ function NewsletterAdminPageContent() {
       const data = await res.json();
       if (res.ok || data.logId) showSendResult(data, 'weekly', customSelectedEmails.length);
       if (res.ok && data.success) {
-        showToast('success', `✓ 已发送给已选择客户（${data.sent} 位）`);
+        showToast('success', `✓ 已发送给已选择客户（${data.sent} 位）${unsubscribedNote(data)}`);
       } else if (res.ok && data.partialSuccess) {
         showToast('error', `部分发送成功：${data.sent}/${data.total}，详见发送结果`);
       } else {

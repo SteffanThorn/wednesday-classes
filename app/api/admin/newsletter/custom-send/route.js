@@ -1,6 +1,4 @@
 import { NextResponse } from 'next/server';
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
 import { auth } from '@/auth';
 import { Resend } from 'resend';
 import dbConnect from '@/lib/mongodb';
@@ -11,6 +9,8 @@ import SendLog from '@/lib/models/SendLog';
 import { appendBrandLogo, getCompanyLogoUrl } from '@/lib/email-branding';
 import { personalizeTextForRecipient } from '@/lib/email-personalization';
 import { escapeHtml } from '@/lib/html-escape';
+import { htmlToText } from '@/lib/html-to-text';
+import { getOptedOutEmails, unsubscribeHeaders, unsubscribePageUrl } from '@/lib/newsletter-unsubscribe';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -22,7 +22,6 @@ const SENDER_EMAIL = (
 
 const SENDER_NAME = 'Yuki · INNER LIGHT Yoga';
 const COMPANY_EMAIL = process.env.COMPANY_EMAIL || 'innerlightyuki@gmail.com';
-const COMPANY_LOGO_CID = 'innerlight-logo-footer';
 const SEND_CONCURRENCY = 5;
 const MAX_ATTACHMENTS = 5;
 const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024; // 5MB
@@ -163,21 +162,6 @@ function isInlineImage(file) {
   return ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'].includes(normalized);
 }
 
-async function loadCompanyLogoAttachment() {
-  try {
-    const logoPath = path.join(process.cwd(), 'public', 'innerlight-logo.png');
-    const logoBuffer = await readFile(logoPath);
-    return {
-      filename: 'innerlight-logo.png',
-      content: logoBuffer,
-      contentId: COMPANY_LOGO_CID,
-    };
-  } catch (error) {
-    console.warn('Custom newsletter logo attachment not loaded, fallback to URL logo:', error?.message || error);
-    return null;
-  }
-}
-
 function normalizeTestRecipients(testEmail, fallbackName) {
   if (!testEmail) return [];
 
@@ -201,7 +185,7 @@ function normalizeRemainingClasses(value) {
   return Math.max(0, Math.floor(parsed));
 }
 
-function buildCustomEmailHtml({ userName, content, logoUrl, inlineImages = [], fileAttachments = [], videoUrl = null }) {
+function buildCustomEmailHtml({ userName, content, logoUrl, inlineImages = [], fileAttachments = [], videoUrl = null, unsubscribeUrl = '' }) {
   const firstName = userName?.split(' ')[0] || 'Friend';
   const paragraphs = content
     .split('\n\n')
@@ -300,6 +284,7 @@ ${inlineImages
           <tr>
             <td style="padding:18px 24px;background:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;">
               <p style="margin:0;color:#6b7280;font-size:12px;">Move with awareness. Live with balance. Shine from within. ✨</p>
+              ${unsubscribeUrl ? `<p style="margin:8px 0 0;color:#9ca3af;font-size:11px;">Don&rsquo;t want these emails? <a href="${unsubscribeUrl}" style="color:#9ca3af;text-decoration:underline;">Unsubscribe</a></p>` : ''}
             </td>
           </tr>
         </table>
@@ -441,11 +426,23 @@ export async function POST(request) {
       recipients = Array.from(emailMap.values());
     }
 
-    if (recipients.length === 0) {
-      return NextResponse.json({ error: 'No recipients found' }, { status: 400 });
+    // Leave out anyone who unsubscribed (test sends always go out).
+    let skippedUnsubscribed = 0;
+    if (!testEmail) {
+      const optedOut = await getOptedOutEmails(recipients.map((r) => r.email));
+      skippedUnsubscribed = recipients.filter((r) => optedOut.has(String(r.email).toLowerCase())).length;
+      recipients = recipients.filter((r) => !optedOut.has(String(r.email).toLowerCase()));
     }
 
-    const logoAttachment = await loadCompanyLogoAttachment();
+    if (recipients.length === 0) {
+      return NextResponse.json(
+        { error: skippedUnsubscribed ? 'All selected recipients have unsubscribed' : 'No recipients found' },
+        { status: 400 }
+      );
+    }
+
+    // The logo is shown from its web address in the email body, so it is not
+    // attached as a file (an extra attachment on every email looks like bulk mail).
 
     // Separate images from file attachments and add CID to images
     const inlineImages = attachments.filter(isInlineImage).map((file, idx) => ({
@@ -465,7 +462,6 @@ export async function POST(request) {
 
       // Combine inline images and file attachments for Resend
       const allAttachments = [
-        ...(logoAttachment ? [logoAttachment] : []),
         ...inlineImages.map((img) => ({
           filename: img.filename,
           content: Buffer.from(img.content, 'base64'),
@@ -477,22 +473,27 @@ export async function POST(request) {
         })),
       ];
 
+      const html = appendBrandLogo(
+        buildCustomEmailHtml({
+          userName: recipient.name,
+          content: personalizedContent,
+          logoUrl: getCompanyLogoUrl(),
+          inlineImages,
+          fileAttachments,
+          videoUrl,
+          unsubscribeUrl: unsubscribePageUrl(recipient.email),
+        }),
+        undefined
+      );
+
       return {
         from: `${SENDER_NAME} <${SENDER_EMAIL}>`,
         to: recipient.email,
         subject: personalizedSubject,
-        html: appendBrandLogo(
-          buildCustomEmailHtml({
-            userName: recipient.name,
-            content: personalizedContent,
-            logoUrl: getCompanyLogoUrl(),
-            inlineImages,
-            fileAttachments,
-            videoUrl,
-          }),
-          undefined
-        ),
+        html,
+        text: htmlToText(html),
         replyTo: COMPANY_EMAIL,
+        headers: unsubscribeHeaders(recipient.email, COMPANY_EMAIL),
         attachments: allAttachments.length > 0 ? allAttachments : undefined,
       };
     });
@@ -575,6 +576,7 @@ export async function POST(request) {
       partialSuccess: errors.length > 0,
       sent: totalSent,
       total: recipients.length,
+      skippedUnsubscribed,
       errors: errors.length > 0 ? errors : undefined,
       failures,
       logId,

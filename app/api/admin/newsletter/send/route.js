@@ -10,6 +10,8 @@ import SendLog from '@/lib/models/SendLog';
 import { getWeekSchedule } from '@/lib/newsletter-schedule';
 import { appendBrandLogo, getCompanyLogoUrl } from '@/lib/email-branding';
 import { personalizeTextForRecipient } from '@/lib/email-personalization';
+import { htmlToText } from '@/lib/html-to-text';
+import { getOptedOutEmails, unsubscribeHeaders, unsubscribePageUrl } from '@/lib/newsletter-unsubscribe';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -67,6 +69,8 @@ function isValidEmail(email) {
   const value = String(email || '').trim().toLowerCase();
   if (!value || value.includes('placeholder.local')) return false;
   if (value.includes('*')) return false;
+  // Resend rejects reserved test domains, and one bad address fails the whole batch.
+  if (/@(example\.(com|org|net)|test\.com)$/.test(value)) return false;
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value);
 }
 
@@ -197,6 +201,14 @@ export async function POST(request) {
     }
     recipients = recipients.filter((recipient) => isValidEmail(recipient?.email));
 
+    // Leave out anyone who unsubscribed (test sends always go out).
+    let skippedUnsubscribed = 0;
+    if (!testEmail) {
+      const optedOut = await getOptedOutEmails(recipients.map((r) => r.email));
+      skippedUnsubscribed = recipients.filter((r) => optedOut.has(String(r.email).toLowerCase())).length;
+      recipients = recipients.filter((r) => !optedOut.has(String(r.email).toLowerCase()));
+    }
+
     if (recipients.length === 0) {
       return NextResponse.json(
         {
@@ -233,14 +245,18 @@ export async function POST(request) {
         mainContent: personalizedMainContent,
         practiceHighlights: campaign.practiceHighlights,
         instructorNote: personalizedInstructorNote,
+        unsubscribeUrl: unsubscribePageUrl(recipient.email),
       });
+      const html = appendBrandLogo(newsletterHtml);
 
       return {
         from: `${SENDER_NAME} <${SENDER_EMAIL}>`,
         to: recipient.email,
         subject: personalizedSubject,
-        html: appendBrandLogo(newsletterHtml),
+        html,
+        text: htmlToText(html),
         replyTo: COMPANY_EMAIL,
+        headers: unsubscribeHeaders(recipient.email, COMPANY_EMAIL),
       };
     });
 
@@ -369,6 +385,7 @@ export async function POST(request) {
       selectedMode: isSelectedMode,
       sent: totalSent,
       total: recipients.length,
+      skippedUnsubscribed,
       errors: errors.length > 0 ? errors : undefined,
       failures,
       logId,
@@ -398,6 +415,7 @@ function buildNewsletterHtml({
   mainContent,
   practiceHighlights,
   instructorNote,
+  unsubscribeUrl,
 }) {
   const firstName = userName?.split(' ')[0] || 'Friend';
 
@@ -644,8 +662,9 @@ function buildNewsletterHtml({
               <p style="margin: 0 0 10px; color: #9ca3af; font-size: 12px; font-style: italic;">
                 Breathe deeply. Move gently. Live fully.
               </p>
-              <p style="margin: 0; color: #d1d5db; font-size: 11px;">
-                To unsubscribe, reply to this email with the word &ldquo;Unsubscribe&rdquo;.
+              <p style="margin: 0; color: #9ca3af; font-size: 11px;">
+                Don&rsquo;t want these emails?
+                <a href="${unsubscribeUrl}" style="color: #9ca3af; text-decoration: underline;">Unsubscribe</a>
               </p>
             </td>
           </tr>
