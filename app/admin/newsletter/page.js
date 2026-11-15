@@ -368,6 +368,8 @@ function NewsletterAdminPageContent() {
       const futureValid = futureSorted.filter((item) => {
         const email = String(item.email || '').trim().toLowerCase();
         if (!email || email.includes('placeholder.local') || email.includes('*')) return false;
+        // Already an existing customer: show them only in that group, not twice.
+        if (activeMap.has(email)) return false;
         return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
       });
 

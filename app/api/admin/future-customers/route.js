@@ -251,9 +251,28 @@ export async function GET() {
   await dbConnect();
 
   try {
-    const list = await FutureCustomer.find({})
+    const all = await FutureCustomer.find({})
       .sort({ createdAt: -1 })
       .lean();
+
+    // Anyone who is already an existing customer (website account or health
+    // form) shouldn't also be on the future list. Same matching as the import:
+    // by email, or by phone when there's no email.
+    const { activeByEmail, activeByPhone } = await getActiveMaps();
+    const isExistingCustomer = (item) => {
+      const email = normalizeEmail(item.email);
+      if (email) return activeByEmail.has(email);
+      const phone = normalizePhone(item.phone);
+      return phone.replace(/\D/g, '').length >= 6 && activeByPhone.has(phone);
+    };
+
+    // Delete those duplicates, except survey submissions: they also feed the
+    // Survey Submissions page, so they are kept there and only hidden here.
+    const removedDuplicates = all.filter((item) => item.source !== 'questionnaire' && isExistingCustomer(item));
+    if (removedDuplicates.length) {
+      await FutureCustomer.deleteMany({ _id: { $in: removedDuplicates.map((item) => item._id) } });
+    }
+    const list = all.filter((item) => !isExistingCustomer(item));
 
     const customers = list.map((item) => ({
       id: item._id.toString(),
@@ -271,6 +290,7 @@ export async function GET() {
       success: true,
       count: customers.length,
       customers,
+      removedDuplicates: removedDuplicates.map((item) => ({ name: item.name, email: item.email || '', phone: item.phone || '' })),
       adminEmail: session.user.email || '',
     });
   } catch (apiError) {
