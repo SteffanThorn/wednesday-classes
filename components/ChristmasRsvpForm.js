@@ -69,8 +69,12 @@ export default function ChristmasRsvpForm({ initialChoice = '' }) {
           <p className="flex items-center justify-center gap-2 text-xs sm:text-sm font-medium" style={{ color: C.gold, letterSpacing: '0.35em' }}>
             <TreePine className="w-4 h-4" aria-hidden="true" /> INNER LIGHT
           </p>
-          <h1 className="mt-3 leading-[0.95] text-[3.25rem] sm:text-7xl" style={{ ...serif, fontWeight: 600, color: C.cream }}>
-            Christmas<br />Gathering
+          {/* One line at every screen width: the size scales with the screen */}
+          <h1
+            className="mt-3 leading-none whitespace-nowrap"
+            style={{ ...serif, fontWeight: 600, color: C.cream, fontSize: 'clamp(2rem, 10vw, 4.5rem)' }}
+          >
+            Christmas Gathering
           </h1>
           <p className="mt-3 text-2xl sm:text-3xl italic" style={{ ...serif, color: C.gold }}>Move, Relax &amp; Connect</p>
         </header>
@@ -78,7 +82,8 @@ export default function ChristmasRsvpForm({ initialChoice = '' }) {
         {/* Invitation */}
         <section className="mt-10 rounded-3xl px-6 py-8 sm:px-10 text-center" style={{ background: C.card, color: C.ink }}>
           <h2 className="text-3xl sm:text-4xl" style={{ ...serif, fontWeight: 600, color: C.red }}>Let&rsquo;s celebrate the year together!</h2>
-          <p className="mt-4 leading-relaxed">After our yoga practice, let&rsquo;s enjoy a little Christmas gathering with tea, coffee and homemade treats.</p>
+          <p className="mt-4 leading-relaxed">Our practice will begin with different forms of meditation, helping you truly connect with your body and, through your five senses, learn to be fully present in the moment.</p>
+          <p className="mt-3 leading-relaxed">After our yoga practice, let&rsquo;s enjoy a little Christmas gathering with tea, coffee and homemade treats.</p>
           <p className="mt-3 leading-relaxed">I&rsquo;ll prepare Chinese tea, green tea, tea bags and coffee.</p>
           <p className="mt-3 leading-relaxed">Feel free to bring along your favourite homemade cookies, cakes or little treats to share.</p>
           <p className="mt-4 text-xl italic" style={{ ...serif, color: C.bg }}>No pressure, just friendship, connection and a little Christmas happiness!</p>
