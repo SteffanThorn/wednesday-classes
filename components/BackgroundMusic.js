@@ -1,9 +1,19 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 import { Volume2, VolumeX } from 'lucide-react';
 
+// Standalone pages where the floating player would cover the content
+const HIDDEN_ON = ['/christmas'];
+
 export default function BackgroundMusic() {
+  const pathname = usePathname();
+  if (HIDDEN_ON.includes(pathname)) return null;
+  return <BackgroundMusicPlayer />;
+}
+
+function BackgroundMusicPlayer() {
   const [isPlaying, setIsPlaying] = useState(true); // Start with true for autoplay
   const [volume, setVolume] = useState(0.3); // 30% default volume
   const audioRef = useRef(null);
