@@ -55,16 +55,44 @@ function withResendGuidance(message) {
 
 // Resend's batch API does not support attachments (the logo and any uploaded files/images
 // are always attached here), so custom emails must go out one at a time via emails.send()
-// instead of batch.send(). Concurrency keeps this fast without tripping Resend's rate limit.
+// instead of batch.send(). A few run in parallel, paced below Resend's rate limit.
+// Resend allows 10 requests per second. Start at most one send every
+// MIN_GAP_MS (about 6–7 a second, leaving room for other site emails), and if
+// Resend still answers "too many requests", wait and try again.
+const MIN_GAP_MS = 150;
+const RATE_LIMIT_RETRIES = 3;
+let nextSendAt = 0;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function waitForSendSlot() {
+  const now = Date.now();
+  const slot = Math.max(now, nextSendAt);
+  nextSendAt = slot + MIN_GAP_MS;
+  if (slot > now) await sleep(slot - now);
+}
+
+function isRateLimited(error) {
+  const text = `${error?.name || ''} ${error?.statusCode || ''} ${extractErrorMessage(error)}`.toLowerCase();
+  return text.includes('rate_limit') || text.includes('429') || text.includes('too many requests');
+}
+
 async function sendEmailIndividually(email) {
-  try {
-    const { data, error } = await resend.emails.send(email);
-    if (error) {
-      return { ok: false, to: email.to, message: withResendGuidance(extractErrorMessage(error)) };
+  for (let attempt = 0; ; attempt++) {
+    await waitForSendSlot();
+    let error;
+    try {
+      const result = await resend.emails.send(email);
+      if (!result.error) return { ok: true, to: email.to, id: result.data?.id };
+      error = result.error;
+    } catch (err) {
+      error = err;
     }
-    return { ok: true, to: email.to, id: data?.id };
-  } catch (err) {
-    return { ok: false, to: email.to, message: withResendGuidance(extractErrorMessage(err)) };
+    if (isRateLimited(error) && attempt < RATE_LIMIT_RETRIES) {
+      await sleep(1000 * (attempt + 1)); // 1s, 2s, 3s
+      continue;
+    }
+    return { ok: false, to: email.to, message: withResendGuidance(extractErrorMessage(error)) };
   }
 }
 
