@@ -420,6 +420,34 @@ function NewsletterAdminPageContent() {
     );
   }
 
+  // Select everyone the most recent send of this kind ('custom' or 'weekly')
+  // didn't reach, so the same email can be sent again to just them.
+  // Addresses Resend has suppressed (bounced / marked spam) are left out.
+  async function selectLastFailedRecipients(kind) {
+    try {
+      const listRes = await fetch('/api/admin/send-logs?limit=20');
+      const list = await listRes.json();
+      const last = (list.items || []).find((item) => item.kind === kind);
+      if (!last) {
+        showToast('error', '没有找到上一次的发送记录');
+        return;
+      }
+      const detailRes = await fetch(`/api/admin/send-logs/${last.id}`);
+      const detail = await detailRes.json();
+      const failed = (detail.log?.recipients || [])
+        .filter((r) => r.status === 'failed' && !String(r.error || '').startsWith('Suppressed'))
+        .map((r) => String(r.email).toLowerCase());
+      if (failed.length === 0) {
+        showToast('success', `上一次发送（${last.subject}）没有需要补发的人`);
+        return;
+      }
+      setCustomSelectedEmails([...new Set(failed)]);
+      showToast('success', `已选中上次没收到的 ${failed.length} 位（${last.subject}），确认内容后点“发送给已选择客户”`);
+    } catch {
+      showToast('error', '读取发送记录失败，请重试');
+    }
+  }
+
   function toggleSelectAllFilteredRecipients(filteredRecipients) {
     const filteredEmails = filteredRecipients.map((item) => item.email);
     const allSelected = filteredEmails.length > 0 && filteredEmails.every((email) => customSelectedEmails.includes(email));
@@ -1264,6 +1292,13 @@ function NewsletterAdminPageContent() {
                             已选 {customSelectedEmails.length} 位
                           </span>
                         </p>
+                        <button
+                          type="button"
+                          onClick={() => selectLastFailedRecipients('custom')}
+                          className="px-3 py-1.5 rounded-lg border border-amber-400/40 text-amber-300 text-xs hover:bg-amber-400/10 transition-colors"
+                        >
+                          只选上次没收到的人
+                        </button>
                       </div>
 
                       <input
@@ -1817,6 +1852,13 @@ function NewsletterAdminPageContent() {
                         <p className="text-sm text-foreground/90">
                           单独发送对象（已选 {customSelectedEmails.length} 位）
                         </p>
+                        <button
+                          type="button"
+                          onClick={() => selectLastFailedRecipients('weekly')}
+                          className="px-3 py-1.5 rounded-lg border border-amber-400/40 text-amber-300 text-xs hover:bg-amber-400/10 transition-colors"
+                        >
+                          只选上次没收到的人
+                        </button>
                       </div>
 
                       <input
