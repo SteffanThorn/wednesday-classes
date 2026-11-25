@@ -10,7 +10,7 @@ import { appendBrandLogo, getCompanyLogoUrl } from '@/lib/email-branding';
 import { personalizeTextForRecipient } from '@/lib/email-personalization';
 import { escapeHtml } from '@/lib/html-escape';
 import { htmlToText } from '@/lib/html-to-text';
-import { buildCustomLetterHtml } from '@/lib/email-letter';
+import { buildCustomLetterHtml, kiaOra } from '@/lib/email-letter';
 import { getOptedOutEmails, unsubscribeHeaders, unsubscribePageUrl } from '@/lib/newsletter-unsubscribe';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -215,7 +215,6 @@ function normalizeRemainingClasses(value) {
 }
 
 function buildCustomEmailHtml({ userName, content, logoUrl, inlineImages = [], fileAttachments = [], videoUrl = null, unsubscribeUrl = '' }) {
-  const firstName = userName?.split(' ')[0] || 'Friend';
   const paragraphs = content
     .split('\n\n')
     .map((p) => p.trim())
@@ -274,7 +273,7 @@ ${inlineImages
           </tr>
           <tr>
             <td style="padding:30px 26px 16px;">
-              <p style="margin:0 0 20px;color:#4b5563;font-size:16px;line-height:1.7;">Hi ${firstName},</p>
+              <p style="margin:0 0 20px;color:#4b5563;font-size:16px;line-height:1.7;">${kiaOra(userName?.split(' ')[0])}</p>
               ${paragraphs}
               ${videoSection}
               ${imagesSection}

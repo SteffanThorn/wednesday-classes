@@ -11,7 +11,7 @@ import { getWeekSchedule } from '@/lib/newsletter-schedule';
 import { appendBrandLogo, getCompanyLogoUrl } from '@/lib/email-branding';
 import { personalizeTextForRecipient } from '@/lib/email-personalization';
 import { htmlToText } from '@/lib/html-to-text';
-import { buildWeeklyLetterHtml } from '@/lib/email-letter';
+import { buildWeeklyLetterHtml, kiaOra } from '@/lib/email-letter';
 import { getOptedOutEmails, unsubscribeHeaders, unsubscribePageUrl } from '@/lib/newsletter-unsubscribe';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -428,7 +428,6 @@ function buildNewsletterHtml({
   instructorNote,
   unsubscribeUrl,
 }) {
-  const firstName = userName?.split(' ')[0] || 'Friend';
 
   // Split "Wed ... · Thu ..." into two stacked, aligned lines instead of one long wrapped line
   const bodyFocusHtml = String(bodyFocus || '')
@@ -617,7 +616,7 @@ function buildNewsletterHtml({
               <div style="height: 18px;"></div>
 
               <p style="margin: 0 0 28px; color: #4b5563; font-size: 16px; line-height: 1.7;">
-                Hi ${firstName},
+                ${kiaOra(userName?.split(' ')[0])}
               </p>
 
               ${classSummariesHtml}
