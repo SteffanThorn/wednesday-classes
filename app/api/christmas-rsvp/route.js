@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 import { Resend } from 'resend';
 import { auth } from '@/auth';
 import dbConnect from '@/lib/mongodb';
-import ChristmasRsvp, { CHRISTMAS_CHOICES } from '@/lib/models/ChristmasRsvp';
+import ChristmasRsvp, { CHRISTMAS_CHOICES, CHRISTMAS_ATTENDANCE } from '@/lib/models/ChristmasRsvp';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { escapeHtml } from '@/lib/html-escape';
 import { getPublicBaseUrl } from '@/lib/email-branding';
@@ -17,21 +17,38 @@ const CHOICE_LABEL = {
   no: '这次不能参加 / Can’t join this time',
 };
 
+const ATTENDANCE_LABEL = {
+  gathering: '只参加圣诞活动（10:30–11:00）/ Christmas gathering only',
+  'yoga-and-gathering': '瑜伽课 + 圣诞活动 / Yoga class + gathering',
+};
+
+const isEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
+
 // Email Yuki as soon as someone replies, with the running totals.
-async function notifyAdmin({ name, choice, note, updated }) {
+async function notifyAdmin({ name, choice, note, email, attendance, partySize, updated }) {
   const to = process.env.ADMIN_EMAIL || process.env.COMPANY_EMAIL || 'innerlightyuki@gmail.com';
   const sender = (process.env.EMAIL_FROM_PRODUCTION || '').trim() || (process.env.EMAIL_FROM_LOCAL || '').trim() || 'onboarding@resend.dev';
 
-  const docs = await ChristmasRsvp.find({}).select('choice').lean();
+  const docs = await ChristmasRsvp.find({}).select('choice attendance partySize').lean();
+  const headcount = docs.reduce((sum, d) => sum + (d.choice === 'no' ? 0 : (d.partySize || 1)), 0);
   const counts = Object.fromEntries(CHRISTMAS_CHOICES.map((c) => [c, 0]));
   docs.forEach((d) => { counts[d.choice] += 1; });
-  const totals = `12月16日 ${counts.dec16} · 12月23日 ${counts.dec23} · 两天都可以 ${counts.either} · 不能参加 ${counts.no}（共 ${docs.length} 人）`;
+  const gatheringOnly = docs.filter((d) => d.attendance === 'gathering').length;
+  const yogaAndGathering = docs.filter((d) => d.attendance === 'yoga-and-gathering').length;
+  const totals = `12月16日 ${counts.dec16} · 12月23日 ${counts.dec23} · 两天都可以 ${counts.either} · 不能参加 ${counts.no}（共 ${docs.length} 人）`
+    + `｜只参加圣诞活动 ${gatheringOnly} · 瑜伽课+圣诞活动 ${yogaAndGathering}`
+    + `｜圣诞活动预计总人数（含家属朋友）${headcount}`;
   const adminUrl = `${getPublicBaseUrl()}/admin/christmas`;
   const when = new Date().toLocaleString('zh-CN', { timeZone: 'Pacific/Auckland', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
   const rows = [
     ['姓名 / Name', name],
     ['选择 / Answer', CHOICE_LABEL[choice]],
+    ...(choice !== 'no' ? [
+      ['参加方式 / Joining', ATTENDANCE_LABEL[attendance] || '-'],
+      ['圣诞活动人数 / People', `${partySize} 人${partySize > 1 ? `（含 ${partySize - 1} 位家属或朋友）` : ''}`],
+      ['邮箱 / Email', email || '-'],
+    ] : []),
     ['留言 / Note', note || '-'],
     ['提交时间 / Time', `${when}${updated ? '（更新了之前的回复）' : ''}`],
     ['目前统计 / Totals', totals],
@@ -66,7 +83,8 @@ async function ensureAdmin() {
 
 /**
  * POST /api/christmas-rsvp — public, no login.
- * Body: { name, choice: 'dec16' | 'dec23' | 'either' | 'no', note? }
+ * Body: { name, choice: 'dec16' | 'dec23' | 'either' | 'no', note?,
+ *         email + attendance: 'gathering' | 'yoga-and-gathering' (required unless choice is 'no') }
  * Replying again with the same name updates the earlier answer.
  */
 export async function POST(request) {
@@ -88,16 +106,29 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Please choose one of the options.' }, { status: 400 });
     }
 
+    // People who are coming also leave an email and how they'll join
+    const attending = choice !== 'no';
+    const email = attending ? String(body?.email || '').trim().toLowerCase().slice(0, 200) : '';
+    const attendance = attending ? String(body?.attendance || '') : '';
+    if (attending && !CHRISTMAS_ATTENDANCE.includes(attendance)) {
+      return NextResponse.json({ error: 'Please choose how you’d like to join.' }, { status: 400 });
+    }
+    if (attending && !isEmail(email)) {
+      return NextResponse.json({ error: 'Please enter a valid email address.' }, { status: 400 });
+    }
+    // Including themselves: 1–10 when coming, 0 when not
+    const partySize = attending ? Math.min(10, Math.max(1, Math.floor(Number(body?.partySize) || 1))) : 0;
+
     await dbConnect();
     const existing = await ChristmasRsvp.findOne({ nameKey: nameKey(name) }).lean();
     await ChristmasRsvp.updateOne(
       { nameKey: nameKey(name) },
-      { $set: { name, choice, note } },
+      { $set: { name, choice, note, email, attendance, partySize } },
       { upsert: true }
     );
 
     // Sent after the reply is saved; after() keeps it running on Vercel once the response is out
-    after(() => notifyAdmin({ name, choice, note, updated: Boolean(existing) })
+    after(() => notifyAdmin({ name, choice, note, email, attendance, partySize, updated: Boolean(existing) })
       .catch((err) => console.error('Christmas RSVP admin email failed:', err)));
 
     return NextResponse.json({ success: true, updated: Boolean(existing) });
@@ -116,14 +147,23 @@ export async function GET() {
   const docs = await ChristmasRsvp.find({}).sort({ updatedAt: -1 }).lean();
   const counts = Object.fromEntries(CHRISTMAS_CHOICES.map((c) => [c, 0]));
   docs.forEach((d) => { counts[d.choice] += 1; });
+  const attendanceCounts = Object.fromEntries(CHRISTMAS_ATTENDANCE.map((a) => [a, 0]));
+  docs.forEach((d) => { if (attendanceCounts[d.attendance] !== undefined) attendanceCounts[d.attendance] += 1; });
+  // Everyone expected at the gathering, family and friends included (older replies count as 1)
+  const headcount = docs.reduce((sum, d) => sum + (d.choice === 'no' ? 0 : (d.partySize || 1)), 0);
 
   return NextResponse.json({
     success: true,
     counts,
+    attendanceCounts,
+    headcount,
     replies: docs.map((d) => ({
       id: d._id.toString(),
       name: d.name,
       choice: d.choice,
+      email: d.email || '',
+      attendance: d.attendance || '',
+      partySize: d.choice === 'no' ? 0 : (d.partySize || 1),
       note: d.note || '',
       createdAt: d.createdAt,
       updatedAt: d.updatedAt,

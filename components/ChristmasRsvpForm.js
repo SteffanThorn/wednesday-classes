@@ -24,6 +24,18 @@ const OPTIONS = [
   { value: 'no', title: 'Sorry, I won’t be able to join this time', Icon: Leaf },
 ];
 
+// Asked only of people who are coming
+const ATTENDANCE = [
+  { value: 'gathering', title: 'Christmas gathering only', sub: '10:30 – 11:00 am' },
+  { value: 'yoga-and-gathering', title: 'Yoga class + Christmas gathering', sub: 'Join the class, then stay for the celebration' },
+];
+const ATTENDANCE_THANKS = {
+  gathering: 'We’ll see you for the Christmas gathering at 10:30 am.',
+  'yoga-and-gathering': 'We’ll see you for yoga, followed by the Christmas gathering.',
+};
+
+const isEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(v).trim());
+
 const THANKS = {
   dec16: 'See you on Wednesday 16 December!',
   dec23: 'See you on Wednesday 23 December!',
@@ -35,21 +47,37 @@ export default function ChristmasRsvpForm({ initialChoice = '' }) {
   const [choice, setChoice] = useState(initialChoice);
   const [name, setName] = useState('');
   const [note, setNote] = useState('');
+  const [email, setEmail] = useState('');
+  const [attendance, setAttendance] = useState('');
+  // People coming to the Christmas gathering, including themselves (family / friends welcome)
+  const [partySize, setPartySize] = useState(1);
   const [state, setState] = useState('idle'); // idle | sending | done
   const [error, setError] = useState('');
   const [updated, setUpdated] = useState(false);
 
+  // Email and how they'll join are only asked of people who are coming
+  const attending = Boolean(choice) && choice !== 'no';
+
   const submit = async (e) => {
     e.preventDefault();
+    if (!choice) return setError('Please choose one of the date options above.');
+    if (attending && !attendance) return setError('Please choose how you’d like to join.');
     if (!name.trim()) return setError('Please enter your name.');
-    if (!choice) return setError('Please choose one of the options above.');
+    if (attending && !isEmail(email)) return setError('Please enter a valid email address so we can send you the details.');
     setState('sending');
     setError('');
     try {
       const res = await fetch('/api/christmas-rsvp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, choice, note }),
+        body: JSON.stringify({
+          name,
+          choice,
+          note,
+          email: attending ? email.trim() : '',
+          attendance: attending ? attendance : '',
+          partySize: attending ? partySize : 0,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Something went wrong. Please try again.');
@@ -96,6 +124,14 @@ export default function ChristmasRsvpForm({ initialChoice = '' }) {
               {updated ? 'Your answer has been updated' : `Thank you, ${name.trim().split(' ')[0]}!`}
             </h2>
             <p className="mt-3" style={{ color: C.muted }}>{THANKS[choice]}</p>
+            {attending && ATTENDANCE_THANKS[attendance] && (
+              <p className="mt-1" style={{ color: C.muted }}>{ATTENDANCE_THANKS[attendance]}</p>
+            )}
+            {attending && partySize > 1 && (
+              <p className="mt-1" style={{ color: C.muted }}>
+                We&rsquo;ve noted {partySize} people for the Christmas gathering. Your family and friends are very welcome!
+              </p>
+            )}
             <button
               type="button"
               onClick={() => setState('idle')}
@@ -153,6 +189,78 @@ export default function ChristmasRsvpForm({ initialChoice = '' }) {
               </div>
             </fieldset>
 
+            {attending && (
+              <fieldset className="mt-8">
+                <legend className="w-full text-center font-medium">How would you like to join?</legend>
+                <div className="mt-4 grid grid-cols-1 min-[420px]:grid-cols-2 gap-3">
+                  {ATTENDANCE.map(({ value, title, sub }) => {
+                    const selected = attendance === value;
+                    return (
+                      <label
+                        key={value}
+                        className="flex items-center gap-3 rounded-2xl border px-4 py-4 cursor-pointer transition-colors"
+                        style={{ borderColor: selected ? C.gold : 'rgba(201,165,74,0.45)', background: selected ? C.goldSoft : 'transparent' }}
+                      >
+                        <input
+                          type="radio"
+                          name="attendance"
+                          value={value}
+                          checked={selected}
+                          onChange={() => { setAttendance(value); setError(''); }}
+                          className="sr-only"
+                        />
+                        <span className="flex-1">
+                          <span className="block text-lg leading-snug font-medium">{title}</span>
+                          <span className="block text-sm" style={{ color: C.muted }}>{sub}</span>
+                        </span>
+                        <span
+                          className="w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0"
+                          style={{ borderColor: C.gold, background: selected ? C.gold : 'transparent' }}
+                          aria-hidden="true"
+                        >
+                          {selected && <Check className="w-3.5 h-3.5" style={{ color: C.bg }} />}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                {/* How many people for the gathering, including family / friends */}
+                <div className="mt-6 rounded-2xl border px-4 py-4" style={{ borderColor: 'rgba(201,165,74,0.45)' }}>
+                  <p className="font-medium">Bringing family or friends?</p>
+                  <p className="mt-1 text-sm" style={{ color: C.muted }}>
+                    Let us know how many people will come to the Christmas gathering, including you.
+                  </p>
+                  <div className="mt-3 flex items-center justify-center gap-5">
+                    <button
+                      type="button"
+                      onClick={() => setPartySize((n) => Math.max(1, n - 1))}
+                      disabled={partySize <= 1}
+                      aria-label="One fewer person"
+                      className="w-11 h-11 rounded-full border text-2xl leading-none disabled:opacity-40"
+                      style={{ borderColor: C.gold, color: C.gold }}
+                    >
+                      &minus;
+                    </button>
+                    <span className="min-w-[7rem] text-center" aria-live="polite">
+                      <span className="block text-3xl" style={{ ...serif, fontWeight: 600 }}>{partySize}</span>
+                      <span className="block text-sm" style={{ color: C.muted }}>{partySize === 1 ? 'person (just me)' : 'people'}</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPartySize((n) => Math.min(10, n + 1))}
+                      disabled={partySize >= 10}
+                      aria-label="One more person"
+                      className="w-11 h-11 rounded-full border text-2xl leading-none disabled:opacity-40"
+                      style={{ borderColor: C.gold, color: C.gold }}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              </fieldset>
+            )}
+
             <div className="mt-6 space-y-4">
               <label className="block">
                 <span className="block text-sm mb-1.5" style={{ color: C.muted }}>Your name</span>
@@ -167,6 +275,22 @@ export default function ChristmasRsvpForm({ initialChoice = '' }) {
                   style={{ background: C.cream, color: C.ink, '--tw-ring-color': C.gold }}
                 />
               </label>
+              {attending && (
+                <label className="block">
+                  <span className="block text-sm mb-1.5" style={{ color: C.muted }}>Your email (so we can send you the final details)</span>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => { setEmail(e.target.value); setError(''); }}
+                    maxLength={200}
+                    autoComplete="email"
+                    inputMode="email"
+                    placeholder="e.g. sarah@example.com"
+                    className="w-full rounded-xl px-4 py-3 text-base outline-none focus:ring-2"
+                    style={{ background: C.cream, color: C.ink, '--tw-ring-color': C.gold }}
+                  />
+                </label>
+              )}
               <label className="block">
                 <span className="block text-sm mb-1.5" style={{ color: C.muted }}>A note for Yuki (optional)</span>
                 <textarea
@@ -174,7 +298,9 @@ export default function ChristmasRsvpForm({ initialChoice = '' }) {
                   onChange={(e) => setNote(e.target.value)}
                   maxLength={300}
                   rows={3}
-                  placeholder="e.g. I'll bring some ginger cookies!"
+                  placeholder={attending && partySize > 1
+                    ? "e.g. I'm bringing my husband Tom and daughter Lily. I'll bring ginger cookies!"
+                    : "e.g. I'll bring some ginger cookies!"}
                   className="w-full rounded-xl px-4 py-3 text-base outline-none focus:ring-2 resize-none"
                   style={{ background: C.cream, color: C.ink, '--tw-ring-color': C.gold }}
                 />
