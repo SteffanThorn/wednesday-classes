@@ -15,6 +15,10 @@ const OPTIONS = [
   { value: 'no', label: '这次不能参加 / Can’t join', tone: 'text-muted-foreground border-glow-cyan/15 bg-card/40' },
 ];
 const LABEL = Object.fromEntries(OPTIONS.map((o) => [o.value, o.label]));
+const ATTENDANCE_LABEL = {
+  gathering: '只参加圣诞活动（10:30–11:00）',
+  'yoga-and-gathering': '瑜伽课 + 圣诞活动',
+};
 
 export default function AdminChristmasPage() {
   const { data: session, status } = useSession();
@@ -130,6 +134,16 @@ export default function AdminChristmasPage() {
                 共 {total} 人回复。可以来 12月16日：<span className="text-glow-cyan">{coming16}</span> 人 · 可以来 12月23日：<span className="text-purple-300">{coming23}</span> 人（都包含“两天都可以”的人）
               </p>
             )}
+            {data && (
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                {Object.entries(ATTENDANCE_LABEL).map(([value, label]) => (
+                  <div key={value} className="rounded-xl border border-amber-400/30 bg-amber-500/10 text-amber-200 p-4">
+                    <p className="text-xs">{label}</p>
+                    <p className="text-3xl font-light mt-1">{data.attendanceCounts?.[value] || 0}</p>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Replies */}
             <div className="mt-6 rounded-2xl border border-glow-cyan/20 bg-card/60 overflow-x-auto">
@@ -143,6 +157,8 @@ export default function AdminChristmasPage() {
                     <tr className="border-b border-glow-cyan/20 bg-glow-cyan/5 text-left text-glow-cyan">
                       <th className="px-4 py-3 font-medium">姓名 / Name</th>
                       <th className="px-4 py-3 font-medium">选择 / Answer</th>
+                      <th className="px-4 py-3 font-medium">参加方式 / Joining</th>
+                      <th className="px-4 py-3 font-medium">邮箱 / Email</th>
                       <th className="px-4 py-3 font-medium">留言 / Note</th>
                       <th className="px-4 py-3 font-medium whitespace-nowrap">时间 / When</th>
                       <th className="px-4 py-3" />
@@ -153,6 +169,10 @@ export default function AdminChristmasPage() {
                       <tr key={r.id} className="border-b border-glow-cyan/10">
                         <td className="px-4 py-3 text-foreground">{r.name}</td>
                         <td className="px-4 py-3 whitespace-nowrap">{LABEL[r.choice]}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">{ATTENDANCE_LABEL[r.attendance] || '-'}</td>
+                        <td className="px-4 py-3 text-xs break-all">
+                          {r.email ? <a href={`mailto:${r.email}`} className="text-glow-cyan hover:underline">{r.email}</a> : '-'}
+                        </td>
                         <td className="px-4 py-3 text-muted-foreground max-w-xs">{r.note || '-'}</td>
                         <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">
                           {new Date(r.updatedAt).toLocaleString('en-NZ', { timeZone: 'Pacific/Auckland', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
