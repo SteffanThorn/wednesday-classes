@@ -135,13 +135,17 @@ export default function AdminChristmasPage() {
               </p>
             )}
             {data && (
-              <div className="mt-3 grid grid-cols-2 gap-3">
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {Object.entries(ATTENDANCE_LABEL).map(([value, label]) => (
                   <div key={value} className="rounded-xl border border-amber-400/30 bg-amber-500/10 text-amber-200 p-4">
                     <p className="text-xs">{label}</p>
                     <p className="text-3xl font-light mt-1">{data.attendanceCounts?.[value] || 0}</p>
                   </div>
                 ))}
+                <div className="rounded-xl border border-rose-400/30 bg-rose-500/10 text-rose-200 p-4">
+                  <p className="text-xs">圣诞活动预计总人数（含家属朋友）</p>
+                  <p className="text-3xl font-light mt-1">{data.headcount || 0}</p>
+                </div>
               </div>
             )}
 
@@ -158,6 +162,7 @@ export default function AdminChristmasPage() {
                       <th className="px-4 py-3 font-medium">姓名 / Name</th>
                       <th className="px-4 py-3 font-medium">选择 / Answer</th>
                       <th className="px-4 py-3 font-medium">参加方式 / Joining</th>
+                      <th className="px-4 py-3 font-medium whitespace-nowrap">人数 / People</th>
                       <th className="px-4 py-3 font-medium">邮箱 / Email</th>
                       <th className="px-4 py-3 font-medium">留言 / Note</th>
                       <th className="px-4 py-3 font-medium whitespace-nowrap">时间 / When</th>
@@ -170,6 +175,9 @@ export default function AdminChristmasPage() {
                         <td className="px-4 py-3 text-foreground">{r.name}</td>
                         <td className="px-4 py-3 whitespace-nowrap">{LABEL[r.choice]}</td>
                         <td className="px-4 py-3 whitespace-nowrap">{ATTENDANCE_LABEL[r.attendance] || '-'}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          {r.partySize ? `${r.partySize} 人${r.partySize > 1 ? `（+${r.partySize - 1}）` : ''}` : '-'}
+                        </td>
                         <td className="px-4 py-3 text-xs break-all">
                           {r.email ? <a href={`mailto:${r.email}`} className="text-glow-cyan hover:underline">{r.email}</a> : '-'}
                         </td>

@@ -49,6 +49,8 @@ export default function ChristmasRsvpForm({ initialChoice = '' }) {
   const [note, setNote] = useState('');
   const [email, setEmail] = useState('');
   const [attendance, setAttendance] = useState('');
+  // People coming to the Christmas gathering, including themselves (family / friends welcome)
+  const [partySize, setPartySize] = useState(1);
   const [state, setState] = useState('idle'); // idle | sending | done
   const [error, setError] = useState('');
   const [updated, setUpdated] = useState(false);
@@ -74,6 +76,7 @@ export default function ChristmasRsvpForm({ initialChoice = '' }) {
           note,
           email: attending ? email.trim() : '',
           attendance: attending ? attendance : '',
+          partySize: attending ? partySize : 0,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -123,6 +126,11 @@ export default function ChristmasRsvpForm({ initialChoice = '' }) {
             <p className="mt-3" style={{ color: C.muted }}>{THANKS[choice]}</p>
             {attending && ATTENDANCE_THANKS[attendance] && (
               <p className="mt-1" style={{ color: C.muted }}>{ATTENDANCE_THANKS[attendance]}</p>
+            )}
+            {attending && partySize > 1 && (
+              <p className="mt-1" style={{ color: C.muted }}>
+                We&rsquo;ve noted {partySize} people for the Christmas gathering. Your family and friends are very welcome!
+              </p>
             )}
             <button
               type="button"
@@ -216,6 +224,40 @@ export default function ChristmasRsvpForm({ initialChoice = '' }) {
                     );
                   })}
                 </div>
+
+                {/* How many people for the gathering, including family / friends */}
+                <div className="mt-6 rounded-2xl border px-4 py-4" style={{ borderColor: 'rgba(201,165,74,0.45)' }}>
+                  <p className="font-medium">Bringing family or friends?</p>
+                  <p className="mt-1 text-sm" style={{ color: C.muted }}>
+                    Let us know how many people will come to the Christmas gathering, including you.
+                  </p>
+                  <div className="mt-3 flex items-center justify-center gap-5">
+                    <button
+                      type="button"
+                      onClick={() => setPartySize((n) => Math.max(1, n - 1))}
+                      disabled={partySize <= 1}
+                      aria-label="One fewer person"
+                      className="w-11 h-11 rounded-full border text-2xl leading-none disabled:opacity-40"
+                      style={{ borderColor: C.gold, color: C.gold }}
+                    >
+                      &minus;
+                    </button>
+                    <span className="min-w-[7rem] text-center" aria-live="polite">
+                      <span className="block text-3xl" style={{ ...serif, fontWeight: 600 }}>{partySize}</span>
+                      <span className="block text-sm" style={{ color: C.muted }}>{partySize === 1 ? 'person (just me)' : 'people'}</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPartySize((n) => Math.min(10, n + 1))}
+                      disabled={partySize >= 10}
+                      aria-label="One more person"
+                      className="w-11 h-11 rounded-full border text-2xl leading-none disabled:opacity-40"
+                      style={{ borderColor: C.gold, color: C.gold }}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
               </fieldset>
             )}
 
@@ -256,7 +298,9 @@ export default function ChristmasRsvpForm({ initialChoice = '' }) {
                   onChange={(e) => setNote(e.target.value)}
                   maxLength={300}
                   rows={3}
-                  placeholder="e.g. I'll bring some ginger cookies!"
+                  placeholder={attending && partySize > 1
+                    ? "e.g. I'm bringing my husband Tom and daughter Lily. I'll bring ginger cookies!"
+                    : "e.g. I'll bring some ginger cookies!"}
                   className="w-full rounded-xl px-4 py-3 text-base outline-none focus:ring-2 resize-none"
                   style={{ background: C.cream, color: C.ink, '--tw-ring-color': C.gold }}
                 />
